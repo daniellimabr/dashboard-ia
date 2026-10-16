@@ -1,5 +1,5 @@
 import { screen } from "@testing-library/react";
-import { describe, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { renderAt } from "./test-utils";
 
 describe("routes", () => {
@@ -16,6 +16,6 @@ describe("routes", () => {
 
   it("redirects a project to its chats tab", () => {
     renderAt("/p/dashboard-ia");
-    screen.getByRole("heading", { level: 2, name: "Chats" });
+    expect(screen.getByRole("link", { name: "Chats" }).getAttribute("aria-current")).toBe("page");
   });
 });
