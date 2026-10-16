@@ -1,0 +1,33 @@
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.row {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.title {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.id {
+  font-family: var(--mono);
+  color: var(--muted);
+}
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 6px 0 0 24px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.meta strong {
+  color: var(--text);
+}
