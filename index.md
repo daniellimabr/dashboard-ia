@@ -14,6 +14,7 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `docs/backlog.md` — Backlog — Dashboard IA
 - `docs/prd/.gitkeep` — (sem descrição)
 - `docs/roadmap.md` — Roadmap — Dashboard IA
+- `docs/specs/0001-backend-dados-e-api.md` — Spec 0001 — Backend: dados, eventos e API
 - `docs/sprints/.gitkeep` — (sem descrição)
 - `docs/sprints/S01-plan.md` — S01 — Draft do front do painel
 - `docs/sprints/S02-plan.md` — S02 — Design do front do painel
@@ -32,6 +33,8 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `src/components/TaskList.tsx` — (sem descrição)
 - `src/data/mock.ts` — (sem descrição)
 - `src/data/types.ts` — Shapes mirror the future harness events (see docs/adr/0001-arquitetura.md).
+- `src/lib/progress.test.ts` — (sem descrição)
+- `src/lib/progress.ts` — (sem descrição)
 - `src/lib/useNow.ts` — (sem descrição)
 - `src/lib/useProject.ts` — (sem descrição)
 - `src/main.tsx` — (sem descrição)
