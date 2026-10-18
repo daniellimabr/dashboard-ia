@@ -1,0 +1,457 @@
+<title>Painel IA — três direções</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600&display=swap">
+<style>
+/* Layout: app escuro de propósito (direção A). Barra fixa com as 3 telas + Ociosos; cada tela usa os mesmos tokens. */
+:root{
+  --bg:#0d1117;--fg:#dfe6ee;--muted:#7d8a99;--line:#222b36;--card:#121922;--accent:#4cc2ff;--r:2px;
+  --run:#4cc2ff;--warn:#f0b429;--bad:#ff5d5d;--ok:#3ddc97;--g1:#17694a;--g2:#3ddc97;--tl:#4cc2ff;--cl:#f39a55;--rv:#a98bff;
+  --f-ui:"IBM Plex Sans Condensed",system-ui,sans-serif;--f-mono:"IBM Plex Mono",ui-monospace,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-ui);margin:0}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+button,a{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono,.lbl,h3{font-family:var(--f-mono)}
+.muted{color:var(--muted)}
+.num{font-variant-numeric:tabular-nums}
+.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+.nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line);
+  padding-block:10px;display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center}
+.brand{font:600 13px var(--f-mono);letter-spacing:.1em;text-transform:uppercase}
+.tabs{display:flex;gap:2px;flex-wrap:wrap}
+.tabs button{border:1px solid transparent;background:transparent;padding:6px 12px;font-size:14px;color:var(--muted);border-radius:var(--r)}
+.tabs button[aria-selected="true"]{color:var(--fg);border-color:var(--line);background:var(--card);box-shadow:inset 0 -2px 0 var(--accent)}
+.tabs .idle-tab{margin-left:8px;font-size:13px}
+.nav .limits{margin-left:auto}
+main{padding-block:20px 40px}
+.draftnote{font-size:12px;color:var(--muted);margin:0 0 16px}
+
+.limits{display:flex;gap:16px;flex-wrap:wrap}
+.lim{display:grid;gap:3px;min-width:140px}
+.lbl{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.bar{height:6px;border-radius:1px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent)}
+.bar i.warn{background:var(--warn)} .bar i.bad{background:var(--bad)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap;border:1px solid currentColor}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.p-run{color:var(--run)} .p-wait{color:var(--warn)} .p-bad{color:var(--bad)} .p-ok{color:var(--ok)}
+.live::before{animation:pulse 1.4s infinite}
+@keyframes pulse{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.live::before{animation:none}}
+svg.spark{display:block;width:140px;max-width:100%;height:36px;overflow:visible;justify-self:end}
+h3{margin:0 0 8px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:500}
+
+/* colunas por projeto (Bem-vindo e Sala de controle) */
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:1px;background:var(--line);border:1px solid var(--line)}
+.col{background:var(--card);padding:16px;display:grid;gap:16px;align-content:start;min-width:0}
+.col header{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.col h2{margin:0;font-size:20px;font-weight:600}
+.alert{border-left:3px solid var(--bad);background:color-mix(in srgb,var(--bad) 10%,transparent);padding:8px 10px;font-size:13px;display:grid;gap:4px}
+.alert.w{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 10%,transparent)}
+.alert b{font-weight:600}
+.tasks{display:flex;gap:3px}
+.tasks span{flex:1;height:22px;display:grid;place-items:center;font:500 10px var(--f-mono);background:var(--line);color:var(--muted)}
+.tasks .done{background:color-mix(in srgb,var(--ok) 30%,var(--card));color:var(--fg)}
+.tasks .running{background:var(--run);color:#06121c}
+.tasks .failed{background:var(--bad);color:#1b0505}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td{padding:5px 0;border-bottom:1px solid var(--line);vertical-align:middle}
+td.r{text-align:right}
+.ctx{width:56px}
+.money{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;align-items:end}
+.money strong{font:600 22px var(--f-mono)}
+.acc-btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.acc-btns button{border:1px solid var(--line);background:transparent;padding:5px 10px;font-size:13px;border-radius:var(--r);display:inline-flex;gap:6px;align-items:center}
+.acc-btns button::after{content:"▾";font-size:10px;color:var(--muted);transition:transform .15s}
+.acc-btns button[aria-expanded="true"]{border-color:var(--accent);color:var(--accent)}
+.acc-btns button[aria-expanded="true"]::after{transform:rotate(180deg);color:var(--accent)}
+.acc{border:1px solid var(--line);border-top:2px solid var(--accent);padding:10px 12px;margin-top:8px;display:grid;gap:10px;font-size:13px}
+.acc .goal{font-size:15px;font-weight:500;margin:0;line-height:1.4}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0}
+.kv dt{color:var(--muted)} .kv dd{margin:0;text-align:right;font-family:var(--f-mono);font-size:12px}
+.trow{display:grid;grid-template-columns:16px 1fr;gap:2px 8px;padding:6px 0;border-bottom:1px solid var(--line)}
+.trow:last-child{border-bottom:0}
+.trow .ic{font-family:var(--f-mono)}
+.trow .sub{grid-column:2;display:flex;flex-wrap:wrap;gap:4px 10px;font:11px var(--f-mono);color:var(--muted)}
+@media (prefers-reduced-motion:reduce){.acc-btns button::after{transition:none}}
+/* acordeão com % concluído (modelo do print) */
+.vars{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-bottom:14px;font-size:13px}
+.vars .seg{display:inline-flex;border:1px solid var(--line)}
+.vars .seg button{border:0;background:transparent;color:var(--muted);padding:6px 12px;font-size:13px}
+.vars .seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.trk{display:grid;gap:8px;margin-top:12px}
+.row{border:1px solid var(--line);background:var(--bg)}
+.kids{border-top:1px solid var(--line)}
+.kids .row{border:0;border-bottom:1px solid var(--line);background:transparent}
+.kids .row:last-child{border-bottom:0}
+.rh{width:100%;text-align:left;background:transparent;border:0;padding:10px 12px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;color:inherit;align-items:start}
+button.rh:hover{background:color-mix(in srgb,var(--fg) 4%,transparent)}
+.rt{font-weight:600;font-size:14px;min-width:0}
+.rt small{display:block;font-weight:400;color:var(--muted);font-size:12px;margin-top:2px;line-height:1.35}
+button.rh .rt::before{content:"▸ ";color:var(--muted)}
+button.rh[aria-expanded="true"] .rt::before{content:"▾ ";color:var(--accent)}
+.rr{font:12px var(--f-mono);color:var(--muted);text-align:right;white-space:nowrap}
+.rr b{color:var(--fg);font-size:14px;margin-left:6px}
+.rc{display:flex;flex-wrap:wrap;gap:4px;min-width:0}
+.rb{font:11px var(--f-mono);color:var(--muted);text-align:right;align-self:center;white-space:nowrap}
+.pbar{grid-column:1/-1;height:5px;background:var(--line);border-radius:3px;overflow:hidden}
+/* a cor na ponta da barra mostra a completude: o gradiente cobre a largura toda e é recortado no % */
+.pbar i{display:block;height:100%;width:100%;background:var(--grad)}
+.grad-a{--grad:linear-gradient(90deg,#c9921c 0%,#f2dc6b 50%,#3ddc97 100%)}
+.grad-b{--grad:linear-gradient(90deg,#d6f5e5 0%,#8fe8bf 50%,#22b974 100%)}
+/* mini-gantt: posição = plano da sprint; cor = etapa; intensidade = % */
+.gantt{display:grid;grid-template-columns:64px minmax(0,1fr);margin-top:4px}
+.glabels div,.grow{height:18px}
+.glabels div{font:10px var(--f-mono);color:var(--muted);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.glabels b{color:var(--fg);font-weight:500}
+.gtrack{position:relative;background-image:repeating-linear-gradient(90deg,transparent 0 calc(25% - 1px),var(--line) calc(25% - 1px) 25%)}
+.grow{position:relative}
+.gbar{position:absolute;top:4px;height:10px;border-radius:2px}
+.gbar.todo{border:1px dashed var(--muted)}
+.gtrack svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.gnow{position:absolute;top:-4px;bottom:0;width:1px;background:var(--bad)}
+.gnow::after{content:"agora";position:absolute;top:-10px;left:3px;font:9px var(--f-mono);color:var(--bad)}
+.av{display:inline-grid;place-items:center;min-width:22px;height:18px;padding:0 4px;margin-right:6px;border-radius:9px;font:600 9px var(--f-mono);vertical-align:1px;border:1px solid var(--line);color:var(--muted)}
+.av.on{border-color:var(--run);color:#06121c;background:var(--run);box-shadow:0 0 0 0 var(--run);animation:ring 1.6s infinite}
+@keyframes ring{70%{box-shadow:0 0 0 5px transparent}}
+@media (prefers-reduced-motion:reduce){.av.on{animation:none}}
+.ctog{display:flex;align-items:center;gap:6px;width:100%;background:transparent;border:0;padding:0;text-align:left}
+.ctog::before{content:"▾";font-size:10px;color:var(--accent);margin-bottom:8px}
+.ctog[aria-expanded="false"]::before{content:"▸";color:var(--muted)}
+.lane-h .ctog::before{margin-bottom:0}
+.times{margin-top:12px;border:1px solid var(--line);font-family:var(--f-mono);table-layout:fixed}
+.times caption{text-align:left;font:500 10px var(--f-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding-bottom:6px}
+.times th{font:500 10px var(--f-mono);color:var(--muted);text-align:left;padding:6px 10px;border-bottom:1px solid var(--line);background:var(--bg)}
+.times td{font-size:15px;font-weight:600;padding:8px 10px;border:0}
+.times td .muted{font-size:11px;font-weight:400;display:block}
+.gkey{display:flex;gap:10px;flex-wrap:wrap;font:10px var(--f-mono);color:var(--muted);margin-top:6px}
+.gkey span::before{content:"";display:inline-block;width:10px;height:6px;border-radius:1px;margin-right:4px;background:var(--c)}
+.gradkey{display:inline-block;width:90px;height:6px;border-radius:3px;background:var(--grad);vertical-align:middle;margin:0 6px}
+.wv{--wc:var(--muted)} .wv0{--wc:#4cc2ff} .wv1{--wc:#c77dff} .wv2{--wc:#f39a55} .wv3{--wc:#ff7eb6}
+.wa .row.wv{background:color-mix(in srgb,var(--wc) 8%,transparent);box-shadow:inset 3px 0 0 var(--wc)}
+.wb .row.wv{background:color-mix(in srgb,var(--wc) 15%,transparent)}
+.wb .row.wv+.row.wv:not(.same){border-top:2px solid var(--bg)}
+.chip.w{background:color-mix(in srgb,var(--wc) 25%,transparent);color:var(--wc)}
+.wlegend{display:flex;gap:12px;flex-wrap:wrap;padding:6px 12px;font:11px var(--f-mono);color:var(--muted);border-bottom:1px solid var(--line)}
+.wlegend span::before{content:"";display:inline-block;width:10px;height:10px;margin-right:5px;vertical-align:-1px;background:var(--wc)}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line);border-bottom:1px solid var(--line)}
+.stats div{background:var(--card);padding:8px 12px;display:grid;gap:2px}
+.stats b{font:600 15px var(--f-mono)}
+.stats small{color:var(--muted);font-size:11px}
+.when{padding:8px 12px;font:12px var(--f-mono);color:var(--muted);border-bottom:1px solid var(--line)}
+.lv1>.rh .pbar{height:8px}
+.kids .lv2>.rh{padding-left:24px}
+.kids .lv3>.rh{padding-left:38px}
+.chip{font:500 10px var(--f-mono);padding:2px 6px;border-radius:3px;background:var(--line);color:var(--muted);white-space:nowrap}
+.chip.ok{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+.chip.run{background:color-mix(in srgb,var(--run) 16%,transparent);color:var(--run)}
+.chip.bad{background:color-mix(in srgb,var(--bad) 16%,transparent);color:var(--bad)}
+
+/* Bem-vindo */
+.hello{display:grid;gap:6px;margin-bottom:18px;max-width:75ch}
+.hello h1{margin:0;font-size:28px;font-weight:600;text-wrap:balance}
+.hello p{margin:0;color:var(--muted)}
+.next{border:1px solid var(--accent);padding:10px 12px;display:grid;gap:8px}
+.next .lbl{color:var(--accent)}
+.next strong{font-size:16px;font-weight:600}
+.next button{justify-self:start;background:var(--accent);color:#06121c;border:0;padding:6px 14px;font-weight:600;border-radius:var(--r)}
+.since{margin:0;padding:0;list-style:none;display:grid;gap:4px;font-size:13px}
+.since li{display:grid;grid-template-columns:16px 1fr;gap:6px}
+.since .k{font-family:var(--f-mono)}
+.where{font-size:14px;line-height:1.45;margin:0}
+.docs{margin:0;padding:0;list-style:none;display:grid;gap:2px;font-size:13px}
+.docs li{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid var(--line)}
+.docs .t{font:500 10px var(--f-mono);color:var(--muted);text-transform:uppercase;letter-spacing:.08em;min-width:56px;display:inline-block}
+.backlog{margin:0;padding-left:18px;font-size:13px;display:grid;gap:3px}
+
+/* Linha do tempo */
+.tlbar{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between;margin-bottom:10px}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.legend span::before{content:"";display:inline-block;width:14px;height:6px;margin-right:6px;vertical-align:middle;background:var(--c)}
+.range{display:inline-flex;border:1px solid var(--line)}
+.range button{border:0;background:transparent;color:var(--muted);padding:5px 10px;font-size:12px}
+.range button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.scroll{overflow-x:auto;border:1px solid var(--line);background:var(--card)}
+.tl{min-width:760px;display:grid;grid-template-columns:220px 1fr}
+.axis{grid-column:2;position:relative;height:26px;border-bottom:1px solid var(--line)}
+.axis span{position:absolute;top:6px;font:11px var(--f-mono);color:var(--muted);transform:translateX(-50%)}
+.lane-h{padding:12px 14px;border-bottom:1px solid var(--line);display:grid;gap:6px;align-content:start}
+.lane-h h2{margin:0;font-size:16px;font-weight:600}
+.lane-h .meta{font-size:12px;color:var(--muted)}
+.lane{position:relative;border-bottom:1px solid var(--line);border-left:1px solid var(--line);
+  background-image:repeating-linear-gradient(90deg,transparent 0 calc(100%/6 - 1px),var(--line) calc(100%/6 - 1px) calc(100%/6))}
+.track{position:absolute;left:0;right:0;height:14px}
+.seg-b{position:absolute;height:100%;border-radius:1px;background:var(--c)}
+.seg-b.open{background:repeating-linear-gradient(45deg,var(--c) 0 6px,color-mix(in srgb,var(--c) 55%,transparent) 6px 12px)}
+.seg-b.adhoc{background:transparent;border:1px dashed var(--c)}
+.seg-b.adhoc.open{background:repeating-linear-gradient(45deg,color-mix(in srgb,var(--c) 35%,transparent) 0 6px,transparent 6px 12px)}
+.legend .adhoc-key::before{background:transparent;outline:1px dashed var(--muted);outline-offset:-1px}
+.who{position:absolute;font-size:10px;color:var(--muted);transform:translateY(-12px)}
+.mk{position:absolute;top:4px;transform:translateX(-50%);font-size:11px;white-space:nowrap;padding:1px 6px;background:var(--card);border:1px solid var(--c);color:var(--c);font-weight:600}
+.nowline{position:absolute;top:0;bottom:0;width:2px;background:var(--bad);z-index:2}
+.nowline::after{content:"agora";position:absolute;top:-1px;left:4px;font:600 10px var(--f-mono);color:var(--bad)}
+
+/* Ociosos */
+.idle{display:grid;gap:10px;max-width:880px}
+.idle .it{display:grid;grid-template-columns:1fr auto auto;gap:16px;align-items:center;background:var(--card);border:1px solid var(--line);padding:12px 14px}
+.idle .it h2{margin:0;font-size:16px}
+.idle .it small{color:var(--muted);display:block}
+.idle .it button{border:1px solid var(--line);background:transparent;padding:6px 12px;font-size:13px}
+.idle .note{font-size:13px;color:var(--muted);max-width:65ch;margin:0}
+@media (max-width:560px){.idle .it{grid-template-columns:1fr}.nav .limits{margin-left:0}}
+</style>
+
+<nav class="nav wrap">
+  <span class="brand">Painel IA</span>
+  <div class="tabs" role="tablist" id="tabs"></div>
+  <div class="limits" id="limits"></div>
+</nav>
+<main class="wrap" id="app"></main>
+
+<script>
+const NOW = 14 * 60 + 50; // 14:50
+const LIMITS = { h5: { pct: 62, reset: "renova em 1 h 40 min" }, week: { pct: 41, reset: "renova sex 09:00" } };
+const projects = [
+  { name: "Dashboard IA", sprint: "S02", title: "Layout da tela principal", phase: ["Execução", "p-run live"],
+    tasks: [["T01","done","Base visual: tokens, fontes e menu das 3 telas","tech-lead","30 min","13:40","13:58","18 min"],["T02","failed","Tela Bem-vindo de volta","clone","40 min","13:45","14:20","35 min"],["T03","running","Sala de controle: colunas, alertas, agentes","clone","40 min","14:38","","12 min"],["T04","running","Linha do tempo","clone","40 min","14:41","","9 min"],["T05","todo","Tela Ociosos e regra de saída","","20 min","","",""],["T06","todo","Acordeões Resumo da sprint e Tarefas","","20 min","","",""],["T07","todo","Revisão e teste visual","reviewer","30 min","","",""]],
+    goal: "Fechar o design do front em 3 telas (Bem-vindo, Sala de controle, Linha do tempo), com dados de exemplo.",
+    sum: [["Fase","execução · onda 2 de 3"],["Aprovada","hoje 13:35"],["Tempo previsto · corrido","3 h 40 · 1 h 15"],["Gasto na sprint","US$ 3,10"],["Reprovações","1"],["Ajustes pedidos","0"]],
+    current: "T03 · Cards de projeto com agentes ao vivo", next: "T05 · Tela de ociosos",
+    agents: [["Tech Lead","coordena a onda 2",70,38],["Clone 1","T03 cards",12,21],["Clone 2","T04 linha do tempo",9,15]],
+    alerts: [["bad","Reviewer reprovou T02","1ª reprovação · faltou teste do tema escuro"]],
+    today: 3.10, tokens: "1,9 M", share: 18, spark: [0.4,1.2,0.9,2.1,0.3,4.28,3.1],
+    where: "A S01 entregou o primeiro rascunho navegável com dados de exemplo. A S02 redesenha o painel em 3 telas; a onda 2 está rodando.",
+    step: ["Nada para você agora", "A S02 segue sozinha. Você será chamado para testar a entrega.", "Ver a sprint"],
+    adhoc: [["Ajustar hook post-edit (lento no Windows)","TL","done","11:20","11:32","12 min","chat “hook lento”"]],
+    since: [["ok","T01 concluída e aprovada"],["bad","T02 reprovada pelo Reviewer (1/2)"],["run","2 clones começaram a onda 2"],["ok","Fora da sprint: hook post-edit ajustado"],["k","US$ 3,10 gastos · 1,9 M tokens"]],
+    docs: [["plano","S02 · Layout da tela principal","hoje"],["report","S01 · Draft do front do painel","16/10"],["ADR","0001 · Arquitetura do painel","16/10"],["handoff","nenhum nesta sprint",""]],
+    backlog: ["Servidor local + SQLite + importador de eventos","Ligar telas aos dados reais (a cada 5 s)","Consumo real em tokens e US$"],
+    lanes: [["tl","Tech Lead · fora da sprint",11*60+20,11*60+32,1],["tl","Tech Lead",13*60+40,null],["cl","Clone 1",14*60+38,null],["cl","Clone 2",14*60+41,null],["rv","Reviewer",14*60+10,14*60+22]],
+    marks: [["bad",14*60+22,"T02 reprovada"],["ok",14*60+5,"T01 ✓"]] },
+  { name: "Main Harness", sprint: "S05", title: "Eventos em arquivo", phase: ["Esperando você", "p-wait"],
+    tasks: [["T01","done","Formato dos eventos (ADR 0007)","tech-lead","20 min","10:05","10:20","15 min"],["T02","done","Gravar eventos de tarefa e sprint","clone","40 min","10:30","11:50","1 h 20"],["T03","done","Gravar eventos de agentes e consumo","clone","40 min","10:32","11:40","1 h 08"],["T04","done","Rotação dos arquivos de eventos","tech-lead","20 min","11:45","12:00","15 min"],["T05","done","Revisão","reviewer","30 min","12:00","12:20","20 min"]],
+    goal: "Gravar todos os eventos do harness em arquivo, para o Painel IA ler.",
+    sum: [["Fase","esperando seu teste"],["Aprovada","hoje 10:00"],["Tempo previsto · corrido","2 h 30 · 2 h 31"],["Gasto na sprint","US$ 5,62"],["Reprovações","0"],["Ajustes pedidos","0"]],
+    current: "Entrega pronta para teste", next: "Fechar sprint e Release Report",
+    agents: [["Tech Lead","fora da sprint: limite da assinatura",25,12]],
+    alerts: [["warn","Testar a entrega da S05","pronta desde 12:31 (2 h 19 min)"],["warn","2 pedidos novos no inbox","do Dashboard IA"]],
+    today: 5.62, tokens: "3,4 M", share: 31, spark: [2.2,3.0,1.1,0,2.8,4.9,5.62],
+    where: "O harness passou a gravar eventos em arquivo para o Painel IA. As 5 tarefas estão feitas e revisadas; falta só o seu teste.",
+    step: ["Testar a entrega da S05", "Rode um projeto e confira se os eventos aparecem em ~/.main-harness/events.", "Abrir instruções de teste"],
+    adhoc: [["Investigar a fonte do % do limite da assinatura","TL","running","14:25","","25 min","chat “limite assinatura”"],["Responder dúvida sobre hx handoff","TL","done","13:02","13:09","7 min","chat “dúvida handoff”"]],
+    since: [["ok","5/5 tarefas concluídas, 0 reprovações"],["warn","Entrega esperando teste há 2 h 19 min"],["warn","2 pedidos novos no inbox"],["run","Fora da sprint: investigação do limite em andamento"],["k","US$ 5,62 gastos · 3,4 M tokens"]],
+    docs: [["plano","S05 · Eventos em arquivo","ontem"],["report","S04 · Registro central de projetos","14/10"],["ADR","0007 · Formato dos eventos (JSONL)","ontem"],["handoff","T03 · contexto cheio, retomado","ontem"]],
+    backlog: ["Registro central de projetos com ID fixo","Comando hx status mais curto"],
+    lanes: [["tl","Tech Lead",10*60+5,12*60+30],["cl","Clone 1",10*60+30,11*60+50],["cl","Clone 2",10*60+32,11*60+40],["rv","Reviewer",12*60,12*60+20],["tl","Tech Lead · fora da sprint",13*60+2,13*60+9,1],["tl","Tech Lead · fora da sprint",14*60+25,null,1]],
+    marks: [["warn",12*60+31,"entregue, esperando teste"]] },
+  { name: "Finanças Casa", sprint: "S03", title: "Importar extrato do banco", phase: ["Plano", "p-wait"],
+    tasks: [["T01","todo","Leitor de CSV do banco","","15 min","","",""],["T02","todo","Associar lançamentos às categorias","","15 min","","",""],["T03","todo","Tela de importação","","10 min","","",""],["T04","todo","Revisão","reviewer","10 min","","",""]],
+    goal: "Importar o extrato do banco em CSV e já classificar os gastos.",
+    sum: [["Fase","plano, esperando aprovação"],["Aprovada","ainda não"],["Tempo previsto","40 min"],["Gasto na sprint","US$ 0,84"],["Reprovações","0"],["Ajustes pedidos","0"]],
+    current: "Sprint plan pronto", next: "Começa depois da sua aprovação",
+    agents: [],
+    alerts: [["warn","Aprovar sprint plan S03","4 tarefas · previsão 40 min"]],
+    today: 0.84, tokens: "0,5 M", share: 4, spark: [0,0,0.6,0,0,0,0.84],
+    where: "A S02 criou as categorias de gasto. A S03 vai importar o extrato do banco em CSV; o plano está pronto para você ler.",
+    step: ["Aprovar o sprint plan S03", "4 tarefas, previsão de 40 min. Depois disso a sprint roda sozinha.", "Ler o plano"],
+    since: [["warn","Plano S03 escrito, esperando aprovação"],["k","US$ 0,84 gastos · 0,5 M tokens"]],
+    docs: [["plano","S03 · Importar extrato do banco","hoje"],["report","S02 · Categorias de gasto","11/10"],["PRD","0001 · Controle de gastos","02/10"]],
+    backlog: ["Importar extrato em CSV","Gráfico mensal por categoria","Alerta de gasto acima da média"],
+    lanes: [["tl","Tech Lead",14*60+20,14*60+35]],
+    marks: [["warn",14*60+35,"plano pronto"]] },
+];
+const idle = [
+  ["Bot Telegram","S04 fechada · última atividade há 9 dias","US$ 0,00 na semana"],
+  ["Planilha Orçamento","sem sprint · última atividade há 23 dias","US$ 0,00 na semana"],
+];
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+const usd = v => "US$ " + v.toFixed(2).replace(".", ",");
+const doneCount = p => p.tasks.filter(t => t[1] === "done").length;
+const barCls = pct => pct >= 80 ? "bad" : pct >= 60 ? "warn" : "";
+const limitsHtml = () => [["Limite 5 h", LIMITS.h5], ["Semanal", LIMITS.week]].map(([l, v]) =>
+  `<div class="lim"><span class="lbl">${l} · <span class="num">${v.pct}%</span></span><div class="bar"><i class="${barCls(v.pct)}" style="width:${v.pct}%"></i></div><small class="muted">${v.reset}</small></div>`).join("");
+function spark(vals) {
+  const w = 140, h = 36, max = Math.max(...vals, 0.01), step = w / (vals.length - 1);
+  const pts = vals.map((v, i) => [i * step, h - 3 - (v / max) * (h - 8)]);
+  const line = pts.map(p => p.join(",")).join(" "), last = pts.at(-1);
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-label="gasto dos últimos 7 dias">
+    <polygon points="0,${h} ${line} ${w},${h}" fill="var(--accent)" fill-opacity=".12"></polygon>
+    <polyline points="${line}" fill="none" stroke="var(--accent)" stroke-width="1.5" vector-effect="non-scaling-stroke"></polyline>
+    <circle cx="${last[0]}" cy="${last[1]}" r="3" fill="var(--accent)"></circle></svg>`;
+}
+const head = p => `<header><h2>${esc(p.name)}</h2><span class="pill ${p.phase[1]}">${p.phase[0]}</span></header>`;
+const STAGE = { done: ["✓","feita","--ok"], running: ["▸","em andamento","--run"], failed: ["✕","reprovada (1/2), voltou para ajuste","--bad"], todo: ["·","a fazer","--muted"] };
+const open = new Set(["0:sprint", "1:adhoc"]);
+const closed = new Set(); // recolhíveis que começam abertos: gantt (g:i) e faixas da linha do tempo (t:i)
+const icon = { ok: ["✓","--ok"], bad: ["✕","--bad"], warn: ["!","--warn"], run: ["▸","--run"], k: ["$","--muted"] };
+
+/* 1 · Bem-vindo de volta */
+function renderWelcome() {
+  const waiting = projects.filter(p => p.alerts.length).length;
+  return `<div class="hello"><h1>Bem-vindo de volta, Daniel.</h1>
+      <p>Seu último comando foi sex, 17:16 (há 2 dias), no chat do Dashboard IA.${waiting} de ${projects.length} projetos esperam algo de você.</p></div>
+    <div class="cols">${projects.map(p => `<section class="col">${head(p)}
+      <div class="next"><span class="lbl">Próximo passo</span><strong>${esc(p.step[0])}</strong><span class="muted" style="font-size:13px">${esc(p.step[1])}</span><button>${esc(p.step[2])}</button></div>
+      <div><h3>Onde parou</h3><p class="where">${esc(p.where)}</p></div>
+      <div><h3>Desde a sua última visita</h3><ul class="since">${p.since.map(s => `<li><span class="k" style="color:var(${icon[s[0]][1]})">${icon[s[0]][0]}</span><span>${esc(s[1])}</span></li>`).join("")}</ul></div>
+      <div><h3>Documentos</h3><ul class="docs">${p.docs.map(d => `<li><span><span class="t">${d[0]}</span> ${d[2] ? `<a href="#">${esc(d[1])}</a>` : `<span class="muted">${esc(d[1])}</span>`}</span><span class="muted mono num" style="font-size:11px">${d[2]}</span></li>`).join("")}</ul></div>
+      <div><h3>Topo do backlog</h3><ol class="backlog">${p.backlog.map(b => `<li>${esc(b)}</li>`).join("")}</ol></div>
+    </section>`).join("")}</div>`;
+}
+/* 2 · Sala de controle */
+const STEPS = ["Teste", "Código", "Lint", "Revisão", "Commit"];
+const META = {
+  "Dashboard IA": { start: 13 * 60 + 40, end: null, plan: 220, run: 75, rep: 1, waves: [["T01"],["T02","T03","T04"],["T05","T06"],["T07"]], st: { T02: 3, T03: 2, T04: 1 },
+    g: { T01: [0, 30, []], T02: [30, 40, ["T01"]], T03: [30, 40, ["T01"]], T04: [30, 40, ["T01"]], T05: [70, 20, ["T03"]], T06: [70, 20, ["T03", "T04"]], T07: [90, 30, ["T02", "T05", "T06"]] } },
+  "Main Harness": { start: 10 * 60 + 5, end: 12 * 60 + 31, plan: 150, run: 146, rep: 0, waves: [["T01"],["T02","T03"],["T04"],["T05"]], st: {},
+    g: { T01: [0, 20, []], T02: [20, 40, ["T01"]], T03: [20, 40, ["T01"]], T04: [60, 20, ["T02", "T03"]], T05: [80, 30, ["T04"]] } },
+  "Finanças Casa": { start: null, end: null, plan: 40, run: 0, rep: 0, waves: [["T01"],["T02","T03"],["T04"]], st: {},
+    g: { T01: [0, 15, []], T02: [15, 15, ["T01"]], T03: [15, 10, ["T01"]], T04: [30, 10, ["T02", "T03"]] } },
+};
+let variant = 2;
+const SC = { done: "--ok", running: "--run", failed: "--bad", todo: "--muted" };
+function gantt(p) {
+  const m = META[p.name], ids = p.tasks.map(t => t[0]), H = 18;
+  const span = Math.max(...ids.map(id => m.g[id][0] + m.g[id][1]));
+  const x = v => (v / span) * 100, y = id => ids.indexOf(id) * H + H / 2;
+  const links = ids.flatMap(id => m.g[id][2].map(d => { const ex = x(m.g[d][0] + m.g[d][1]), sx = x(m.g[id][0]);
+    return `<path d="M${ex} ${y(d)} L${ex} ${y(id)} L${sx} ${y(id)}" fill="none" stroke="var(--muted)" stroke-width="1" stroke-dasharray="2 2" vector-effect="non-scaling-stroke"></path>`; })).join("");
+  const rows = p.tasks.map(t => { const [s, d] = m.g[t[0]], pct = tPct(p, t);
+    const bg = t[1] === "todo" ? "transparent" : `color-mix(in srgb,var(${SC[t[1]]}) ${30 + Math.round(pct * 0.7)}%,var(--line))`;
+    return `<div class="grow"><span class="gbar ${t[1]}" style="left:${x(s)}%;width:${x(d)}%;background:${bg}" title="${t[0]} · ${pct}%"></span></div>`; }).join("");
+  const now = m.start != null && m.end == null ? `<div class="gnow" style="left:${x(m.run)}%"></div>` : "";
+  return `<div class="gantt"><div class="glabels">${p.tasks.map(t => `<div><b>${t[0]}</b><span class="num">${tPct(p, t)}%</span></div>`).join("")}</div>
+    <div class="gtrack"><svg viewBox="0 0 100 ${ids.length * H}" preserveAspectRatio="none" aria-hidden="true">${links}</svg>${rows}${now}</div></div>
+    <div class="gkey"><span style="--c:var(--ok)">feita</span><span style="--c:var(--run)">rodando</span><span style="--c:var(--bad)">reprovada</span><span style="--c:var(--line)">a fazer (tracejada)</span><span>cor mais forte = mais perto de 100%</span></div>`;
+}
+const steps = (p, t) => t[1] === "done" ? 5 : t[1] === "todo" ? 0 : META[p.name].st[t[0]];
+const tPct = (p, t) => Math.round(steps(p, t) / 5 * 100);
+const avg = (p, ts) => Math.round(ts.reduce((s, t) => s + tPct(p, t), 0) / ts.length);
+const hm = m => m >= 60 ? `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")}` : `${m} min`;
+const chip = (txt, k = "") => `<span class="chip ${k}">${txt}</span>`;
+function row({ key, title, sub = "", right = "", pct, chips = "", below = "", lv = 1, kids = "", cls = "" }) {
+  const isOpen = key && open.has(key), tag = key ? "button" : "div";
+  return `<div class="row lv${lv} ${cls}"><${tag} class="rh"${key ? ` data-acc="${key}" aria-expanded="${isOpen}"` : ""}>
+    <span class="rt">${title}${sub ? `<small>${sub}</small>` : ""}</span><span class="rr">${right}${pct == null ? "" : `<b class="num">${pct}%</b>`}</span>
+    <span class="rc">${chips}</span><span class="rb">${below}</span>${pct == null ? "" : `<span class="pbar"><i style="clip-path:inset(0 ${100 - pct}% 0 0 round 3px)"></i></span>`}</${tag}>
+    ${isOpen ? `<div class="kids">${kids}</div>` : ""}</div>`;
+}
+function taskRow(p, t, lv) {
+  const n = steps(p, t), w = META[p.name].waves.findIndex(ws => ws.includes(t[0]));
+  const chips = (variant === 2 ? `<span class="chip w">onda ${w + 1}</span>` : "") + STEPS.map((s, j) => j < n ? chip(s, "ok") : j === n && t[1] === "failed" ? chip(s + " ✕", "bad") : j === n && t[1] === "running" ? chip(s + " …", "run") : chip(s)).join("");
+  const right = t[5] ? `${t[5]} → ${t[6] || "agora"} · ${t[7]}` : "não começou";
+  const ag = p.agents.find(a => a[1].startsWith(t[0]));
+  const who = ag ? ag[0].replace("Clone ", "C") : { "tech-lead": "TL", reviewer: "RV", clone: "C" }[t[3]];
+  const av = who ? `<span class="av ${t[1] === "running" ? "on" : ""}" title="${ag ? esc(ag[0]) + " executando agora" : esc(t[3])}">${who}</span>` : "";
+  return row({ title: `${av}<span class="mono" style="font-size:12px">${t[0]}</span> ${esc(t[2])}`, right, pct: tPct(p, t), chips, below: `previsto ${t[4]}`, lv, cls: `wv wv${w}` });
+}
+const tasksOf = (p, ids) => p.tasks.filter(t => ids.includes(t[0]));
+function sprintRow(p, i, kids) {
+  const m = META[p.name];
+  return row({ key: `${i}:sprint`, title: `${p.sprint} · ${esc(p.title)}`, sub: esc(p.goal), right: `${doneCount(p)}/${p.tasks.length} feitas · corrido ${hm(m.run)}`,
+    pct: avg(p, p.tasks), chips: chip(usd(p.today)) + chip(`${m.rep} reprov.`, m.rep ? "bad" : "") + chip(`onda ${m.waves.findIndex(w => tasksOf(p, w).some(t => t[1] !== "done")) + 1 || m.waves.length} de ${m.waves.length}`),
+    below: `previsto ${hm(m.plan)}`, kids });
+}
+function times(p) {
+  const m = META[p.name];
+  const fim = m.end != null ? clock(m.end) : m.start == null ? "—" : `<span style="color:var(--run)">em curso</span>`;
+  return `<table class="times"><caption>Horários da sprint</caption><thead><tr><th>Início</th><th>Fim</th><th>Corrido</th><th>Previsto</th></tr></thead>
+    <tbody><tr><td>${m.start == null ? "—" : clock(m.start)}</td><td>${fim}</td><td>${m.start == null ? "—" : hm(m.run)}</td><td>${hm(m.plan)}${m.end == null && m.start != null ? ` <span class="muted">até ${clock(m.start + m.plan)}</span>` : ""}</td></tr></tbody></table>`;
+}
+const clock = m =>`${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
+function track(p, i) {
+  const m = META[p.name], tasks = p.tasks.map(t => taskRow(p, t, 2)).join("");
+  const ini = m.start == null ? "não começou" : `${clock(m.start)} hoje`;
+  const fim = m.end != null ? `${clock(m.end)} hoje` : m.start == null ? "—" : `em curso · prev. ${clock(m.start + m.plan)}`;
+  const legend = `<div class="wlegend">${m.waves.map((w, k) => `<span class="wv wv${k}">Onda ${k + 1} · ${w.join(" ")}</span>`).join("")}</div>`;
+  const head = variant === 1
+    ? `<div class="stats"><div><small>Início</small><b>${ini}</b></div><div><small>Fim</small><b>${fim}</b></div>
+       <div><small>Duração corrida</small><b>${hm(m.run)}</b><small>de ${hm(m.plan)} previstas</small></div>
+       <div><small>Gasto da sprint</small><b>${usd(p.today)}</b><small>${p.share}% do limite 5 h</small></div></div>${legend}`
+    : row({ title: "Duração corrida", right: `${hm(m.run)} de ${hm(m.plan)}`, pct: Math.min(100, Math.round(m.run / m.plan * 100)), lv: 2 })
+      + row({ title: "Gasto da sprint", right: `${usd(p.today)} · limite 5 h`, pct: p.share, lv: 2 });
+  return `<div class="trk ${variant === 1 ? "wa" : "wb"}">${sprintRow(p, i, head + tasks)}</div>`;
+}
+// tarefas de chats sem sprint: sem etapas nem plano, então sem % e fora do gantt
+function adhocRow(p, i) {
+  const list = p.adhoc || [];
+  if (!list.length) return "";
+  const run = list.filter(a => a[2] === "running").length;
+  const kids = list.map(a => row({ lv: 2, cls: "adhoc",
+    title: `<span class="av ${a[2] === "running" ? "on" : ""}">${a[1]}</span>${esc(a[0])}`, sub: esc(a[6]),
+    right: `${a[3]} → ${a[4] || "agora"} · ${a[5]}`, chips: a[2] === "running" ? chip("rodando", "run") : chip("feita", "ok") })).join("");
+  return row({ key: `${i}:adhoc`, title: "Fora da sprint", sub: "tarefas de chats sem sprint", right: `${list.length} tarefa${list.length > 1 ? "s" : ""}${run ? ` · ${run} rodando` : ""}`, kids });
+}
+const VARS = [[1, "A · Principal", "Gradiente amarelo → verde. Acima das tarefas: 4 números (início, fim, duração, gasto) e a legenda das ondas. Onda = fundo leve + faixa colorida à esquerda.", "grad-a"],
+  [2, "B · Alternativa", "Gradiente cinza/branco → verde. Acima das tarefas: horário numa linha e duração e gasto como barras. Onda = fundo mais forte + etiqueta \"onda N\".", "grad-b"]];
+const varSwitch = () => `<div class="vars"><div class="seg" role="group">${VARS.map(v => `<button data-var="${v[0]}" aria-pressed="${variant === v[0]}">${v[1]}</button>`).join("")}</div>
+  <span class="muted">${VARS[variant - 1][2]} <span class="${VARS[variant - 1][3]}">0%<span class="gradkey"></span>100%</span></span></div>`;
+function renderControl() {
+  return `<div class="cols ${VARS[variant - 1][3]}">${projects.map((p, i) => `<section class="col">${head(p)}
+      ${p.alerts.map(a => `<div class="alert ${a[0] === "warn" ? "w" : ""}"><b>${esc(a[1])}</b><span class="muted">${esc(a[2])}</span></div>`).join("")}
+      <div><button class="ctog" data-col="g:${i}" aria-expanded="${!closed.has("g:" + i)}"><h3>${p.sprint} · ${esc(p.title)} · <span class="num">${doneCount(p)}/${p.tasks.length}</span></h3></button>
+        ${closed.has("g:" + i) ? "" : gantt(p)}
+        ${times(p)}
+        ${p.adhoc ? `<div class="trk">${adhocRow(p, i)}</div>` : ""}
+        ${track(p, i)}</div>
+      <div><h3>Agentes</h3>${p.agents.length ? `<table>${p.agents.map(a => `<tr><td><span class="pill p-run live">${a[0]}</span></td><td class="muted">${esc(a[1])}</td><td class="r mono num">${a[2]}m</td>
+        <td class="r"><div class="bar ctx" title="contexto ${a[3]}%"><i class="${barCls(a[3])}" style="width:${a[3]}%"></i></div></td></tr>`).join("")}</table>`
+        : `<p class="muted" style="margin:0;font-size:13px">nenhum agente rodando</p>`}</div>
+      <div><h3>Consumo</h3><div class="money"><strong class="num">${usd(p.today)}</strong>${spark(p.spark)}<span class="muted mono" style="font-size:11px">${p.tokens} tokens hoje</span><span class="muted mono" style="font-size:11px;text-align:right">${p.share}% do limite 5 h</span></div></div>
+    </section>`).join("")}</div>`;
+}
+/* 3 · Linha do tempo */
+function renderTimeline() {
+  const start = 9 * 60, end = 15 * 60, pct = m => ((m - start) / (end - start)) * 100;
+  const axis = [9, 10, 11, 12, 13, 14, 15].map(h => `<span style="left:${pct(h * 60)}%">${h}:00</span>`).join("");
+  const rows = projects.map((p, pi) => {
+    const shut = closed.has("t:" + pi);
+    const lanes = shut ? "" : p.lanes.map((l, i) => { const to = l[3] ?? NOW;
+      return `<div class="track" style="top:${34 + i * 26}px"><span class="who" style="left:${pct(l[2])}%">${l[1]}</span>
+        <div class="seg-b ${l[3] ? "" : "open"} ${l[4] ? "adhoc" : ""}" style="--c:var(--${l[0]});left:${pct(l[2])}%;width:${pct(to) - pct(l[2])}%"></div></div>`; }).join("");
+    const marks = p.marks.map(m => `<span class="mk" style="--c:var(--${m[0]});left:${pct(m[1])}%">${esc(m[2])}</span>`).join("");
+    return `<div class="lane-h"><button class="ctog" data-col="t:${pi}" aria-expanded="${!shut}"><h2>${esc(p.name)}</h2></button><span class="pill ${p.phase[1]}" style="justify-self:start">${p.phase[0]}</span>
+        <span class="meta">${p.sprint} · <span class="num">${doneCount(p)}/${p.tasks.length}</span> tarefas · ${usd(p.today)} hoje</span></div>
+      <div class="lane" style="height:${shut ? 34 : Math.max(44 + p.lanes.length * 26, 100)}px">${lanes}${marks}<div class="nowline" style="left:${pct(NOW)}%"></div></div>`;
+  }).join("");
+  return `<div class="tlbar"><div class="legend"><span style="--c:var(--tl)">Tech Lead</span><span style="--c:var(--cl)">Clones</span><span style="--c:var(--rv)">Reviewer</span><span>listrado = rodando agora</span><span class="adhoc-key">contorno = fora da sprint</span></div>
+      <div class="range" aria-label="Período (só 'Hoje' funciona no rascunho)"><button aria-pressed="true">Hoje</button><button>7 dias</button><button>Sprint</button></div></div>
+    <div class="scroll"><div class="tl"><div></div><div class="axis">${axis}</div>${rows}</div></div>`;
+}
+function renderIdle() {
+  return `<div class="idle"><p class="note">Projetos sem atividade há mais de 7 dias saem das telas principais. Quando um projeto novo chega e já há 3 ativos, o menos ativo vem para cá. Para trazer de volta, basta um clique.</p>
+    ${idle.map(i => `<div class="it"><div><h2>${esc(i[0])}</h2><small>${esc(i[1])}</small></div><span class="muted num" style="font-size:13px">${esc(i[2])}</span><button>Trazer para ativos</button></div>`).join("")}</div>`;
+}
+const SCREENS = [
+  { id: "inicio", name: "Bem-vindo de volta", render: renderWelcome },
+  { id: "controle", name: "Sala de controle", render: renderControl },
+  { id: "tempo", name: "Linha do tempo", render: renderTimeline },
+  { id: "ociosos", name: `Ociosos (${idle.length})`, render: renderIdle, cls: "idle-tab" },
+];
+let cur = location.hash.slice(1);
+if (!SCREENS.some(s => s.id === cur)) cur = "inicio";
+function draw() {
+  document.getElementById("tabs").innerHTML = SCREENS.map(s => `<button role="tab" class="${s.cls || ""}" aria-selected="${s.id === cur}" data-s="${s.id}">${s.name}</button>`).join("");
+  document.getElementById("app").innerHTML = `<p class="draftnote">Rascunho com dados de exemplo.</p>` + SCREENS.find(s => s.id === cur).render();
+}
+document.getElementById("limits").innerHTML = limitsHtml();
+document.addEventListener("click", e => {
+  const c = e.target.closest("button[data-col]");
+  if (c) { const k = c.dataset.col; closed.has(k) ? closed.delete(k) : closed.add(k); draw(); document.querySelector(`[data-col="${k}"]`).focus(); return; }
+  const v = e.target.closest("button[data-var]");
+  if (v) { variant = +v.dataset.var; draw(); return; }
+  const a = e.target.closest("button[data-acc]");
+  if (a) { const k = a.dataset.acc; open.has(k) ? open.delete(k) : open.add(k); draw(); document.querySelector(`[data-acc="${k}"]`).focus(); return; }
+  const b = e.target.closest("button[data-s]"); if (!b) return;
+  cur = b.dataset.s; history.replaceState(null, "", "#" + cur); draw(); scrollTo(0, 0);
+});
+draw();
+</script>

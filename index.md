@@ -16,6 +16,7 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `docs/roadmap.md` — Roadmap — Dashboard IA
 - `docs/sprints/.gitkeep` — (sem descrição)
 - `docs/sprints/S01-plan.md` — S01 — Draft do front do painel
+- `docs/sprints/S02-plan.md` — S02 — Design do front do painel
 - `eslint.config.mjs` — ESLint flat config installed by the Main Harness (/attach). Zero errors, zero warnings.
 - `index.html` — (sem descrição)
 - `package-lock.json` — (sem descrição)
