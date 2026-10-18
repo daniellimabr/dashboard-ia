@@ -1,0 +1,178 @@
+/* Copied from docs/sprints/S02-draft.html (Linha do tempo). */
+.tlbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.legend {
+  display: flex;
+  gap: 14px;
+  font-size: 12px;
+  color: var(--muted);
+  flex-wrap: wrap;
+}
+.legend span::before {
+  content: "";
+  display: inline-block;
+  width: 14px;
+  height: 6px;
+  margin-right: 6px;
+  vertical-align: middle;
+  background: var(--c);
+}
+.legend .adhoc-key::before {
+  background: transparent;
+  outline: 1px dashed var(--muted);
+  outline-offset: -1px;
+}
+.range {
+  display: inline-flex;
+  border: 1px solid var(--line);
+}
+.range button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 5px 10px;
+  font-size: 12px;
+}
+.range button[aria-pressed="true"] {
+  background: var(--fg);
+  color: var(--bg);
+}
+.scroll {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  background: var(--card);
+}
+.tl {
+  min-width: 760px;
+  display: grid;
+  grid-template-columns: 220px 1fr;
+}
+.axis {
+  grid-column: 2;
+  position: relative;
+  height: 26px;
+  border-bottom: 1px solid var(--line);
+}
+.axis span {
+  position: absolute;
+  top: 6px;
+  font: 11px var(--f-mono);
+  color: var(--muted);
+  transform: translateX(-50%);
+}
+.lane-h {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+.lane-h h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.lane-h .meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+.ctog {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  text-align: left;
+}
+.ctog::before {
+  content: "▾";
+  font-size: 10px;
+  color: var(--accent);
+}
+.ctog[aria-expanded="false"]::before {
+  content: "▸";
+  color: var(--muted);
+}
+.lane {
+  position: relative;
+  border-bottom: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0 calc(100% / 6 - 1px),
+    var(--line) calc(100% / 6 - 1px) calc(100% / 6)
+  );
+}
+.track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 14px;
+}
+.seg-b {
+  position: absolute;
+  height: 100%;
+  border-radius: 1px;
+  background: var(--c);
+}
+.seg-b.open {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--c) 0 6px,
+    color-mix(in srgb, var(--c) 55%, transparent) 6px 12px
+  );
+}
+.seg-b.adhoc {
+  background: transparent;
+  border: 1px dashed var(--c);
+}
+.seg-b.adhoc.open {
+  background: repeating-linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--c) 35%, transparent) 0 6px,
+    transparent 6px 12px
+  );
+}
+.who {
+  position: absolute;
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+  transform: translateY(-12px);
+}
+.mk {
+  position: absolute;
+  top: 4px;
+  transform: translateX(-50%);
+  font-size: 11px;
+  white-space: nowrap;
+  padding: 1px 6px;
+  background: var(--card);
+  border: 1px solid var(--c);
+  color: var(--c);
+  font-weight: 600;
+}
+.nowline {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--bad);
+  z-index: 2;
+}
+.nowline::after {
+  content: "agora";
+  position: absolute;
+  top: -1px;
+  left: 4px;
+  font: 600 10px var(--f-mono);
+  color: var(--bad);
+}
