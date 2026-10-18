@@ -15,7 +15,7 @@ describe("Docs", () => {
     renderAt("/p/dashboard-ia/docs");
     expect(screen.getByRole("heading", { name: "Sprint plans" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "ADRs" })).toBeTruthy();
-    expect(screen.queryByRole("heading", { name: "Release Reports" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Handoffs" })).toBeNull();
     const link = screen.getByRole("link", { name: "ADR 0001 — Arquitetura do painel" });
     expect(link.getAttribute("href")).toBe("/p/dashboard-ia/docs/adr-0001");
   });
@@ -34,7 +34,7 @@ describe("Docs", () => {
   });
 
   it("shows a message for a project without docs", () => {
-    renderAt("/p/loja-online/docs");
+    renderAt("/p/planilha-orcamento/docs");
     expect(screen.getByText("Nenhum documento neste projeto.")).toBeTruthy();
   });
 });

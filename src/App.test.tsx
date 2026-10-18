@@ -4,7 +4,30 @@ import { renderAt } from "./test-utils";
 
 describe("routes", () => {
   it.each([
-    ["/", "Visão geral"],
+    ["/", "Bem-vindo de volta"],
+    ["/controle", "Sala de controle"],
+    ["/tempo", "Linha do tempo"],
+    ["/ociosos", "Ociosos"],
+  ])("%s is a menu screen with its own URL", (path, tab) => {
+    renderAt(path);
+    expect(
+      screen.getByRole("link", { name: new RegExp(`^${tab}`) }).getAttribute("aria-current"),
+    ).toBe("page");
+  });
+
+  it("shows both subscription limits on every screen", () => {
+    renderAt("/tempo");
+    screen.getByRole("meter", { name: "Limite 5 h" });
+    screen.getByRole("meter", { name: "Semanal" });
+    screen.getByText(/^renova em /);
+  });
+
+  it("counts idle projects in the menu", () => {
+    renderAt("/");
+    screen.getByRole("link", { name: "Ociosos (2)" });
+  });
+
+  it.each([
     ["/p/dashboard-ia/chats", "Dashboard IA"],
     ["/p/main-harness/sprints", "Main Harness"],
     ["/p/x/chats", "Projeto não encontrado"],

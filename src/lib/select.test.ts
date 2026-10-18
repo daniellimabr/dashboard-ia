@@ -5,7 +5,7 @@ import { activeSprint, runningAgents } from "./select";
 describe("select", () => {
   it("finds the active sprint of a project", () => {
     expect(activeSprint(data, "dashboard-ia")?.status).toBe("active");
-    expect(activeSprint(data, "loja-online")).toBeUndefined();
+    expect(activeSprint(data, "planilha-orcamento")).toBeUndefined();
   });
 
   it("lists agents running now in a project", () => {

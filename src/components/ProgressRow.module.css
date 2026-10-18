@@ -1,0 +1,122 @@
+/* Draft `.row`/`.rh`: title + sub on the left, text and % on the right, chips, "previsto", gradient bar clipped at %. */
+.row {
+  border: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.kids {
+  border-top: 1px solid var(--line);
+}
+
+.kids > .row {
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+}
+
+.kids > .row:last-child {
+  border-bottom: 0;
+}
+
+.head {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 12px;
+  color: inherit;
+  align-items: start;
+}
+
+.lv2 > .head {
+  padding-left: 24px;
+}
+
+button.head:hover {
+  background: color-mix(in srgb, var(--fg) 4%, transparent);
+}
+
+.title {
+  font-weight: 600;
+  font-size: 14px;
+  min-width: 0;
+}
+
+.title small {
+  display: block;
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 2px;
+  line-height: 1.35;
+}
+
+button.head .title::before {
+  content: "▸ ";
+  color: var(--muted);
+}
+
+button.head[aria-expanded="true"] .title::before {
+  content: "▾ ";
+  color: var(--accent);
+}
+
+.right {
+  font: 12px var(--f-mono);
+  color: var(--muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.right b {
+  color: var(--fg);
+  font-size: 14px;
+  margin-left: 6px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+
+.below {
+  font: 11px var(--f-mono);
+  color: var(--muted);
+  text-align: right;
+  align-self: center;
+  white-space: nowrap;
+}
+
+/* the gradient spans the full width and is clipped at the %, so the tip color shows completion */
+.bar {
+  grid-column: 1 / -1;
+  height: 5px;
+  background: var(--line);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.lv1 > .head .bar {
+  height: 8px;
+}
+
+.bar i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #d6f5e5 0%, #8fe8bf 50%, #22b974 100%);
+}
+
+.kids > .wave,
+.wave {
+  background: color-mix(in srgb, var(--wc) 15%, transparent);
+}
+
+.kids > .wave + .wave {
+  border-top: 2px solid var(--bg);
+}

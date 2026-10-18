@@ -1,32 +1,29 @@
-/* Shared tokens and utility classes. Pages use these plus their own CSS modules. */
+/* Shared tokens and classes (draft direction A, dark only). Pages add their own CSS modules. */
 :root {
-  --bg: #f6f7f9;
-  --surface: #ffffff;
-  --text: #1b1f24;
-  --muted: #5f6b7a;
-  --border: #dde2e8;
-  --accent: #3b5bdb;
-  --accent-soft: #e7ecff;
-  --ok: #2b8a3e;
-  --bad: #c92a2a;
-  --live: #e67700;
-  --mono: ui-monospace, "Cascadia Code", Consolas, monospace;
-  color-scheme: light dark;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #111418;
-    --surface: #1a1f25;
-    --text: #e6e9ee;
-    --muted: #97a2b0;
-    --border: #2c333c;
-    --accent: #8ea5ff;
-    --accent-soft: #232b45;
-    --ok: #69db7c;
-    --bad: #ff8787;
-    --live: #ffa94d;
-  }
+  --bg: #0d1117;
+  --fg: #dfe6ee;
+  --muted: #7d8a99;
+  --line: #222b36;
+  --card: #121922;
+  --accent: #4cc2ff;
+  --r: 2px;
+  --run: #4cc2ff;
+  --warn: #f0b429;
+  --bad: #ff5d5d;
+  --ok: #3ddc97;
+  --tl: #4cc2ff;
+  --cl: #f39a55;
+  --rv: #a98bff;
+  --f-ui: "IBM Plex Sans Condensed", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, monospace;
+  /* S01 names, kept for the project tabs */
+  --surface: var(--card);
+  --border: var(--line);
+  --text: var(--fg);
+  --mono: var(--f-mono);
+  --live: var(--warn);
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+  color-scheme: dark;
 }
 
 * {
@@ -34,80 +31,347 @@
 }
 
 body {
-  margin: 0;
   background: var(--bg);
-  color: var(--text);
-  font:
-    15px/1.5 system-ui,
-    -apple-system,
-    "Segoe UI",
-    sans-serif;
+  color: var(--fg);
+  font-family: var(--f-ui);
+  margin: 0;
+}
+
+button,
+a {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
 }
 
 a {
   color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.mono,
+.lbl,
+h3 {
+  font-family: var(--f-mono);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.wrap {
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+main {
+  padding-block: 20px 40px;
 }
 
 h1 {
-  font-size: 1.5rem;
+  font-size: 24px;
+  font-weight: 600;
   margin: 0 0 12px;
 }
 
 h2 {
-  font-size: 1.15rem;
+  font-size: 18px;
+  font-weight: 600;
   margin: 16px 0 10px;
 }
 
-.topbar {
+h3 {
+  margin: 0 0 8px;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* menu */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+  padding-block: 10px;
   display: flex;
   flex-wrap: wrap;
+  gap: 10px 20px;
   align-items: center;
-  gap: 8px 20px;
-  padding: 10px 16px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
 }
 
 .brand {
-  font-weight: 700;
-  color: var(--text);
-  text-decoration: none;
+  font: 600 13px var(--f-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
-.nav,
 .tabs {
   display: flex;
+  gap: 2px;
   flex-wrap: wrap;
-  gap: 4px;
 }
 
-.nav a,
 .tabs a {
-  padding: 4px 10px;
-  border-radius: 6px;
+  border: 1px solid transparent;
+  padding: 6px 12px;
+  font-size: 14px;
   color: var(--muted);
+  border-radius: var(--r);
   text-decoration: none;
 }
 
-.nav a.active,
 .tabs a.active {
-  background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--fg);
+  border-color: var(--line);
+  background: var(--card);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.tabs .idle-tab {
+  margin-left: 8px;
+  font-size: 13px;
+}
+
+main .tabs {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+}
+
+.nav .limits {
+  margin-left: auto;
+}
+
+.limits {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.lim {
+  display: grid;
+  gap: 3px;
+  min-width: 140px;
+}
+
+.lbl {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.bar {
+  height: 6px;
+  border-radius: 1px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.bar i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.bar i.warn {
+  background: var(--warn);
+}
+
+.bar i.bad {
+  background: var(--bad);
+}
+
+/* status pills and chips */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+  border: 1px solid currentColor;
+}
+
+.pill::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.p-run {
+  color: var(--run);
+}
+
+.p-warn {
+  color: var(--warn);
+}
+
+.p-bad {
+  color: var(--bad);
+}
+
+.p-ok {
+  color: var(--ok);
+}
+
+.live::before {
+  animation: pulse 1.4s infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.chip {
+  font: 500 10px var(--f-mono);
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--line);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.chip.ok {
+  background: color-mix(in srgb, var(--ok) 16%, transparent);
+  color: var(--ok);
+}
+
+.chip.run {
+  background: color-mix(in srgb, var(--run) 16%, transparent);
+  color: var(--run);
+}
+
+.chip.bad {
+  background: color-mix(in srgb, var(--bad) 16%, transparent);
+  color: var(--bad);
+}
+
+.chip.w {
+  background: color-mix(in srgb, var(--wc) 25%, transparent);
+  color: var(--wc);
+}
+
+/* wave colors: set --wc */
+.wv0 {
+  --wc: #4cc2ff;
+}
+
+.wv1 {
+  --wc: #c77dff;
+}
+
+.wv2 {
+  --wc: #f39a55;
+}
+
+.wv3 {
+  --wc: #ff7eb6;
+}
+
+/* agent badge: TL, C1, RV; .on = running now */
+.av {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 18px;
+  padding: 0 4px;
+  margin-right: 6px;
+  border-radius: 9px;
+  font: 600 9px var(--f-mono);
+  vertical-align: 1px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.av.on {
+  border-color: var(--run);
+  color: #06121c;
+  background: var(--run);
+  box-shadow: 0 0 0 0 var(--run);
+  animation: ring 1.6s infinite;
+}
+
+@keyframes ring {
+  70% {
+    box-shadow: 0 0 0 5px transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live::before,
+  .av.on {
+    animation: none;
+  }
+}
+
+svg.spark {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+  justify-self: end;
+}
+
+/* one column per project (Bem-vindo and Sala de controle) */
+.cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+
+.col {
+  background: var(--card);
+  padding: 16px;
+  display: grid;
+  gap: 16px;
+  align-content: start;
+  min-width: 0;
+}
+
+.col header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.col h2 {
+  margin: 0;
+  font-size: 20px;
   font-weight: 600;
 }
 
-.tabs {
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 8px;
-  margin-bottom: 8px;
-}
-
-.page {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 16px;
-}
-
+/* S01 project tabs */
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
@@ -115,15 +379,11 @@ h2 {
 }
 
 .card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
   padding: 14px 16px;
   min-width: 0;
-}
-
-.muted {
-  color: var(--muted);
 }
 
 .badge {
@@ -135,7 +395,7 @@ h2 {
 }
 
 .badge-live {
-  color: var(--live);
+  color: var(--run);
 }
 
 .badge-ok {
@@ -158,10 +418,16 @@ h2 {
 
 .markdown th,
 .markdown td {
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   padding: 4px 8px;
 }
 
 .markdown pre {
   overflow-x: auto;
+}
+
+@media (max-width: 560px) {
+  .nav .limits {
+    margin-left: 0;
+  }
 }

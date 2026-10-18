@@ -1,17 +1,23 @@
 import { Navigate, Route, Routes } from "react-router";
 import { Layout, ProjectLayout } from "./components/Layout";
 import { Chats } from "./pages/Chats";
+import { Control } from "./pages/Control";
 import { Docs } from "./pages/Docs";
-import { Overview } from "./pages/Overview";
+import { Idle } from "./pages/Idle";
 import { Plan } from "./pages/Plan";
 import { Sprints } from "./pages/Sprints";
+import { Timeline } from "./pages/Timeline";
 import { Usage } from "./pages/Usage";
+import { Welcome } from "./pages/Welcome";
 
 export function AppRoutes() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route index element={<Overview />} />
+        <Route index element={<Welcome />} />
+        <Route path="controle" element={<Control />} />
+        <Route path="tempo" element={<Timeline />} />
+        <Route path="ociosos" element={<Idle />} />
         <Route path="p/:projectId" element={<ProjectLayout />}>
           <Route index element={<Navigate to="chats" replace />} />
           <Route path="chats/:chatId?" element={<Chats />} />

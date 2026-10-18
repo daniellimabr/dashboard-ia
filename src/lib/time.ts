@@ -11,8 +11,24 @@ export function formatDuration(ms: number): string {
   return m ? `${h} h ${String(m).padStart(2, "0")} min` : `${h} h`;
 }
 
-const timeFmt = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
-const dateFmt = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" });
+const timeFmt = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: "America/Sao_Paulo",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+const dateFmt = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: "America/Sao_Paulo",
+  day: "2-digit",
+  month: "2-digit",
+});
 
 export const formatTime = (iso: string) => timeFmt.format(Date.parse(iso));
 export const formatDate = (iso: string) => dateFmt.format(Date.parse(iso));
+
+const weekdayFmt = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: "America/Sao_Paulo",
+  weekday: "short",
+});
+
+/** "sex", "sáb"… (no trailing dot). */
+export const formatWeekday = (iso: string) => weekdayFmt.format(Date.parse(iso)).replace(".", "");

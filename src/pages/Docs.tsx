@@ -9,6 +9,7 @@ const groups: [Doc["kind"], string][] = [
   ["release-report", "Release Reports"],
   ["adr", "ADRs"],
   ["prd", "PRDs"],
+  ["handoff", "Handoffs"],
 ];
 
 export function Docs() {
