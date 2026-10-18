@@ -17,10 +17,11 @@ Daniel abre o painel (`npm run dev`) e encontra o desenho final combinado no ras
 3. **Bem-vindo de volta:** frase com o último comando (quando e em qual chat) e quantos projetos esperam por Daniel; uma coluna por projeto com Próximo passo (destacado, com botão), Onde parou, Desde o seu último comando (inclui tarefas fora da sprint), Documentos (plano, Release Report, ADR/PRD, handoff — links para a aba Documentos do projeto) e Topo do backlog.
 4. **Sala de controle:** uma coluna por projeto com:
    - alertas/pendências;
-   - **acordeão Fora da sprint** (só se houver), entre a tabela de horários e o acordeão da sprint (ordem: mini-gantt → horários → Fora da sprint → Resumo da sprint): tarefas de chats sem sprint com ícone do agente, chat, início → fim · duração e etiqueta rodando/feita; sem % e fora do gantt;
-   - **mini-gantt** das tarefas, recolhível pelo título da sprint: posição pelo plano, dependências em linha tracejada, cor pela etapa (feita, rodando, reprovada, a fazer tracejada) com intensidade crescente pelo %, % escrito ao lado do número da tarefa, linha "agora";
-   - **tabela de horários** fora do acordeão (Início, Fim, Corrido, Previsto);
-   - **acordeão Resumo da sprint** (linha principal com objetivo, x/y feitas, % geral e barra em gradiente verde-claro → verde). Aberto: barras de Duração corrida e Gasto da sprint, depois as tarefas — cada uma com etapas em etiquetas, início → fim · duração corrida e % na linha de cima, "previsto" separado à direita, barra de %, fundo na cor da sua onda, e um ícone do agente da tarefa (TL, C1, C2…, RV; clones identificados), aceso e pulsando quando o agente está executando agora;
+   - **4 acordeões no mesmo estilo** (linha principal com título, subtítulo e resumo à direita), nesta ordem: Timeline → Horários → Fora da sprint → Itens da sprint. Timeline e Horários começam abertos;
+   - **acordeão Timeline** (fechado mostra x/y feitas) com o mini-gantt das tarefas: posição pelo plano, dependências em linha tracejada, cor pela etapa (feita, rodando, reprovada, a fazer tracejada) com intensidade crescente pelo %, % escrito ao lado do número da tarefa, linha "agora";
+   - **acordeão Horários** (fechado mostra início → fim · corrido) com a tabela Início, Fim, Corrido, Previsto;
+   - **acordeão Fora da sprint** (só se houver): tarefas de chats sem sprint com ícone do agente, chat, início → fim · duração e etiqueta rodando/feita; sem % e fora do gantt;
+   - **acordeão Itens da sprint** (linha principal com código, título e objetivo da sprint, x/y feitas, % geral e barra em gradiente verde-claro → verde). Aberto: barras de Duração corrida e Gasto da sprint, depois as tarefas — cada uma com etapas em etiquetas, início → fim · duração corrida e % na linha de cima, "previsto" separado à direita, barra de %, fundo na cor da sua onda, e um ícone do agente da tarefa (TL, C1, C2…, RV; clones identificados), aceso e pulsando quando o agente está executando agora;
    - agentes rodando (o que fazem, há quanto tempo, % de contexto);
    - consumo: US$ e tokens do dia, % do limite 5 h, mini-gráfico de 7 dias com tamanho fixo (sem esticar).
 5. **Linha do tempo:** uma faixa por projeto, recolhível pelo nome do projeto, com barras por agente (Tech Lead, clones, Reviewer), listrado = rodando agora, contorno tracejado = fora da sprint, marcos (tarefa feita, reprovada, entregue/esperando), linha "agora"; seletor Hoje / 7 dias / Sprint funcionando sobre o mock.
@@ -34,7 +35,7 @@ Servidor, SQLite, dados reais, atualização automática, ações reais dos bot�
 
 1. Menu com Bem-vindo de volta, Sala de controle, Linha do tempo e Ociosos (n); cada tela tem URL própria e recarregar mantém a tela; limite 5 h e semanal visíveis em todas.
 2. Bem-vindo mostra o último comando (data/hora e chat) e, por projeto, os 5 blocos do escopo 3; links de documentos abrem a aba Documentos do projeto.
-3. Sala de controle mostra, por projeto, mini-gantt recolhível, tabela de horários e, entre ela e o acordeão da sprint, o acordeão Fora da sprint (quando houver); no mini-gantt: dependências, cor por etapa com intensidade por %, % por tarefa e "agora"; acordeão Resumo da sprint que abre e fecha pelo teclado e pelo mouse, tarefas com cor de onda e ícone do agente (clone identificado, aceso quando executando), agentes com contexto e consumo com mini-gráfico sem distorção.
+3. Sala de controle mostra, por projeto, os acordeões Timeline, Horários, Fora da sprint (quando houver) e Itens da sprint, nessa ordem, abrindo e fechando pelo teclado e pelo mouse; no mini-gantt: dependências, cor por etapa com intensidade por %, % por tarefa e "agora"; tarefas com cor de onda e ícone do agente (clone identificado, aceso quando executando), agentes com contexto e consumo com mini-gráfico sem distorção.
 4. % de tarefa = etapas feitas ÷ 5; % da sprint = média das tarefas; tarefa reprovada mostra a etapa Revisão em vermelho.
 5. Linha do tempo mostra barras por agente (fora da sprint com contorno tracejado), marcos e "agora"; cada faixa de projeto recolhe e abre; Hoje, 7 dias e Sprint mudam o período.
 6. Ociosos segue a regra de 7 dias / máximo de 3 ativos; "Trazer para ativos" move o projeto para as telas principais.
@@ -45,7 +46,7 @@ Servidor, SQLite, dados reais, atualização automática, ações reais dos bot�
 ## Plano de testes
 
 - **Unitários (Vitest, TDD):** `src/lib/progress.ts` (% de tarefa por etapa, % da sprint, reprovada, onda da tarefa, posição no gantt a partir do plano); `src/lib/idle.ts` (regra dos 7 dias e máximo de 3 ativos, "trazer para ativos"); `src/lib/since.ts` (eventos desde o último comando); série de 7 dias.
-- **Componentes (Vitest + Testing Library, jsdom):** `ProgressRow` (%, previsto separado, abre/fecha com `aria-expanded`); ícone de agente na tarefa (clone identificado, aceso só quando rodando); `Gantt` (uma linha por tarefa, % escrito, dependências desenhadas, recolhe); acordeão Fora da sprint (acima da sprint, sem %); cada tela renderiza com o mock e mostra o dado-chave do seu critério (crit. 2–6); rotas do menu (crit. 1).
+- **Componentes (Vitest + Testing Library, jsdom):** `ProgressRow` (%, previsto separado, abre/fecha com `aria-expanded`); ícone de agente na tarefa (clone identificado, aceso só quando rodando); `Gantt` (uma linha por tarefa, % escrito, dependências desenhadas); ordem dos 4 acordeões e Fora da sprint sem %; cada tela renderiza com o mock e mostra o dado-chave do seu critério (crit. 2–6); rotas do menu (crit. 1).
 - **Manual (Daniel):** os agentes não têm navegador; o Reviewer cobre por código e testes. Daniel confere o visual comparando com `S02-draft.html`, incluindo 360 px (crit. 3, 8).
 - **Dados de teste:** só `src/data/mock.ts`; nada a limpar.
 - Vitest roda pelo PowerShell (pasta com espaço).
@@ -67,6 +68,6 @@ Servidor, SQLite, dados reais, atualização automática, ações reais dos bot�
 ## Aprovação
 
 - **Aprovado por:** Daniel
-- **Data/hora:** 2026-10-18 19:16:18 (horário de Brasília) — UTC 2026-10-18T22:16:18Z
-- **Hash SHA-256 do plano** (conteúdo antes desta seção, finais de linha normalizados para LF): `0609c279e05ba063905cfba235d8fdb350e2e0f6d8b2f721d5648727f46aea2b`
+- **Data/hora:** 2026-10-18 19:21:40 (horário de Brasília) — UTC 2026-10-18T22:21:40Z
+- **Hash SHA-256 do plano** (conteúdo antes desta seção, finais de linha normalizados para LF): `979cf0ed7d57bcc6436836cd1cbcb90be9d6f26e45d9e22d2b7c49454d3f3b04`
 - **Versão do harness:** 0.4.0

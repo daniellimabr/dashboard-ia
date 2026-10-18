@@ -127,7 +127,8 @@ button.rh[aria-expanded="true"] .rt::before{content:"▾ ";color:var(--accent)}
 .ctog::before{content:"▾";font-size:10px;color:var(--accent);margin-bottom:8px}
 .ctog[aria-expanded="false"]::before{content:"▸";color:var(--muted)}
 .lane-h .ctog::before{margin-bottom:0}
-.times{margin-top:12px;border:1px solid var(--line);font-family:var(--f-mono);table-layout:fixed}
+.pad{padding:16px 12px 10px}
+.times{margin:0;border:0;font-family:var(--f-mono);table-layout:fixed}
 .times caption{text-align:left;font:500 10px var(--f-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding-bottom:6px}
 .times th{font:500 10px var(--f-mono);color:var(--muted);text-align:left;padding:6px 10px;border-bottom:1px solid var(--line);background:var(--bg)}
 .times td{font-size:15px;font-weight:600;padding:8px 10px;border:0}
@@ -289,7 +290,7 @@ function spark(vals) {
 }
 const head = p => `<header><h2>${esc(p.name)}</h2><span class="pill ${p.phase[1]}">${p.phase[0]}</span></header>`;
 const STAGE = { done: ["✓","feita","--ok"], running: ["▸","em andamento","--run"], failed: ["✕","reprovada (1/2), voltou para ajuste","--bad"], todo: ["·","a fazer","--muted"] };
-const open = new Set(["0:sprint", "1:adhoc"]);
+const open = new Set(["0:sprint", "1:adhoc", "0:gantt", "1:gantt", "2:gantt", "0:times", "1:times", "2:times"]);
 const closed = new Set(); // recolhíveis que começam abertos: gantt (g:i) e faixas da linha do tempo (t:i)
 const icon = { ok: ["✓","--ok"], bad: ["✕","--bad"], warn: ["!","--warn"], run: ["▸","--run"], k: ["$","--muted"] };
 
@@ -356,14 +357,18 @@ function taskRow(p, t, lv) {
 const tasksOf = (p, ids) => p.tasks.filter(t => ids.includes(t[0]));
 function sprintRow(p, i, kids) {
   const m = META[p.name];
-  return row({ key: `${i}:sprint`, title: `${p.sprint} · ${esc(p.title)}`, sub: esc(p.goal), right: `${doneCount(p)}/${p.tasks.length} feitas · corrido ${hm(m.run)}`,
+  return row({ key: `${i}:sprint`, title: "Itens da sprint", sub: `${p.sprint} · ${esc(p.title)} — ${esc(p.goal)}`, right: `${doneCount(p)}/${p.tasks.length} feitas · corrido ${hm(m.run)}`,
     pct: avg(p, p.tasks), chips: chip(usd(p.today)) + chip(`${m.rep} reprov.`, m.rep ? "bad" : "") + chip(`onda ${m.waves.findIndex(w => tasksOf(p, w).some(t => t[1] !== "done")) + 1 || m.waves.length} de ${m.waves.length}`),
     below: `previsto ${hm(m.plan)}`, kids });
+}
+function timesRight(p) {
+  const m = META[p.name];
+  return m.start == null ? "não começou" : `${clock(m.start)} → ${m.end != null ? clock(m.end) : "em curso"} · ${hm(m.run)}`;
 }
 function times(p) {
   const m = META[p.name];
   const fim = m.end != null ? clock(m.end) : m.start == null ? "—" : `<span style="color:var(--run)">em curso</span>`;
-  return `<table class="times"><caption>Horários da sprint</caption><thead><tr><th>Início</th><th>Fim</th><th>Corrido</th><th>Previsto</th></tr></thead>
+  return `<table class="times"><thead><tr><th>Início</th><th>Fim</th><th>Corrido</th><th>Previsto</th></tr></thead>
     <tbody><tr><td>${m.start == null ? "—" : clock(m.start)}</td><td>${fim}</td><td>${m.start == null ? "—" : hm(m.run)}</td><td>${hm(m.plan)}${m.end == null && m.start != null ? ` <span class="muted">até ${clock(m.start + m.plan)}</span>` : ""}</td></tr></tbody></table>`;
 }
 const clock = m =>`${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
@@ -378,7 +383,7 @@ function track(p, i) {
        <div><small>Gasto da sprint</small><b>${usd(p.today)}</b><small>${p.share}% do limite 5 h</small></div></div>${legend}`
     : row({ title: "Duração corrida", right: `${hm(m.run)} de ${hm(m.plan)}`, pct: Math.min(100, Math.round(m.run / m.plan * 100)), lv: 2 })
       + row({ title: "Gasto da sprint", right: `${usd(p.today)} · limite 5 h`, pct: p.share, lv: 2 });
-  return `<div class="trk ${variant === 1 ? "wa" : "wb"}">${sprintRow(p, i, head + tasks)}</div>`;
+  return sprintRow(p, i, head + tasks);
 }
 // tarefas de chats sem sprint: sem etapas nem plano, então sem % e fora do gantt
 function adhocRow(p, i) {
@@ -397,10 +402,10 @@ const varSwitch = () => `<div class="vars"><div class="seg" role="group">${VARS.
 function renderControl() {
   return `<div class="cols ${VARS[variant - 1][3]}">${projects.map((p, i) => `<section class="col">${head(p)}
       ${p.alerts.map(a => `<div class="alert ${a[0] === "warn" ? "w" : ""}"><b>${esc(a[1])}</b><span class="muted">${esc(a[2])}</span></div>`).join("")}
-      <div><button class="ctog" data-col="g:${i}" aria-expanded="${!closed.has("g:" + i)}"><h3>${p.sprint} · ${esc(p.title)} · <span class="num">${doneCount(p)}/${p.tasks.length}</span></h3></button>
-        ${closed.has("g:" + i) ? "" : gantt(p)}
-        ${times(p)}
-        ${p.adhoc ? `<div class="trk">${adhocRow(p, i)}</div>` : ""}
+      <div class="trk wb">
+        ${row({ key: `${i}:gantt`, title: "Timeline", sub: `${p.sprint} · dependências e andamento das tarefas`, right: `${doneCount(p)}/${p.tasks.length} feitas`, kids: `<div class="pad">${gantt(p)}</div>` })}
+        ${row({ key: `${i}:times`, title: "Horários", sub: "início, fim e tempo da sprint", right: timesRight(p), kids: times(p) })}
+        ${adhocRow(p, i)}
         ${track(p, i)}</div>
       <div><h3>Agentes</h3>${p.agents.length ? `<table>${p.agents.map(a => `<tr><td><span class="pill p-run live">${a[0]}</span></td><td class="muted">${esc(a[1])}</td><td class="r mono num">${a[2]}m</td>
         <td class="r"><div class="bar ctx" title="contexto ${a[3]}%"><i class="${barCls(a[3])}" style="width:${a[3]}%"></i></div></td></tr>`).join("")}</table>`
