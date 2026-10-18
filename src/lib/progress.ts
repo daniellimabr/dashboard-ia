@@ -25,19 +25,6 @@ export function currentWave(tasks: Task[]) {
   return { current: open.length ? Math.min(...open) : total, total };
 }
 
-/** Gantt rows positioned by plan, in % of the sprint's planned span. */
-export function ganttLayout(tasks: Task[]) {
-  const span = Math.max(1, ...tasks.map((t) => (t.plan ? t.plan.start + t.plan.duration : 0)));
-  const pct = (m: number) => (m / span) * 100;
-  const rows = tasks.map((t) => ({
-    id: t.id,
-    left: pct(t.plan?.start ?? 0),
-    width: pct(t.plan?.duration ?? 0),
-    deps: t.plan?.deps ?? [],
-  }));
-  return { span, rows };
-}
-
 /** Short agent badge: TL, RV, C1, C2… (plain "C" when the clone is unknown). */
 export function agentLabel(kind: AgentKind, name = ""): string {
   if (kind === "tech-lead") return "TL";

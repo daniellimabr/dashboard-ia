@@ -25,28 +25,70 @@ describe("Control", () => {
     expect(screen.queryByRole("heading", { name: "Bot Telegram" })).toBeNull();
   });
 
-  it("orders the four accordions and opens the first two", () => {
+  it("links the project name to its page", () => {
+    renderAt("/controle");
+    expect(
+      col("Dashboard IA").getByRole("link", { name: "Dashboard IA" }).getAttribute("href"),
+    ).toBe("/p/dashboard-ia");
+  });
+
+  const state = (name: string) =>
+    accordions(col(name)).map(
+      (b) =>
+        `${/^(Horários|Fora|Itens|Agentes|Consumo)/.exec(b.textContent ?? "")?.[0]}:${b.getAttribute("aria-expanded")}`,
+    );
+
+  it("orders the accordions and opens only where something is running", () => {
+    renderAt("/controle");
+    expect(state("Dashboard IA")).toEqual([
+      "Horários:false",
+      "Fora:false",
+      "Itens:true",
+      "Agentes:false",
+      "Consumo:true",
+    ]);
+    expect(state("Main Harness")).toEqual([
+      "Horários:false",
+      "Fora:true",
+      "Itens:false",
+      "Agentes:false",
+      "Consumo:true",
+    ]);
+    expect(state("Finanças Casa")).toEqual([
+      "Horários:false",
+      "Itens:false",
+      "Agentes:false",
+      "Consumo:true",
+    ]);
+  });
+
+  it("shows the main info on closed accordions", () => {
+    renderAt("/controle");
+    const [hours, , , agents, money] = accordions(col("Dashboard IA"));
+    expect(hours?.textContent).toMatch(/\d+\/7 feitas/);
+    expect(agents?.textContent).toMatch(/\d+ rodando · contexto máx\. \d+%/);
+    expect(money?.textContent).toMatch(/US\$.* hoje · \d+% do limite 5 h/);
+    const fc = accordions(col("Finanças Casa"));
+    expect(fc[2]?.textContent).toContain("nenhum rodando");
+  });
+
+  it("puts the gantt and the elapsed bar inside Horários", async () => {
     renderAt("/controle");
     const c = col("Dashboard IA");
-    const titles = accordions(c).map((b) => b.textContent ?? "");
-    expect(titles[0]).toMatch(/^Timeline/);
-    expect(titles[1]).toMatch(/^Horários/);
-    expect(titles[2]).toMatch(/^Fora da sprint/);
-    expect(titles[3]).toMatch(/^Itens da sprint/);
-    expect(accordions(c).map((b) => b.getAttribute("aria-expanded"))).toEqual([
-      "true",
-      "true",
-      "false",
-      "false",
-    ]);
-    c.getByTestId("gantt");
-    c.getByText("Corrido");
+    expect(c.queryByTestId("gantt")).toBeNull();
+    const btn = accordions(c)[0] as HTMLElement;
+    btn.focus();
+    await userEvent.keyboard("{Enter}");
+    const box = within(btn.parentElement as HTMLElement);
+    box.getByText("Corrido");
+    box.getByTestId("gantt");
+    box.getByText("Duração corrida");
   });
 
   it("shows tasks outside the sprint without %, and hides the block when there are none", async () => {
     renderAt("/controle");
     const c = col("Dashboard IA");
-    const btn = accordions(c)[2] as HTMLElement;
+    const btn = accordions(c)[1] as HTMLElement;
     expect(btn.textContent).toContain("1 tarefa");
     btn.focus();
     await userEvent.keyboard("{Enter}");
@@ -63,14 +105,18 @@ describe("Control", () => {
   it("opens and closes the sprint items by keyboard, with % and steps", async () => {
     renderAt("/controle");
     const c = col("Dashboard IA");
-    const btn = await openSprint(c);
+    const btn = accordions(c).find((b) =>
+      b.textContent?.startsWith("Itens da sprint"),
+    ) as HTMLElement;
     expect(btn.getAttribute("aria-expanded")).toBe("true");
     expect(btn.textContent).toContain("31%");
     c.getByText("1 reprov.");
     c.getByText("onda 2 de 4");
     c.getByText("Revisão ✕");
-    c.getByText("Duração corrida");
-    c.getByText("Gasto da sprint");
+    const items = within(btn.parentElement as HTMLElement);
+    expect(items.queryByText("Duração corrida")).toBeNull();
+    expect(items.queryByText("Gasto da sprint")).toBeNull();
+    btn.focus();
     const on = c.getByTitle("Clone 1 executando agora"); // getBy: exactly one lit icon
     expect(on.textContent).toBe("C1");
     expect(on.className).toContain("on");
@@ -83,19 +129,32 @@ describe("Control", () => {
   it("uses the planned sprint when none is active", async () => {
     renderAt("/controle");
     const c = col("Finanças Casa");
-    c.getByText("não começou");
+    c.getByText(/não começou/);
     await openSprint(c);
     c.getByText(/^S03 · .+ — /);
   });
 
-  it("lists running agents with context and the day's spend", () => {
+  it("lists running agents with context, and the spend inside Consumo", async () => {
     renderAt("/controle");
     const c = col("Dashboard IA");
+    const [, , , agents, money] = accordions(c) as [
+      HTMLElement,
+      HTMLElement,
+      HTMLElement,
+      HTMLElement,
+      HTMLElement,
+    ];
+    agents.focus();
+    await userEvent.keyboard("{Enter}");
     c.getByText("Clone 1");
     c.getByTitle("contexto 21%");
-    c.getByText(/tokens hoje/);
-    c.getByText(/% do limite 5 h/);
-    c.getByRole("img", { name: /gasto/i });
-    col("Finanças Casa").getByText("nenhum agente rodando");
+    const m = within(money.parentElement as HTMLElement);
+    m.getByText(/tokens hoje/);
+    m.getByRole("img", { name: /gasto/i });
+    m.getByText("Gasto da sprint");
+    const fc = col("Finanças Casa");
+    (accordions(fc)[2] as HTMLElement).focus();
+    await userEvent.keyboard("{Enter}");
+    fc.getByText("nenhum agente rodando");
   });
 });

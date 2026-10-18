@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Task } from "../data/types";
-import { agentLabel, currentWave, ganttLayout, sprintPct, taskPct, taskStatus } from "./progress";
+import { agentLabel, currentWave, sprintPct, taskPct, taskStatus } from "./progress";
 
 const t = (over: Partial<Task>): Task => ({ id: "T01", title: "x", done: false, ...over });
 
@@ -28,18 +28,6 @@ describe("progress", () => {
     const tasks = [t({ wave: 1, done: true }), t({ wave: 2 }), t({ wave: 3 })];
     expect(currentWave(tasks)).toEqual({ current: 2, total: 3 });
     expect(currentWave([t({ wave: 1, done: true })])).toEqual({ current: 1, total: 1 });
-  });
-
-  it("lays tasks on the gantt by plan", () => {
-    const g = ganttLayout([
-      t({ id: "A", plan: { start: 0, duration: 30, deps: [] } }),
-      t({ id: "B", plan: { start: 30, duration: 90, deps: ["A"] } }),
-    ]);
-    expect(g.span).toBe(120);
-    expect(g.rows).toEqual([
-      { id: "A", left: 0, width: 25, deps: [] },
-      { id: "B", left: 25, width: 75, deps: ["A"] },
-    ]);
   });
 
   it("labels agents TL, C<n>, RV", () => {

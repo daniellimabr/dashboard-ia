@@ -1,3 +1,4 @@
+import { Link } from "react-router";
 import { Gantt } from "../components/Gantt";
 import { ProgressRow } from "../components/ProgressRow";
 import { Spark } from "../components/Spark";
@@ -94,11 +95,14 @@ function Column({ p, now }: { p: Project; now: number }) {
   const wave = currentWave(tasks);
   const fails = tasks.filter((t) => t.review === "fail").length;
   const adhocRun = adhoc.filter(({ t }) => !t.done).length;
+  const sprintRun = tasks.some((t) => taskStatus(t) === "running");
 
   return (
     <section className="col">
       <header>
-        <h2>{p.name}</h2>
+        <h2>
+          <Link to={`/p/${p.id}`}>{p.name}</Link>
+        </h2>
         {p.phase && (
           <span className={`pill p-${p.phase.tone} ${p.phase.live ? "live" : ""}`}>
             {p.phase.label}
@@ -111,27 +115,16 @@ function Column({ p, now }: { p: Project; now: number }) {
           <span className="muted">{a.detail}</span>
         </div>
       ))}
-      {sprint && (
-        <div className={css.trk}>
+      <div className={css.trk}>
+        {sprint && (
           <ProgressRow
-            defaultOpen
-            title="Timeline"
-            sub={`${sprint.id} · dependências e andamento das tarefas`}
-            right={`${done}/${tasks.length} feitas`}
-          >
-            <div className={css.pad}>
-              <Gantt tasks={tasks} now={running ? Math.floor(runMs / MIN) : undefined} />
-            </div>
-          </ProgressRow>
-          <ProgressRow
-            defaultOpen
             title="Horários"
-            sub="início, fim e tempo da sprint"
-            right={
+            sub="início, fim e andamento das tarefas"
+            right={`${done}/${tasks.length} feitas · ${
               start
                 ? `${formatTime(start)} → ${end ? formatTime(end) : "em curso"} · ${formatDuration(runMs)}`
                 : "não começou"
-            }
+            }`}
           >
             <table className={css.times}>
               <thead>
@@ -166,39 +159,52 @@ function Column({ p, now }: { p: Project; now: number }) {
                 </tr>
               </tbody>
             </table>
-          </ProgressRow>
-          {adhoc.length > 0 && (
+            <div className={css.pad}>
+              <Gantt tasks={tasks} now={now} live={!!running} />
+            </div>
             <ProgressRow
-              title="Fora da sprint"
-              sub="tarefas de chats sem sprint"
-              right={`${adhoc.length} tarefa${adhoc.length > 1 ? "s" : ""}${adhocRun ? ` · ${adhocRun} rodando` : ""}`}
-            >
-              {adhoc.map(({ t, chat }) => (
-                <ProgressRow
-                  key={`${chat}:${t.id}`}
-                  level={2}
-                  title={
-                    <>
-                      {t.agent && (
-                        <span className={`av ${t.done ? "" : "on"}`}>{agentLabel(t.agent)}</span>
-                      )}
-                      {t.title}
-                    </>
-                  }
-                  sub={chat}
-                  right={span(t, now)}
-                  chips={
-                    t.done ? (
-                      <span className="chip ok">feita</span>
-                    ) : (
-                      <span className="chip run">rodando</span>
-                    )
-                  }
-                />
-              ))}
-            </ProgressRow>
-          )}
+              level={2}
+              title="Duração corrida"
+              right={`${start ? formatDuration(runMs) : "0 min"} de ${formatDuration(planMs)}`}
+              pct={planMs ? pctOf(runMs, planMs) : 0}
+            />
+          </ProgressRow>
+        )}
+        {adhoc.length > 0 && (
           <ProgressRow
+            defaultOpen={adhocRun > 0}
+            title="Fora da sprint"
+            sub="tarefas de chats sem sprint"
+            right={`${adhoc.length} tarefa${adhoc.length > 1 ? "s" : ""}${adhocRun ? ` · ${adhocRun} rodando` : ""}`}
+          >
+            {adhoc.map(({ t, chat }) => (
+              <ProgressRow
+                key={`${chat}:${t.id}`}
+                level={2}
+                title={
+                  <>
+                    {t.agent && (
+                      <span className={`av ${t.done ? "" : "on"}`}>{agentLabel(t.agent)}</span>
+                    )}
+                    {t.title}
+                  </>
+                }
+                sub={chat}
+                right={span(t, now)}
+                chips={
+                  t.done ? (
+                    <span className="chip ok">feita</span>
+                  ) : (
+                    <span className="chip run">rodando</span>
+                  )
+                }
+              />
+            ))}
+          </ProgressRow>
+        )}
+        {sprint && (
+          <ProgressRow
+            defaultOpen={sprintRun}
             title="Itens da sprint"
             sub={`${sprint.id} · ${sprint.title}${sprint.goal ? ` — ${sprint.goal}` : ""}`}
             right={`${done}/${tasks.length} feitas${start ? ` · corrido ${formatDuration(runMs)}` : ""}`}
@@ -214,62 +220,68 @@ function Column({ p, now }: { p: Project; now: number }) {
             }
             below={`previsto ${formatDuration(planMs)}`}
           >
-            <ProgressRow
-              level={2}
-              title="Duração corrida"
-              right={`${start ? formatDuration(runMs) : "0 min"} de ${formatDuration(planMs)}`}
-              pct={planMs ? pctOf(runMs, planMs) : 0}
-            />
+            {tasks.map((t) => (
+              <TaskRow key={t.id} t={t} agents={agents} now={now} />
+            ))}
+          </ProgressRow>
+        )}
+        <ProgressRow
+          title="Agentes"
+          sub="quem está trabalhando agora"
+          right={
+            agents.length
+              ? `${agents.length} rodando · contexto máx. ${Math.max(...agents.map((a) => a.contextPct ?? 0))}%`
+              : "nenhum rodando"
+          }
+        >
+          {agents.length ? (
+            <table className={css.agents}>
+              <tbody>
+                {agents.map((a) => (
+                  <tr key={a.id}>
+                    <td>
+                      <span className="pill p-run live">{a.name}</span>
+                    </td>
+                    <td className="muted">{a.doing}</td>
+                    <td className="r mono num">
+                      {Math.floor(durationMs(a.startedAt, undefined, now) / MIN)}m
+                    </td>
+                    <td className="r">
+                      <div className={`bar ${css.ctx}`} title={`contexto ${a.contextPct ?? 0}%`}>
+                        <i
+                          className={barCls(a.contextPct ?? 0)}
+                          style={{ width: `${a.contextPct ?? 0}%` }}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className={`muted ${css.none}`}>nenhum agente rodando</p>
+          )}
+        </ProgressRow>
+        <ProgressRow
+          defaultOpen
+          title="Consumo"
+          sub="gasto de hoje e da sprint"
+          right={`${formatUsd(today?.usd ?? 0)} hoje · ${pctOf(today?.usd ?? 0, h5)}% do limite 5 h`}
+        >
+          <div className={css.money}>
+            <strong className="num">{formatUsd(today?.usd ?? 0)}</strong>
+            <Spark values={usage.map((u) => u.usd)} label="gasto dos últimos 7 dias" />
+            <span className="muted mono">{formatTokens(today?.tokens ?? 0)} tokens hoje</span>
+          </div>
+          {sprint && (
             <ProgressRow
               level={2}
               title="Gasto da sprint"
               right={`${formatUsd(sprint.usd ?? 0)} · limite 5 h`}
               pct={pctOf(sprint.usd ?? 0, h5)}
             />
-            {tasks.map((t) => (
-              <TaskRow key={t.id} t={t} agents={agents} now={now} />
-            ))}
-          </ProgressRow>
-        </div>
-      )}
-      <div>
-        <h3>Agentes</h3>
-        {agents.length ? (
-          <table className={css.agents}>
-            <tbody>
-              {agents.map((a) => (
-                <tr key={a.id}>
-                  <td>
-                    <span className="pill p-run live">{a.name}</span>
-                  </td>
-                  <td className="muted">{a.doing}</td>
-                  <td className="r mono num">
-                    {Math.floor(durationMs(a.startedAt, undefined, now) / MIN)}m
-                  </td>
-                  <td className="r">
-                    <div className={`bar ${css.ctx}`} title={`contexto ${a.contextPct ?? 0}%`}>
-                      <i
-                        className={barCls(a.contextPct ?? 0)}
-                        style={{ width: `${a.contextPct ?? 0}%` }}
-                      />
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p className={`muted ${css.none}`}>nenhum agente rodando</p>
-        )}
-      </div>
-      <div>
-        <h3>Consumo</h3>
-        <div className={css.money}>
-          <strong className="num">{formatUsd(today?.usd ?? 0)}</strong>
-          <Spark values={usage.map((u) => u.usd)} label="gasto dos últimos 7 dias" />
-          <span className="muted mono">{formatTokens(today?.tokens ?? 0)} tokens hoje</span>
-          <span className="muted mono">{pctOf(today?.usd ?? 0, h5)}% do limite 5 h</span>
-        </div>
+          )}
+        </ProgressRow>
       </div>
     </section>
   );
