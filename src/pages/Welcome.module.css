@@ -1,0 +1,90 @@
+.hello {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 18px;
+  max-width: 75ch;
+}
+.hello h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  text-wrap: balance;
+}
+.hello p {
+  margin: 0;
+  color: var(--muted);
+}
+.next {
+  border: 1px solid var(--accent);
+  padding: 10px 12px;
+  display: grid;
+  gap: 8px;
+}
+.next :global(.lbl) {
+  color: var(--accent);
+}
+.next strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+.next button {
+  justify-self: start;
+  background: var(--accent);
+  color: #06121c;
+  border: 0;
+  padding: 6px 14px;
+  font-weight: 600;
+  border-radius: var(--r);
+  cursor: pointer;
+}
+.since {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
+.since li {
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  gap: 6px;
+}
+.k {
+  font-family: var(--f-mono);
+}
+.where {
+  font-size: 14px;
+  line-height: 1.45;
+  margin: 0;
+}
+.docs {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 2px;
+  font-size: 13px;
+}
+.docs li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line);
+}
+.t {
+  font: 500 10px var(--f-mono);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  min-width: 56px;
+  display: inline-block;
+}
+.backlog {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  display: grid;
+  gap: 3px;
+}

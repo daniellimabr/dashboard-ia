@@ -1,0 +1,58 @@
+import { screen, within } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { data } from "../data/mock";
+import { formatTime } from "../lib/time";
+import { renderAt } from "../test-utils";
+
+describe("Welcome page", () => {
+  it("says when and where the last command was", () => {
+    renderAt("/");
+    const p = screen.getByText(/Seu último comando foi/);
+    expect(p.textContent).toContain(formatTime(data.lastCommand.at));
+    expect(p.textContent).toContain("no chat Executar sprint S01 (Dashboard IA)");
+    expect(p.textContent).toContain("há 2 dias");
+    const waiting = data.projects.slice(0, 3).filter((x) => x.alerts?.length).length;
+    expect(p.textContent).toContain(`${waiting} de 3 projetos esperam algo de você.`);
+  });
+
+  it("shows only active projects, each with the 5 blocks", () => {
+    renderAt("/");
+    const cols = screen.getAllByRole("region");
+    expect(cols.map((c) => within(c).getByRole("heading", { level: 2 }).textContent)).toEqual([
+      "Dashboard IA",
+      "Main Harness",
+      "Finanças Casa",
+    ]);
+    expect(screen.queryByText("Bot Telegram")).toBeNull();
+    for (const c of cols) {
+      expect(
+        within(c)
+          .getAllByRole("heading", { level: 3 })
+          .map((h) => h.textContent),
+      ).toEqual(["Onde parou", "Desde o seu último comando", "Documentos", "Topo do backlog"]);
+      expect(within(c).getByText("Próximo passo")).toBeTruthy();
+    }
+  });
+
+  it("links documents to the project's Documentos tab", () => {
+    renderAt("/");
+    const link = screen.getByRole("link", { name: /Layout da tela principal/ });
+    expect(link.getAttribute("href")).toBe("/p/dashboard-ia/docs/S02-plan");
+    expect(
+      within(screen.getByRole("region", { name: "Dashboard IA" }))
+        .getByText("nenhum nesta sprint")
+        .closest("a"),
+    ).toBeNull();
+  });
+
+  it("lists the top 3 backlog items without priority or final dot", () => {
+    renderAt("/");
+    const col = screen.getByRole("region", { name: "Dashboard IA" });
+    const items = within(col).getAllByRole("listitem").slice(-3);
+    expect(items.map((i) => i.textContent)).toEqual([
+      "Servidor local + SQLite + importador de eventos",
+      "Ligar telas aos dados reais (a cada 5 s)",
+      "Consumo real em tokens e US$",
+    ]);
+  });
+});
