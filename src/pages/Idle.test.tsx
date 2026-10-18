@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { renderAt } from "../test-utils";
@@ -23,6 +23,6 @@ describe("Idle", () => {
     expect(screen.queryByRole("heading", { name: "Bot Telegram" })).toBeNull();
     screen.getByRole("link", { name: "Ociosos (1)" });
     await user.click(screen.getByRole("link", { name: "Bem-vindo de volta" }));
-    screen.getByText("Bot Telegram");
+    within(screen.getByRole("main")).getByText("Bot Telegram");
   });
 });

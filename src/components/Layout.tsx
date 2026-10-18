@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { NavLink, Outlet, useParams } from "react-router";
+import { Link, NavLink, Outlet, useLocation, useParams } from "react-router";
 import { data } from "../data/mock";
 import type { Limit } from "../data/types";
 import { splitIdle } from "../lib/idle";
@@ -42,6 +42,7 @@ export function Layout() {
     [now, promoted],
   );
   const { h5, week } = data.limits;
+  const { pathname } = useLocation(); // remounts the Projetos menu closed after navigating
   return (
     <>
       <nav className="nav wrap" aria-label="Telas">
@@ -55,6 +56,17 @@ export function Layout() {
           <NavLink to="/ociosos" className="idle-tab">
             Ociosos ({board.idle.length})
           </NavLink>
+          {/* shortcut: plain list to reach the project tabs; real project navigation is in the backlog */}
+          <details key={pathname} className="projects">
+            <summary>Projetos</summary>
+            <div>
+              {data.projects.map((p) => (
+                <Link key={p.id} to={`/p/${p.id}`}>
+                  {p.name}
+                </Link>
+              ))}
+            </div>
+          </details>
         </div>
         <div className="limits">
           <LimitBar

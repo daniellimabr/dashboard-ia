@@ -152,6 +152,46 @@ h3 {
   font-size: 13px;
 }
 
+.projects {
+  position: relative;
+  margin-left: 8px;
+}
+
+.projects summary {
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-radius: var(--r);
+}
+
+.projects[open] summary {
+  color: var(--fg);
+  border-color: var(--line);
+}
+
+.projects > div {
+  position: absolute;
+  z-index: 6;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: min(200px, calc(100vw - 32px));
+  display: grid;
+  background: var(--card);
+  border: 1px solid var(--line);
+}
+
+.projects > div a {
+  padding: 8px 12px;
+  color: var(--fg);
+}
+
+.projects > div a:hover {
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+  text-decoration: none;
+}
+
 main .tabs {
   border-bottom: 1px solid var(--line);
   padding-bottom: 8px;

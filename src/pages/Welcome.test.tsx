@@ -23,7 +23,7 @@ describe("Welcome page", () => {
       "Main Harness",
       "Finanças Casa",
     ]);
-    expect(screen.queryByText("Bot Telegram")).toBeNull();
+    expect(within(screen.getByRole("main")).queryByText("Bot Telegram")).toBeNull();
     for (const c of cols) {
       expect(
         within(c)

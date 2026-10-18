@@ -5,6 +5,7 @@ Pedidos ainda não planejados. Um item por linha, com prioridade (alta, média, 
 ## Itens
 
 - [alta] 2026-10-16 — Redesenho da tela principal: mostrar o máximo de informação de cada projeto; aprofundar o layout (drafts) antes da comunicação com agentes/projetos.
+- [alta] 2026-10-18 — Navegação pelos projetos (candidato à S03): entrar em cada projeto (chats, sprints, backlog/roadmap, documentos, consumo) a partir das telas principais e navegar pelos documentos dos projetos por aqui; hoje há só o menu provisório "Projetos" e os links do Bem-vindo.
 - [média] 2026-10-16 — Sanitizar o HTML do markdown (ex.: DOMPurify) ao passar a ler documentos reais dos repos.
 - [alta] 2026-10-16 — Servidor Node local + SQLite embutido (`node:sqlite`, sem instalação) com importador dos eventos do harness (`~/.main-harness/events/*.jsonl`).
 - [alta] 2026-10-16 — Ligar as telas do draft aos dados reais (projetos, chats, agentes, sprints, tarefas), com atualização automática a cada ~5 s.

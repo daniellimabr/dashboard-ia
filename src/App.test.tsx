@@ -1,4 +1,5 @@
 import { screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { renderAt } from "./test-utils";
 
@@ -25,6 +26,14 @@ describe("routes", () => {
   it("counts idle projects in the menu", () => {
     renderAt("/");
     screen.getByRole("link", { name: "Ociosos (2)" });
+  });
+
+  it("opens any project's tabs from the Projetos menu", async () => {
+    renderAt("/controle");
+    await userEvent.click(screen.getByText("Projetos"));
+    await userEvent.click(screen.getByRole("link", { name: "Bot Telegram" }));
+    screen.getByRole("heading", { level: 1, name: "Bot Telegram" });
+    expect(screen.getByRole("link", { name: "Chats" }).getAttribute("aria-current")).toBe("page");
   });
 
   it.each([
