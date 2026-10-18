@@ -1,0 +1,105 @@
+/* Draft "Sala de controle" (variant B). */
+.alert {
+  border-left: 3px solid var(--bad);
+  background: color-mix(in srgb, var(--bad) 10%, transparent);
+  padding: 8px 10px;
+  font-size: 13px;
+  display: grid;
+  gap: 4px;
+}
+
+.alert.w {
+  border-color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+}
+
+.alert b {
+  font-weight: 600;
+}
+
+.trk {
+  display: grid;
+  gap: 8px;
+}
+
+.pad {
+  padding: 16px 12px 10px;
+  overflow-x: auto;
+}
+
+.times {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--f-mono);
+  table-layout: fixed;
+}
+
+.times th {
+  font: 500 10px var(--f-mono);
+  color: var(--muted);
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.times td {
+  font-size: 15px;
+  font-weight: 600;
+  padding: 8px 10px;
+}
+
+.times td :global(.muted) {
+  font-size: 11px;
+  font-weight: 400;
+  display: block;
+}
+
+.live {
+  color: var(--run);
+}
+
+.agents {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.agents td {
+  padding: 5px 0;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.agents td:global(.r) {
+  text-align: right;
+}
+
+.ctx {
+  width: 56px;
+  margin-left: auto;
+}
+
+.none {
+  margin: 0;
+  font-size: 13px;
+}
+
+.money {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 16px;
+  align-items: end;
+}
+
+.money strong {
+  font: 600 22px var(--f-mono);
+}
+
+.money span {
+  font-size: 11px;
+}
+
+.money span:last-child {
+  text-align: right;
+}
