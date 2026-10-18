@@ -1,0 +1,46 @@
+.idle {
+  display: grid;
+  gap: 10px;
+  max-width: 880px;
+}
+.title {
+  margin: 0;
+  font-size: 18px;
+}
+.it {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 16px;
+  align-items: center;
+  background: var(--card);
+  border: 1px solid var(--line);
+  padding: 12px 14px;
+}
+.it h2 {
+  margin: 0;
+  font-size: 16px;
+}
+.it small {
+  color: var(--muted);
+  display: block;
+}
+.it button {
+  border: 1px solid var(--line);
+  background: transparent;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+.usd {
+  font-size: 13px;
+}
+.note {
+  font-size: 13px;
+  color: var(--muted);
+  max-width: 65ch;
+  margin: 0;
+}
+@media (max-width: 560px) {
+  .it {
+    grid-template-columns: 1fr;
+  }
+}
