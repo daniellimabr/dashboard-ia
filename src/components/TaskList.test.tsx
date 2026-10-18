@@ -8,7 +8,13 @@ describe("TaskList", () => {
       <TaskList
         now={Date.parse("2026-10-16T20:30:00Z")}
         tasks={[
-          { id: "T01", title: "Base", done: true, startedAt: "2026-10-16T19:00:00Z", endedAt: "2026-10-16T20:05:00Z" },
+          {
+            id: "T01",
+            title: "Base",
+            done: true,
+            startedAt: "2026-10-16T19:00:00Z",
+            endedAt: "2026-10-16T20:05:00Z",
+          },
           { id: "T02", title: "Tela", done: false, startedAt: "2026-10-16T20:00:00Z" },
           { id: "T03", title: "Depois", done: false },
         ]}
