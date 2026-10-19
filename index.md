@@ -18,10 +18,27 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `docs/sprints/.gitkeep` — (sem descrição)
 - `docs/sprints/S01-plan.md` — S01 — Draft do front do painel
 - `docs/sprints/S02-plan.md` — S02 — Design do front do painel
+- `docs/sprints/S03-plan.md` — S03 — Backend local: servidor, banco e importador
 - `eslint.config.mjs` — ESLint flat config installed by the Main Harness (/attach). Zero errors, zero warnings.
 - `index.html` — (sem descrição)
 - `package-lock.json` — (sem descrição)
 - `package.json` — (sem descrição)
+- `scripts/dev.ts` — Runs the API server and Vite together; when one exits, stops the other with its exit code.
+- `scripts/sample-events.test.ts` — @vitest-environment node
+- `scripts/sample-events.ts` — Turns the mock into sample event files (one JSONL per project). Run: npm run sample-events
+- `server/data.test.ts` — @vitest-environment node
+- `server/data.ts` — Builds the front's `Data` (src/data/types.ts) from the database. Rules on top of it stay in the front.
+- `server/db.ts` — SQLite access lives only here (node:sqlite is still experimental; see ADR 0001).
+- `server/events.test.ts` — @vitest-environment node
+- `server/events.ts` — Event importer: harness JSONL files → SQLite (spec 0001 §2, S03 extensions in the spec's §2.4).
+- `server/fixtures/transcript.jsonl` — (sem descrição)
+- `server/http.test.ts` — @vitest-environment node
+- `server/http.ts` — HTTP API (spec 0001 §4): GET /api/data and POST /api/projects/:id/promote. JSON only.
+- `server/importer.test.ts` — @vitest-environment node
+- `server/importer.ts` — One import round: events first, then transcripts of the registered repos.
+- `server/main.ts` — Local server: imports events and transcripts every ~2 s and serves the API on 127.0.0.1:5174.
+- `server/usage.test.ts` — @vitest-environment node
+- `server/usage.ts` — Claude Code transcripts (~/.claude/projects/**/*.jsonl) -> `usage` rows, plus the `price` table.
 - `src/App.test.tsx` — (sem descrição)
 - `src/App.tsx` — (sem descrição)
 - `src/components/Gantt.module.css` — mini-gantt: position = sprint plan; color = stage; intensity = %
@@ -35,6 +52,7 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `src/data/types.ts` — Shapes mirror the future harness events (see docs/adr/0001-arquitetura.md).
 - `src/lib/progress.test.ts` — (sem descrição)
 - `src/lib/progress.ts` — (sem descrição)
+- `src/lib/useData.tsx` — (sem descrição)
 - `src/lib/useNow.ts` — (sem descrição)
 - `src/lib/useProject.ts` — (sem descrição)
 - `src/main.tsx` — (sem descrição)

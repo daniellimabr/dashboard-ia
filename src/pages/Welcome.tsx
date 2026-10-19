@@ -1,11 +1,11 @@
 import { Link, useNavigate } from "react-router";
-import { data } from "../data/mock";
 import type { Doc, Project, Tone } from "../data/types";
 import { formatTokens, formatUsd } from "../lib/format";
 import { sinceLastCommand } from "../lib/since";
 import { formatDate, formatTime, formatWeekday } from "../lib/time";
 import { useBoard } from "../lib/useBoard";
 import s from "./Welcome.module.css";
+import { useData } from "../lib/useData";
 
 const DAY = 86_400_000;
 // shortcut: rounds elapsed days instead of comparing calendar days, fine while data is the mock (virtual 14:50 clock)
@@ -37,6 +37,7 @@ const backlogTop = (md: string) =>
     );
 
 function Column({ p }: { p: Project }) {
+  const { data } = useData();
   const navigate = useNavigate();
   const since = sinceLastCommand(data, p.id);
   const latest = (kind: Doc["kind"]) =>
@@ -129,6 +130,7 @@ function Column({ p }: { p: Project }) {
 }
 
 export function Welcome() {
+  const { data } = useData();
   const { active } = useBoard();
   const { at, chatId } = data.lastCommand;
   const chat = data.chats.find((c) => c.id === chatId);

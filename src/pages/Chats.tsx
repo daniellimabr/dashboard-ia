@@ -1,9 +1,9 @@
 import { Link, useParams } from "react-router";
 import { TaskList } from "../components/TaskList";
-import { data } from "../data/mock";
 import { durationMs, formatDate, formatDuration, formatTime } from "../lib/time";
 import { useNow } from "../lib/useNow";
 import { useProject } from "../lib/useProject";
+import { useData } from "../lib/useData";
 
 const when = (iso: string) => `${formatDate(iso)} ${formatTime(iso)}`;
 
@@ -16,6 +16,7 @@ function Status({ end, live }: { end?: string; live: string }) {
 }
 
 export function Chats() {
+  const { data } = useData();
   const project = useProject();
   const { chatId } = useParams();
   const now = useNow();

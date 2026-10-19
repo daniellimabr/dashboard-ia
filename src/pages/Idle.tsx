@@ -1,12 +1,13 @@
-import { data } from "../data/mock";
 import { formatUsd } from "../lib/format";
 import { useBoard } from "../lib/useBoard";
 import { useNow } from "../lib/useNow";
 import s from "./Idle.module.css";
+import { useData } from "../lib/useData";
 
 const DAY = 86_400_000;
 
 export function Idle() {
+  const { data } = useData();
   const { idle, promote } = useBoard();
   const now = useNow();
   const weekStart = new Date(now - 6 * DAY).toISOString().slice(0, 10);

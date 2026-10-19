@@ -1,12 +1,12 @@
 import { useState, type CSSProperties } from "react";
-import { data } from "../data/mock";
-import type { AgentKind, Project, Tone } from "../data/types";
+import type { AgentKind, Data, Project, Tone } from "../data/types";
 import { formatUsd } from "../lib/format";
 import { activeSprint } from "../lib/select";
 import { formatDate, formatTime } from "../lib/time";
 import { useBoard } from "../lib/useBoard";
 import { useNow } from "../lib/useNow";
 import css from "./Timeline.module.css";
+import { useData } from "../lib/useData";
 
 const H = 3_600_000;
 const D = 24 * H;
@@ -15,7 +15,7 @@ type Range = (typeof RANGES)[number];
 const COLOR: Record<AgentKind, string> = { "tech-lead": "--tl", clone: "--cl", reviewer: "--rv" };
 const t = (iso: string) => Date.parse(iso);
 
-function lanesOf(p: Project, now: number) {
+function lanesOf(data: Data, p: Project, now: number) {
   const bars = data.chats
     .filter((c) => c.projectId === p.id)
     .sort((a, b) => t(a.startedAt) - t(b.startedAt))
@@ -80,13 +80,14 @@ function period(range: Range, now: number, firsts: number[], sprintStarts: numbe
 }
 
 export function Timeline() {
+  const { data } = useData();
   const { active } = useBoard();
   const now = useNow();
   const [range, setRange] = useState<Range>("Hoje");
   const [shut, setShut] = useState<Set<string>>(new Set());
   const today = new Date(now).toISOString().slice(0, 10);
 
-  const lanes = active.map((p) => ({ p, ...lanesOf(p, now) }));
+  const lanes = active.map((p) => ({ p, ...lanesOf(data, p, now) }));
   const { start, end, ticks } = period(
     range,
     now,

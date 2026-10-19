@@ -4,5 +4,6 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [react()],
+  server: { proxy: { "/api": "http://127.0.0.1:5174" } },
   test: { environment: "jsdom", setupFiles: ["src/test-setup.ts"] },
 });

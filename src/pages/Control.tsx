@@ -2,7 +2,6 @@ import { Link } from "react-router";
 import { Gantt } from "../components/Gantt";
 import { ProgressRow } from "../components/ProgressRow";
 import { Spark } from "../components/Spark";
-import { data } from "../data/mock";
 import { STEPS, type Agent, type Project, type Sprint, type Task } from "../data/types";
 import { formatTokens, formatUsd } from "../lib/format";
 import { agentLabel, currentWave, sprintPct, taskPct, taskStatus } from "../lib/progress";
@@ -11,6 +10,7 @@ import { durationMs, formatDuration, formatTime } from "../lib/time";
 import { useBoard } from "../lib/useBoard";
 import { useNow } from "../lib/useNow";
 import css from "./Control.module.css";
+import { useData } from "../lib/useData";
 
 const MIN = 60_000;
 const pctOf = (v: number, max: number) => Math.min(100, Math.round((v / max) * 100));
@@ -74,6 +74,7 @@ function TaskRow({ t, agents, now }: { t: Task; agents: Agent[]; now: number }) 
 }
 
 function Column({ p, now }: { p: Project; now: number }) {
+  const { data } = useData();
   const sprint: Sprint | undefined =
     data.sprints.find((s) => s.projectId === p.id && s.status === "active") ??
     data.sprints.find((s) => s.projectId === p.id && s.status === "planned");

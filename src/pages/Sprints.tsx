@@ -1,9 +1,9 @@
 import { Link, useParams } from "react-router";
-import { data } from "../data/mock";
 import type { Sprint } from "../data/types";
 import { TaskList } from "../components/TaskList";
 import { durationMs, formatDate, formatDuration } from "../lib/time";
 import { useProject } from "../lib/useProject";
+import { useData } from "../lib/useData";
 
 const STATUS = {
   planned: ["planejada", ""],
@@ -28,6 +28,7 @@ function Meta({ sprint }: { sprint: Sprint }) {
 }
 
 export function Sprints() {
+  const { data } = useData();
   const project = useProject();
   const { sprintId } = useParams();
   const sprints = data.sprints.filter((s) => s.projectId === project.id);

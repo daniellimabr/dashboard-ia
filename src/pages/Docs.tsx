@@ -1,8 +1,8 @@
 import { Link, useParams } from "react-router";
 import { Markdown } from "../components/Markdown";
-import { data } from "../data/mock";
 import type { Doc } from "../data/types";
 import { useProject } from "../lib/useProject";
+import { useData } from "../lib/useData";
 
 const groups: [Doc["kind"], string][] = [
   ["sprint-plan", "Sprint plans"],
@@ -13,6 +13,7 @@ const groups: [Doc["kind"], string][] = [
 ];
 
 export function Docs() {
+  const { data } = useData();
   const project = useProject();
   const { docId } = useParams();
   const base = `/p/${project.id}/docs`;

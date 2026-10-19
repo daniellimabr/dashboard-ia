@@ -1,8 +1,8 @@
 import { formatTokens, formatUsd } from "../lib/format";
-import { data } from "../data/mock";
 import { dailySeries, usageByProject } from "../lib/usage";
 import { useProject } from "../lib/useProject";
 import css from "./Usage.module.css";
+import { useData } from "../lib/useData";
 
 const pct = (n: number) => `${n.toFixed(1).replace(".", ",")}%`;
 const day = (date: string) => `${date.slice(8)}/${date.slice(5, 7)}`;
@@ -11,6 +11,7 @@ const BAR = 20; // slot width per day in viewBox units
 const H = 100;
 
 export function Usage() {
+  const { data } = useData();
   const project = useProject();
   const all = usageByProject(data.usage);
   const mine = all.find((p) => p.projectId === project.id);
