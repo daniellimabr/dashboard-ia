@@ -95,16 +95,18 @@ export interface Project {
   whereStopped?: string;
   alerts?: { tone: "bad" | "warn"; title: string; detail: string }[];
   events?: ProjectEvent[];
+  promoted?: boolean; // "Trazer para ativos", persisted by the server
 }
 
 export interface Limit {
   pct: number;
-  resetsAt: string;
+  resetsAt?: string; // missing when estimated
+  estimated?: boolean; // no `limit` event: pct = 5 h spend ÷ h5Usd
 }
 
 export interface Data {
   lastCommand: { at: string; chatId: string };
-  limits: { h5: Limit; week: Limit; h5Usd: number }; // h5Usd: spend that equals 100% of the 5 h window
+  limits: { h5: Limit; week?: Limit; h5Usd: number }; // h5Usd: spend that equals 100% of the 5 h window; week missing = "sem dado"
   projects: Project[];
   chats: Chat[];
   sprints: Sprint[];
