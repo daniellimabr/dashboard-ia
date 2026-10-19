@@ -1,6 +1,6 @@
 # Spec 0001 — Backend: dados, eventos e API
 
-- **Status:** rascunho para a S03
+- **Status:** implementada em parte na S03 (`GET /api/data` e `POST /promote`; ver §4.0)
 - **Data:** 2026-10-18
 - **Base:** ADR 0001 (eventos em arquivo → importador → `node:sqlite` → servidor local → React), `src/data/types.ts`, telas da S02.
 
@@ -117,7 +117,25 @@ Legenda da coluna **Emite hoje?**: `não` = vira pedido ao harness (o pedido "Gr
 
 Projeto do transcript: pelo `cwd` gravado no transcript, casado com `project.repoPath`. Agente: subagente tem transcript próprio (`agent-*.jsonl`); casa pelo `session_id` + `agent.start`.
 
+### 2.4 Extensões da S03 (usadas pelo gerador de exemplo)
+
+O harness ainda não grava eventos. A S03 usa `npm run sample-events` (`scripts/sample-events.ts`), que converte `src/data/mock.ts` em JSONL. Para as telas ficarem iguais às da S02, o formato ganhou:
+
+| Tipo / campo                               | Uso                                                                             |
+| ------------------------------------------ | ------------------------------------------------------------------------------- |
+| `project.register`: `backlog?`, `roadmap?` | markdown das abas Backlog e Roadmap                                             |
+| `project.status`: `phase?`, `alerts?`      | a fase e os alertas vêm prontos (as regras de §4.1 ainda não rodam no servidor) |
+| `project.event` (novo): `kind`, `text`     | linha de "Desde o seu último comando" (`Project.events`)                        |
+| `doc.write`: `markdown?`, `date?`          | conteúdo do documento (padrão de `date`: `ts`)                                  |
+| `task.start` / `sprint.plan`: `agent`      | é o **tipo** do agente (`tech-lead`\|`clone`\|`reviewer`), não o ID             |
+| `task.phase`: `step`                       | `steps` = posição em `test, code, lint, review, commit` (0–4)                   |
+| `usage` no arquivo de eventos: `id` + §2.2 | consumo dos projetos de exemplo; o Dashboard IA usa os transcripts reais        |
+
+Regras do importador (`server/events.ts`): linha sem `v: 1`, `ts` válido, `project` ou `type` vai para `import_error`; tarefa sem `sprint` e sem `chat` também. `project.status` e `limit` mais antigos que o já importado são ignorados. `project: "*"` não cria projeto.
+
 ## 3. Esquema SQLite
+
+Implementado em `server/db.ts`, com estas colunas a mais: `project.backlog`, `project.roadmap`, `project.phase_json`, `project.alerts_json` e `doc.markdown` (ver §2.4).
 
 Datas como texto ISO UTC (ordenável). IDs de tarefa e sprint se repetem entre projetos, então a chave é composta.
 
@@ -187,6 +205,15 @@ Notas:
 - `event` guarda tudo, inclusive tipos que o importador ainda não entende (compatibilidade para frente).
 
 ## 4. Contratos da API
+
+### 4.0 O que a S03 implementou
+
+- **`GET /api/data`** devolve o `Data` de `src/data/types.ts` inteiro (cerca de 27 KB com 5 projetos), montado em `server/data.ts`. As regras de fase, alertas, ociosos e "desde o último comando" continuam no front, que já as testa. Os endpoints por tela de §4.2–4.4 ficam para quando o tamanho ou a velocidade pedirem.
+- **`POST /api/projects/:id/promote`** → `204`, ou `404` se o projeto não existe.
+- **Só local:** pedido com `Host` fora de `localhost`/`127.0.0.1` ou com `Origin` de outro site recebe `403`. Isso cobre DNS rebinding e POST vindo de outra página.
+- **Limites:** usa o último `limit` ainda não vencido. Sem evento de 5 h, o servidor estima `pct = US$ das últimas 5 h ÷ h5Usd` (`h5Usd` fixo em 17) e marca `estimated`. Sem evento semanal, `week` não vem e o menu mostra "sem dado".
+- **`usd`:** sai da tabela `price` (valores iniciais em `server/usage.ts`). O US$ da sprint soma o consumo do projeto entre `started_at` e `closed_at` (ou agora).
+- **Importador:** roda no servidor a cada 2 s (`server/main.ts`). Pasta de eventos em `DASHBOARD_EVENTS_DIR` e banco em `DASHBOARD_DB`.
 
 Base `http://127.0.0.1:5174/api`. Só JSON, UTF-8. Erros: `{ "error": "texto" }` com 400/404/500. Todas as datas em ISO UTC; o front formata.
 
