@@ -261,13 +261,26 @@ export function buildData(db: Db, now = Date.now()): Data {
     };
   });
 
+  // A session closed without session.end (crash, window closed) would stay "running" forever:
+  // once idle for LIVE_MS, it and its agents end at their last activity.
+  const lastAt = (sql: string) =>
+    new Map(all(sql).map((r) => [String(r.id), String(r.last)] as const));
+  const chatLast = lastAt(
+    "SELECT chat_id id, max(at) last FROM event WHERE chat_id IS NOT NULL GROUP BY 1",
+  );
+  const agentLast = lastAt(
+    "SELECT chat_id || ':' || json_extract(body, '$.agent') id, max(at) last FROM event WHERE chat_id IS NOT NULL AND json_extract(body, '$.agent') IS NOT NULL GROUP BY 1",
+  );
+  const ended = (end: unknown, last: string | undefined) =>
+    s(end) ?? (last && now - Date.parse(last) >= LIVE_MS ? last : undefined);
+
   const agents = all("SELECT * FROM agent ORDER BY started_at");
   const chats = all("SELECT * FROM chat ORDER BY started_at DESC").map((r) => ({
     id: String(r.id),
     projectId: String(r.project_id),
     title: String(r.title),
     startedAt: String(r.started_at),
-    endedAt: s(r.ended_at),
+    endedAt: ended(r.ended_at, chatLast.get(String(r.id))),
     sprintId: s(r.sprint_id),
     agents: agents
       .filter((a) => a.chat_id === r.id)
@@ -279,7 +292,7 @@ export function buildData(db: Db, now = Date.now()): Data {
         doing: s(a.doing),
         contextPct: n(a.context_pct),
         startedAt: String(a.started_at),
-        endedAt: s(a.ended_at),
+        endedAt: ended(a.ended_at, agentLast.get(String(a.id)) ?? chatLast.get(String(r.id))),
       })),
     tasks: tasks.filter((t) => t.chat_id === r.id).map(toTask),
   }));

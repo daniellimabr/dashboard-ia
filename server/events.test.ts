@@ -117,6 +117,32 @@ describe("importEvents (harness contract v1)", () => {
     ]);
   });
 
+  it("reads plugin subagent names: main-harness:reviewer is the Reviewer, main-harness:tech-lead a clone", () => {
+    const line = (id: string, agent: string) =>
+      JSON.stringify({
+        v: 1,
+        id,
+        ts: "2026-10-18T11:00:00Z",
+        harness: "0.5.0",
+        project: "dash",
+        session: "s9",
+        sprint: null,
+        task: null,
+        agent,
+        type: "usage",
+        data: { message_id: id },
+      });
+    writeFileSync(
+      join(dir, "2026-10-18.jsonl"),
+      [line("m1", "main-harness:reviewer"), line("m2", "main-harness:tech-lead"), ""].join("\n"),
+    );
+    importEvents(db, dir);
+    expect(all("SELECT id, kind, name FROM agent ORDER BY id")).toEqual([
+      { id: "s9:main-harness:reviewer", kind: "reviewer", name: "Reviewer" },
+      { id: "s9:main-harness:tech-lead", kind: "clone", name: "Clone" },
+    ]);
+  });
+
   it("keys usage by message_id and never duplicates", () => {
     importEvents(db, dir);
     expect(all("SELECT id, project_id, chat_id, model, tokens_in FROM usage")).toEqual([

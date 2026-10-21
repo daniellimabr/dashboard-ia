@@ -83,8 +83,13 @@ const PHASE_STEPS: Record<string, number> = {
   revisao: 3,
   commit: 4,
 };
-const AGENT_NAMES: Record<string, string> = { "tech-lead": "Tech Lead", reviewer: "Reviewer" };
-const agentKind = (a: string) => (a === "tech-lead" || a === "reviewer" ? a : "clone");
+// "tech-lead" is the main session; a plugin subagent comes as "main-harness:<type>" (its tech-lead = a clone).
+const agentKind = (a: string) =>
+  a === "tech-lead" ? a : a.split(":").at(-1) === "reviewer" ? "reviewer" : "clone";
+const agentName = (a: string) =>
+  ({ "tech-lead": "Tech Lead", reviewer: "Reviewer", clone: a.includes(":") ? "Clone" : a })[
+    agentKind(a)
+  ];
 
 function sprintRow(db: Db, e: Event, set: Row, merge?: Record<string, string>) {
   if (!e.sprint) throw new Error("missing sprint");
@@ -124,7 +129,7 @@ function sessionRows(db: Db, e: Event) {
     "agent",
     { id: `${e.session}:${agent}` },
     { started_at: e.ts, task_id: e.task ?? undefined },
-    { chat_id: e.session, kind: agentKind(agent), name: AGENT_NAMES[agent] ?? agent },
+    { chat_id: e.session, kind: agentKind(agent), name: agentName(agent) },
     { started_at: "min(started_at, excluded.started_at)" },
   );
 }

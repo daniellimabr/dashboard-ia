@@ -161,6 +161,37 @@ describe("derived state from harness events and the repo", () => {
     expect(dash()?.events?.at(-1)).toMatchObject({ kind: "ok", text: "S01 fechada" });
   });
 
+  it("ends a chat without session.end, and its agents, at their last activity once idle", () => {
+    ev(
+      "task.start",
+      "2026-10-18T09:00:00Z",
+      {},
+      { session: "c1", sprint: "S01", task: "T01", agent: "tech-lead" },
+    );
+    ev(
+      "task.start",
+      "2026-10-18T09:10:00Z",
+      {},
+      { session: "c1", sprint: "S01", task: "T02", agent: "clone" },
+    );
+    ev(
+      "task.done",
+      "2026-10-18T09:20:00Z",
+      {},
+      { session: "c1", sprint: "S01", task: "T01", agent: "tech-lead" },
+    );
+    const chat = (now: number) => buildData(db, now).chats.find((c) => c.id === "c1");
+    const busy = chat(Date.parse("2026-10-18T09:35:00Z"));
+    expect(busy?.endedAt).toBeUndefined();
+    expect(busy?.agents.every((a) => a.endedAt === undefined)).toBe(true);
+    const idle = chat(Date.parse("2026-10-18T12:00:00Z"));
+    expect(idle?.endedAt).toBe("2026-10-18T09:20:00Z");
+    expect(Object.fromEntries(idle?.agents.map((a) => [a.id, a.endedAt]) ?? [])).toEqual({
+      "c1:tech-lead": "2026-10-18T09:20:00Z",
+      "c1:clone": "2026-10-18T09:10:00Z",
+    });
+  });
+
   it("uses the last session.start as the last command", () => {
     fixture();
     expect(buildData(db, NOW).lastCommand).toEqual({ at: "2026-10-18T10:01:00Z", chatId: "s1" });
