@@ -1,18 +1,13 @@
 import { useState } from "react";
-import { Link } from "react-router";
-import { Gantt } from "../components/Gantt";
-import { ProgressRow } from "../components/ProgressRow";
-import { Spark } from "../components/Spark";
 import type { Project, Sprint } from "../data/types";
-import css from "../pages/Control.module.css";
-import { formatUsd } from "../lib/format";
-import { agentLabel, sprintPct, taskStatus } from "../lib/progress";
-import { runningAgents } from "../lib/select";
-import { durationMs, formatDuration, formatTime } from "../lib/time";
+import { Column } from "./ControlColumn";
+import { formatDate, formatTime } from "../lib/time";
 import { useBoard } from "../lib/useBoard";
 import { useData } from "../lib/useData";
 import { useNow } from "../lib/useNow";
 import { Variants } from "./Variants";
+
+const RECENT = 5;
 
 // shortcut: "desde" uses sprint.startedAt / deliveredAt / project.lastActivityAt; real events come later.
 function State({ s, p }: { s?: Sprint; p: Project }) {
@@ -28,140 +23,54 @@ function State({ s, p }: { s?: Sprint; p: Project }) {
   return <span className="pill">Ocioso desde {formatTime(p.lastActivityAt)}</span>;
 }
 
-function Column({ p, variant }: { p: Project; variant: "A" | "B" }) {
+const when = (s: Sprint) =>
+  s.status === "closed"
+    ? `concluída ${s.closedAt ? formatDate(s.closedAt) : ""}`
+    : s.status === "active"
+      ? "em curso"
+      : "planejada";
+
+function SprintColumn({ p, variant }: { p: Project; variant: "A" | "B" }) {
   const { data } = useData();
   const now = useNow();
   // most recent first; ids are per project, so S10 > S09 needs the numeric compare
   const sprints = data.sprints
     .filter((s) => s.projectId === p.id)
-    .sort((a, b) => b.id.localeCompare(a.id, undefined, { numeric: true }));
+    .sort((a, b) => b.id.localeCompare(a.id, undefined, { numeric: true }))
+    .slice(0, RECENT);
   const [id, setId] = useState((sprints.find((s) => s.status !== "closed") ?? sprints[0])?.id);
   const s = sprints.find((x) => x.id === id);
-  const tasks = s?.tasks ?? [];
-  const done = tasks.filter((t) => t.done).length;
-  const open = data.chats.filter((c) => c.projectId === p.id && !c.sprintId && !c.endedAt);
-  const agents = runningAgents(data, p.id);
-  const usage = data.usage.filter((u) => u.projectId === p.id).slice(-7);
-
-  const chats = open.length > 0 && (
-    <ProgressRow
-      defaultOpen
-      title="Conversas em andamento"
-      sub="fora de sprint"
-      right={`${open.length} aberta${open.length > 1 ? "s" : ""}`}
-    >
-      {open.map((c) => (
-        <ProgressRow
-          key={c.id}
-          level={2}
-          title={
-            <>
-              <span className="av on">{agentLabel("tech-lead")}</span>
-              {c.title}
-            </>
-          }
-          sub={c.tasks.map((t) => t.title).join(" · ")}
-          right={`desde ${formatTime(c.startedAt)} · ${formatDuration(durationMs(c.startedAt, undefined, now))}`}
-          chips={<span className="chip run">rodando</span>}
-        />
-      ))}
-    </ProgressRow>
-  );
-
-  return (
-    <section className="col">
-      <header>
-        <h2>
-          <Link to={`/p/${p.id}`}>{p.name}</Link>
-        </h2>
-        {variant === "A" && (
-          <select aria-label="Sprint" value={id} onChange={(e) => setId(e.target.value)}>
-            {sprints.map((x) => (
-              <option key={x.id} value={x.id}>
-                {x.id} · {x.title}
-              </option>
-            ))}
-          </select>
-        )}
-        <State s={s} p={p} />
-      </header>
-      {variant === "B" && (
-        <div className="tabs" role="group" aria-label="Sprints">
-          {sprints.map((x) => (
-            <button
-              key={x.id}
-              type="button"
-              className={x.id === id ? "active" : ""}
-              aria-pressed={x.id === id}
-              title={x.title}
-              onClick={() => setId(x.id)}
-            >
-              {x.id}
-            </button>
-          ))}
-        </div>
-      )}
-      <div className={css.trk}>
-        {variant === "B" && chats}
-        {s && (
-          <ProgressRow
-            defaultOpen
-            title="Itens da sprint"
-            sub={`${s.id} · ${s.title}`}
-            right={`${done}/${tasks.length} feitas`}
-            pct={sprintPct(tasks)}
-            chips={<span className="chip">{formatUsd(s.usd ?? 0)}</span>}
+  const tabs = (
+    <div>
+      <div className="tabs" role="tablist" aria-label={`Sprints de ${p.name}`}>
+        {sprints.map((x) => (
+          <button
+            key={x.id}
+            type="button"
+            role="tab"
+            aria-selected={x.id === id}
+            className={x.id === id ? "active" : ""}
+            title={x.title}
+            onClick={() => setId(x.id)}
           >
-            <div className={css.pad}>
-              <Gantt tasks={tasks} now={now} live={s.status === "active" && !s.deliveredAt} />
-            </div>
-            {tasks.map((t) => (
-              <ProgressRow
-                key={t.id}
-                level={2}
-                wave={t.wave}
-                title={
-                  <>
-                    <span className="mono">{t.id}</span> {t.title}
-                  </>
-                }
-                chips={
-                  <span
-                    className={`chip ${t.done ? "ok" : taskStatus(t) === "running" ? "run" : ""}`}
-                  >
-                    {t.done ? "feita" : taskStatus(t) === "running" ? "rodando" : "pendente"}
-                  </span>
-                }
-              />
-            ))}
-          </ProgressRow>
-        )}
-        {variant === "A" && chats}
-        <ProgressRow
-          title="Agentes"
-          right={agents.length ? `${agents.length} rodando` : "nenhum rodando"}
-        >
-          {agents.map((a) => (
-            <p key={a.id}>
-              <span className="pill p-run live">{a.name}</span>{" "}
-              <span className="muted">{a.doing}</span>
-            </p>
-          ))}
-        </ProgressRow>
-        <ProgressRow title="Consumo" right={`${formatUsd(usage.at(-1)?.usd ?? 0)} hoje`}>
-          <div className={css.money}>
-            <Spark values={usage.map((u) => u.usd)} label="gasto dos últimos 7 dias" />
-          </div>
-        </ProgressRow>
+            <span className="mono">{x.id}</span>
+            {variant === "B" && <small className="muted"> · {when(x)}</small>}
+          </button>
+        ))}
       </div>
-    </section>
+      <p>
+        <State s={s} p={p} /> {variant === "B" && s && <span className="muted">{s.title}</span>}
+      </p>
+    </div>
   );
+  // key: remount per sprint so the accordions reopen with that sprint's defaults
+  return <Column key={id} p={p} now={now} pick={s} tabs={tabs} />;
 }
 
 const Room = ({ variant }: { variant: "A" | "B" }) => (
   <div className="cols">
     {useBoard().active.map((p) => (
-      <Column key={p.id} p={p} variant={variant} />
+      <SprintColumn key={`${p.id}-${variant}`} p={p} variant={variant} />
     ))}
   </div>
 );
@@ -174,18 +83,20 @@ export function ControlDraft() {
       sources={
         <ul>
           <li>
-            <b>Sprints (seletor/lista):</b> eventos <span className="mono">sprint</span> do harness,
-            mais recente primeiro, inclusive fechadas. Já existe.
+            <b>Abas de sprint:</b> as {RECENT} sprints mais recentes do projeto (eventos do harness
+            + <span className="mono">docs/sprints</span>), inclusive fechadas. Clicar numa aba troca
+            Horários, Itens da sprint e o gasto da sprint para aquela sprint. A = só o id; B = id +
+            situação e título. Já existe.
           </li>
           <li>
             <b>Selo de estado:</b> “Em execução desde” = início da sprint; “Aguardando revisão de
             Daniel desde” = entrega da sprint; “Ocioso desde” = última atividade do projeto;
-            “Concluída” = sprint fechada. <b>Falta:</b> evento de entrega por tarefa/sprint para o
-            “aguardando revisão desde” ser exato.
+            “Concluída” = sprint fechada. <b>Falta:</b> evento de entrega para o “aguardando revisão
+            desde” ser exato.
           </li>
           <li>
-            <b>Conversas em andamento fora de sprint:</b> chats sem sprint e sem fim. <b>Falta:</b>{" "}
-            título do chat (pedido ao harness de 2026-10-21); hoje vem do primeiro pedido.
+            <b>Fora da sprint:</b> tarefas de chats sem sprint, logo abaixo da janela da sprint.{" "}
+            <b>Falta:</b> título do chat (pedido ao harness de 2026-10-21).
           </li>
           <li>
             <b>Agentes e consumo:</b> mesmos dados da Sala de controle atual.

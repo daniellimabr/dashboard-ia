@@ -131,9 +131,7 @@ h3 {
   flex-wrap: wrap;
 }
 
-.tabs a,
-.tabs button {
-  background: none;
+.tabs a {
   border: 1px solid transparent;
   padding: 6px 12px;
   font-size: 14px;
@@ -142,8 +140,7 @@ h3 {
   text-decoration: none;
 }
 
-.tabs a.active,
-.tabs button.active {
+.tabs a.active {
   color: var(--fg);
   border-color: var(--line);
   background: var(--card);
