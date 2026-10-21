@@ -1,6 +1,6 @@
 # Spec 0001 — Backend: dados, eventos e API
 
-- **Status:** implementada em parte na S03 (`GET /api/data` e `POST /promote`; ver §4.0)
+- **Status:** implementada em parte na S03 (`GET /api/data` e `POST /promote`; ver §4.0); eventos do harness e regras de §4.1 na S04
 - **Data:** 2026-10-18
 - **Base:** ADR 0001 (eventos em arquivo → importador → `node:sqlite` → servidor local → React), `src/data/types.ts`, telas da S02.
 
@@ -8,8 +8,9 @@
 
 ```
 Main Harness (hx, hooks)          Claude Code
-  └─ ~/.main-harness/events/        └─ ~/.claude/projects/**/*.jsonl (transcripts)
-       <projectId>.jsonl                 │
+  └─ ~/.harness/events/             └─ ~/.claude/projects/**/*.jsonl (transcripts)
+       YYYY-MM-DD.jsonl                  │
+  └─ ~/.harness/projects.json            │
             │                            │
             └──────────┬─────────────────┘
                        ▼
@@ -29,113 +30,45 @@ Princípios:
 3. **Sem dependências novas.** `node:http`, `node:sqlite`, `node:fs`. Sem framework de servidor, sem ORM.
 4. **Só local.** Escuta em `127.0.0.1`. Sem login (versão online fica para depois).
 
-## 2. Catálogo de eventos
+## 2. Eventos: o contrato do harness
 
-### 2.1 Envelope (toda linha)
+Desde a S04 o formato é o **contrato v1 do Main Harness** (`C:\Main Harness\docs\contracts\events.md`, fonte `cli/src/events/schema.ts`). Este projeto não define mais tipos próprios; as extensões da S03 e o gerador de exemplo saíram.
 
-| Campo     | Tipo                  | Obrigatório | Nota                                                                                 |
-| --------- | --------------------- | ----------- | ------------------------------------------------------------------------------------ |
-| `v`       | number                | sim         | versão do formato, começa em `1`                                                     |
-| `ts`      | string ISO 8601 (UTC) | sim         | momento do fato                                                                      |
-| `project` | string                | sim         | ID fixo do projeto (registro central)                                                |
-| `type`    | string                | sim         | um dos tipos abaixo                                                                  |
-| `chat`    | string                | não         | ID da sessão do Claude Code (`session_id`), quando o fato acontece dentro de um chat |
-| demais    | —                     | —           | campos do tipo                                                                       |
+- **Onde:** `~/.harness/events/YYYY-MM-DD.jsonl` (um arquivo por dia, só acréscimo). Troca com `DASHBOARD_EVENTS_DIR`. Projetos: `projects.json` na pasta acima de `events` (`id`, `name`, `path`).
+- **Envelope:** `v`, `id` (ULID), `ts`, `harness`, `project`, `session`, `sprint`, `task`, `agent`, `type`, `data`. Chave de deduplicação: `id`.
 
-Chave de deduplicação: `(project, ts, type, sha1 da linha)`. Reimportar o mesmo arquivo não duplica.
+### 2.1 Como cada tipo é aplicado (`server/events.ts`)
 
-### 2.2 Tipos
+| Tipo                                              | Efeito no banco                                                                                          |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| qualquer evento com `session`                     | cria o `chat` (id = sessão; início = 1º evento) e o `agent` `<sessão>:<agent>` (início = 1º evento dele) |
+| `session.end`                                     | fim do chat e dos agentes abertos dele                                                                   |
+| `sprint.approved`                                 | `approved_at` e `plan_path` (= `data.plan`, lido depois só dentro de `<repo>/docs`)                      |
+| `sprint.open`                                     | `status = active`, `started_at`, `task_count` (= `data.tasks`)                                           |
+| `sprint.feedback` / `sprint.close`                | `feedback_rounds + 1` / `status = closed`                                                                |
+| `task.start` / `task.phase` / `task.done`         | tarefa reaberta / `steps` pela fase (`testes`=0, `código`=1, `revisão`=3, `commit`=4) / pronta           |
+| `review.result`                                   | `review`; `review_round` = quantas reprovações                                                           |
+| `usage`                                           | linha em `usage` com id = `data.message_id` (o mesmo id do transcript: não conta em dobro)               |
+| `alert.context`                                   | `context_pct` do agente (`tokens ÷ limit`; sem `agent` = Tech Lead)                                      |
+| demais (`handoff`, `harness.*`, `sprint.metrics`) | só o log `event`                                                                                         |
 
-Legenda da coluna **Emite hoje?**: `não` = vira pedido ao harness (o pedido "Gravar eventos em arquivo" já está no inbox; esta tabela é o detalhamento dele). `CC` = vem dos transcripts do Claude Code, não do harness.
+Linha inválida (JSON, envelope sem `id`/`ts`/`project`/`type` ou `data` que não é objeto) vai para `import_error`. Evento com `v` desconhecido é ignorado e contado em `import_skip`. Nenhum dos dois para a importação. Mudou o formato do banco (`PRAGMA user_version`)? As tabelas são recriadas e os eventos reimportados; `promoted` é mantido.
 
-| Tipo               | Campos                                                                                                                                         | Quem dispara                                                       | Emite hoje?                              |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------- |
-| `project.register` | `name`, `repoPath`                                                                                                                             | `hx init` / registro central                                       | não (pedido "ID fixo")                   |
-| `sprint.plan`      | `sprint`, `title`, `goal?`, `plannedMin?`, `usdEstimate?`, `tasks[]` (`id`, `title`, `wave`, `agent?`, `plan{start,duration,deps}`), `docPath` | skill `sprint-plan`                                                | não                                      |
-| `sprint.approve`   | `sprint`                                                                                                                                       | `hx sprint approve`                                                | não                                      |
-| `sprint.open`      | `sprint`                                                                                                                                       | `hx sprint open`                                                   | não                                      |
-| `sprint.delivered` | `sprint`                                                                                                                                       | última `hx task done` da sprint (todas prontas)                    | não                                      |
-| `sprint.feedback`  | `sprint`, `round`, `text?`                                                                                                                     | `hx sprint feedback`                                               | não                                      |
-| `sprint.close`     | `sprint`                                                                                                                                       | `hx sprint close`                                                  | não                                      |
-| `task.start`       | `sprint?`, `task`, `title?`, `agent?` (id do agente)                                                                                           | `hx task start`                                                    | não                                      |
-| `task.phase`       | `sprint?`, `task`, `step` (`test`\|`code`\|`lint`\|`review`\|`commit`)                                                                         | hook/`hx` a cada etapa do TDD                                      | não (precisa de gatilho novo no harness) |
-| `task.done`        | `sprint?`, `task`, `commit?`                                                                                                                   | `hx task done`                                                     | não                                      |
-| `task.review`      | `sprint?`, `task`, `result` (`pass`\|`fail`), `round`, `note?`                                                                                 | `hx review pass\|fail`                                             | não                                      |
-| `chat.start`       | `title`, `sprint?`                                                                                                                             | hook `SessionStart`                                                | não                                      |
-| `chat.end`         | —                                                                                                                                              | hook `SessionEnd`/`Stop`                                           | não                                      |
-| `agent.start`      | `agent`, `kind` (`tech-lead`\|`clone`\|`reviewer`), `name`, `task?`, `doing?`                                                                  | hook `SubagentStart` (+ `chat.start` cria o Tech Lead)             | não                                      |
-| `agent.context`    | `agent`, `pct`                                                                                                                                 | hook de contexto (alertas 230K/250K) ou a cada turno               | não                                      |
-| `agent.end`        | `agent`                                                                                                                                        | hook `SubagentStop`                                                | não                                      |
-| `command`          | — (só `ts` e `chat`)                                                                                                                           | hook `UserPromptSubmit` na sessão principal                        | não                                      |
-| `doc.write`        | `kind` (`sprint-plan`\|`release-report`\|`adr`\|`prd`\|`handoff`), `id`, `title`, `path`                                                       | skills `sprint-plan`, `release-report`, `adr`, `prd`, `hx handoff` | não                                      |
-| `project.status`   | `whereStopped`, `nextStep?{title,detail,action}`                                                                                               | Tech Lead ao fechar tarefa/sprint (texto curto)                    | não (novo; ver perguntas)                |
-| `limit`            | `window` (`5h`\|`week`), `pct`, `resetsAt`                                                                                                     | fonte desconhecida                                                 | não (fonte em investigação)              |
-| `usage`            | `chat`, `agent?`, `model`, `tokensIn`, `tokensOut`, `cacheRead`, `cacheWrite`                                                                  | importador lê `message.usage` dos transcripts                      | CC                                       |
+### 2.2 O que vem dos repos (`server/repo.ts`)
 
-`usd` **não** vem no evento: o servidor calcula com uma tabela de preços editável (`price`), para poder corrigir preço sem reimportar.
+Só arquivos dentro de `<repo>/docs` (caminho real conferido; `..`, absoluto e links para fora são recusados):
 
-### 2.3 Exemplos (uma linha cada; quebrados aqui só para leitura)
+- sprint plan (`plan_path`): título, objetivo, tarefas (id, título, agente, dependências, planejado) e ondas (linha `**Paralelismo:**`/`**Ondas:**`);
+- documentos: `docs/sprints/*-plan.md`, `*-release.md`, `docs/adr/*.md`, `docs/prd/*.md`;
+- `docs/backlog.md` e `docs/roadmap.md`.
 
-```json
-{"v":1,"ts":"2026-10-15T12:00:00Z","project":"dashboard-ia","type":"project.register","name":"Dashboard IA","repoPath":"C:/Dashboard IA"}
-{"v":1,"ts":"2026-10-18T13:30:00Z","project":"dashboard-ia","chat":"c-7f1","type":"sprint.plan","sprint":"S03","title":"Backend","goal":"Servidor + SQLite + importador","plannedMin":180,"usdEstimate":4.2,"docPath":"docs/sprints/S03-plan.md","tasks":[{"id":"T01","title":"Importador","wave":1,"agent":"tech-lead","plan":{"start":0,"duration":40,"deps":[]}}]}
-{"v":1,"ts":"2026-10-18T13:35:00Z","project":"dashboard-ia","type":"sprint.approve","sprint":"S03"}
-{"v":1,"ts":"2026-10-18T13:40:00Z","project":"dashboard-ia","chat":"c-8a2","type":"sprint.open","sprint":"S03"}
-{"v":1,"ts":"2026-10-18T15:10:00Z","project":"dashboard-ia","chat":"c-8a2","type":"sprint.delivered","sprint":"S03"}
-{"v":1,"ts":"2026-10-18T16:00:00Z","project":"dashboard-ia","chat":"c-8a2","type":"sprint.feedback","sprint":"S03","round":1,"text":"timeline sem marcos"}
-{"v":1,"ts":"2026-10-18T17:00:00Z","project":"dashboard-ia","chat":"c-8a2","type":"sprint.close","sprint":"S03"}
-{"v":1,"ts":"2026-10-18T13:41:00Z","project":"dashboard-ia","chat":"c-8a2","type":"task.start","sprint":"S03","task":"T01","agent":"a-tl-8a2"}
-{"v":1,"ts":"2026-10-18T13:50:00Z","project":"dashboard-ia","chat":"c-8a2","type":"task.phase","sprint":"S03","task":"T01","step":"code"}
-{"v":1,"ts":"2026-10-18T14:20:00Z","project":"dashboard-ia","chat":"c-8a2","type":"task.done","sprint":"S03","task":"T01","commit":"a1b2c3d"}
-{"v":1,"ts":"2026-10-18T14:30:00Z","project":"dashboard-ia","chat":"c-8a2","type":"task.review","sprint":"S03","task":"T01","result":"fail","round":1,"note":"faltou teste de linha inválida"}
-{"v":1,"ts":"2026-10-18T13:40:00Z","project":"dashboard-ia","chat":"c-8a2","type":"chat.start","title":"Executar sprint S03","sprint":"S03"}
-{"v":1,"ts":"2026-10-18T17:05:00Z","project":"dashboard-ia","chat":"c-8a2","type":"chat.end"}
-{"v":1,"ts":"2026-10-18T13:45:00Z","project":"dashboard-ia","chat":"c-8a2","type":"agent.start","agent":"a-91c","kind":"clone","name":"Clone 1","task":"T02","doing":"T02 rotas da API"}
-{"v":1,"ts":"2026-10-18T14:05:00Z","project":"dashboard-ia","chat":"c-8a2","type":"agent.context","agent":"a-91c","pct":21}
-{"v":1,"ts":"2026-10-18T14:15:00Z","project":"dashboard-ia","chat":"c-8a2","type":"agent.end","agent":"a-91c"}
-{"v":1,"ts":"2026-10-18T13:39:00Z","project":"dashboard-ia","chat":"c-8a2","type":"command"}
-{"v":1,"ts":"2026-10-18T13:30:00Z","project":"dashboard-ia","chat":"c-7f1","type":"doc.write","kind":"sprint-plan","id":"S03-plan","title":"S03 — Backend","path":"docs/sprints/S03-plan.md"}
-{"v":1,"ts":"2026-10-18T15:10:00Z","project":"dashboard-ia","type":"project.status","whereStopped":"A S03 entregou o servidor; falta seu teste.","nextStep":{"title":"Testar a S03","detail":"Abra o painel e confira os dados reais.","action":"Ver a sprint"}}
-{"v":1,"ts":"2026-10-18T14:00:00Z","project":"*","type":"limit","window":"5h","pct":62,"resetsAt":"2026-10-18T15:40:00Z"}
-```
+### 2.3 Lacunas (pedido ao harness de 2026-10-21)
 
-`usage` (gerado pelo importador a partir do transcript, não escrito em arquivo):
-
-```json
-{
-  "ts": "2026-10-18T14:02:11Z",
-  "project": "dashboard-ia",
-  "chat": "c-8a2",
-  "agent": "a-91c",
-  "model": "claude-opus-5-5",
-  "tokensIn": 1200,
-  "tokensOut": 850,
-  "cacheRead": 48000,
-  "cacheWrite": 0
-}
-```
-
-Projeto do transcript: pelo `cwd` gravado no transcript, casado com `project.repoPath`. Agente: subagente tem transcript próprio (`agent-*.jsonl`); casa pelo `session_id` + `agent.start`.
-
-### 2.4 Extensões da S03 (usadas pelo gerador de exemplo)
-
-O harness ainda não grava eventos. A S03 usa `npm run sample-events` (`scripts/sample-events.ts`), que converte `src/data/mock.ts` em JSONL. Para as telas ficarem iguais às da S02, o formato ganhou:
-
-| Tipo / campo                               | Uso                                                                             |
-| ------------------------------------------ | ------------------------------------------------------------------------------- |
-| `project.register`: `backlog?`, `roadmap?` | markdown das abas Backlog e Roadmap                                             |
-| `project.status`: `phase?`, `alerts?`      | a fase e os alertas vêm prontos (as regras de §4.1 ainda não rodam no servidor) |
-| `project.event` (novo): `kind`, `text`     | linha de "Desde o seu último comando" (`Project.events`)                        |
-| `doc.write`: `markdown?`, `date?`          | conteúdo do documento (padrão de `date`: `ts`)                                  |
-| `task.start` / `sprint.plan`: `agent`      | é o **tipo** do agente (`tech-lead`\|`clone`\|`reviewer`), não o ID             |
-| `task.phase`: `step`                       | `steps` = posição em `test, code, lint, review, commit` (0–4)                   |
-| `usage` no arquivo de eventos: `id` + §2.2 | consumo dos projetos de exemplo; o Dashboard IA usa os transcripts reais        |
-
-Regras do importador (`server/events.ts`): linha sem `v: 1`, `ts` válido, `project` ou `type` vai para `import_error`; tarefa sem `sprint` e sem `chat` também. `project.status` e `limit` mais antigos que o já importado são ignorados. `project: "*"` não cria projeto.
+Sem estes eventos o painel aproxima: `agent.start`/`agent.end` com id e tarefa (hoje: campo `agent`), título do chat (hoje: id da sessão), comando de Daniel (`UserPromptSubmit`; hoje: último `session.start`), `project.status` opcional (hoje: onde parou = último evento), fonte do limite da assinatura (hoje: estimado). `task.phase` já é gravado, mas falta no contrato.
 
 ## 3. Esquema SQLite
 
-Implementado em `server/db.ts`, com estas colunas a mais: `project.backlog`, `project.roadmap`, `project.phase_json`, `project.alerts_json` e `doc.markdown` (ver §2.4).
+Implementado em `server/db.ts`, com `sprint.plan_path`, `sprint.task_count` e a tabela `import_skip` a mais. As colunas `backlog`, `roadmap`, `phase_json`, `alerts_json` e a tabela `doc` são da S03 e ficaram sem uso: backlog, documentos, fase e alertas agora saem dos repos e das regras de §4.1.
 
 Datas como texto ISO UTC (ordenável). IDs de tarefa e sprint se repetem entre projetos, então a chave é composta.
 
@@ -208,7 +141,7 @@ Notas:
 
 ### 4.0 O que a S03 implementou
 
-- **`GET /api/data`** devolve o `Data` de `src/data/types.ts` inteiro (cerca de 27 KB com 5 projetos), montado em `server/data.ts`. As regras de fase, alertas, ociosos e "desde o último comando" continuam no front, que já as testa. Os endpoints por tela de §4.2–4.4 ficam para quando o tamanho ou a velocidade pedirem.
+- **`GET /api/data`** devolve o `Data` de `src/data/types.ts` inteiro, montado em `server/data.ts` (cerca de 280 KB com os dois projetos reais, pelo markdown dos documentos). Desde a S04, fase, alertas, próximo passo, eventos de texto, entrega e `lastCommand` saem do servidor (§4.1); ociosos e o filtro "desde o último comando" continuam no front. Os endpoints por tela de §4.2–4.4 ficam para quando o tamanho ou a velocidade pedirem.
 - **`POST /api/projects/:id/promote`** → `204`, ou `404` se o projeto não existe.
 - **Só local:** pedido com `Host` fora de `localhost`/`127.0.0.1` ou com `Origin` de outro site recebe `403`. Isso cobre DNS rebinding e POST vindo de outra página.
 - **Limites:** usa o último `limit` ainda não vencido. Sem evento de 5 h, o servidor estima `pct = US$ das últimas 5 h ÷ h5Usd` (`h5Usd` fixo em 17) e marca `estimated`. Sem evento semanal, `week` não vem e o menu mostra "sem dado".
@@ -232,7 +165,7 @@ Base `http://127.0.0.1:5174/api`. Só JSON, UTF-8. Erros: `{ "error": "texto" }`
 
 Regras de `phase` (servidor): sprint `planned` sem `approved_at` → `Plano`/`warn`; `delivered_at` sem `closed_at` → `Esperando você`/`warn`; `active` → `Execução`/`run` (`live` se há agente aberto); senão sem `phase`.
 `alerts`: tarefa com `review = fail` e não pronta (`bad`, "Reviewer reprovou TNN", "Nª reprovação · note"); sprint entregue (`warn`, "Testar a entrega da SNN"); plano esperando aprovação (`warn`).
-`nextStep`: o de `project.status` se for mais novo que o último evento de sprint; senão o padrão derivado de `phase`.
+`nextStep`: o padrão derivado de `phase` (Corrigir a TNN / Acompanhar a SNN / Testar a entrega / Aprovar o plano). Sprint **entregue** = tarefas prontas ≥ `sprint.open.data.tasks`. **Plano esperando** = `docs/sprints/SNN-plan.md` mais novo que a última sprint e sem `sprint.approved`. `live` = atividade do projeto nos últimos 30 min. `whereStopped` = último evento de texto. `lastCommand` = último `session.start`.
 
 ### 4.2 `GET /api/board`
 
