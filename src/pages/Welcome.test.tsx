@@ -34,6 +34,16 @@ describe("Welcome page", () => {
     }
   });
 
+  it("encodes doc ids that contain a slash", () => {
+    const docs = data.docs.map((d) =>
+      d.id === "S02-plan" ? { ...d, id: "dashboard-ia:sprints/S02-plan.md" } : d,
+    );
+    renderAt("/", { ...data, docs });
+    expect(
+      screen.getByRole("link", { name: /Layout da tela principal/ }).getAttribute("href"),
+    ).toBe("/p/dashboard-ia/docs/dashboard-ia%3Asprints%2FS02-plan.md");
+  });
+
   it("links documents to the project's Documentos tab", () => {
     renderAt("/");
     const link = screen.getByRole("link", { name: /Layout da tela principal/ });

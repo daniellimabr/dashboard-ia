@@ -104,7 +104,9 @@ function Column({ p }: { p: Project }) {
                 <span>
                   <span className={s.t}>{label}</span>{" "}
                   {d ? (
-                    <Link to={`/p/${p.id}/docs/${d.id}`}>{d.title.replace(" — ", " · ")}</Link>
+                    <Link to={`/p/${p.id}/docs/${encodeURIComponent(d.id)}`}>
+                      {d.title.replace(" — ", " · ")}
+                    </Link>
                   ) : (
                     <span className="muted">nenhum nesta sprint</span>
                   )}

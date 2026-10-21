@@ -9,6 +9,19 @@ describe("Markdown", () => {
     expect(screen.getAllByRole("listitem")).toHaveLength(2);
   });
 
+  it("rewrites links via `link` and escapes broken-link text", () => {
+    const { container } = render(
+      <Markdown
+        source={"[a](a.md) [b<i>x</i>](b.md) [c](c.md)"}
+        link={(h) => (h === "a.md" ? "/to/a" : h === "b.md" ? null : undefined)}
+      />,
+    );
+    expect(screen.getByRole("link", { name: "a" }).getAttribute("href")).toBe("/to/a");
+    expect(screen.getByRole("link", { name: "c" }).getAttribute("href")).toBe("c.md");
+    expect(container.querySelector("i")).toBeNull();
+    expect(container.textContent).toContain("(não encontrado)");
+  });
+
   it("strips scripts, event handlers and javascript: links", () => {
     const { container } = render(
       <Markdown
