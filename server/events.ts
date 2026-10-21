@@ -219,6 +219,19 @@ function apply(db: Db, e: Event) {
         },
       );
     }
+    case "usage.limits": {
+      // Account-wide windows; a window without a reset time is skipped (data.ts needs it to expire).
+      const put = db.prepare(
+        "INSERT INTO limit_window (window, pct, resets_at, at) VALUES (?, ?, ?, ?) ON CONFLICT(window) DO UPDATE SET pct = excluded.pct, resets_at = excluded.resets_at, at = excluded.at WHERE excluded.at >= limit_window.at",
+      );
+      for (const [w, pct, resets] of [
+        ["5h", num(d.five_hour), str(d.five_hour_resets_at)],
+        ["week", num(d.seven_day), str(d.seven_day_resets_at)],
+      ] as const)
+        if (pct !== undefined && resets && !Number.isNaN(Date.parse(resets)))
+          put.run(w, Math.min(100, Math.max(0, Math.round(pct))), resets, ts);
+      return;
+    }
     // other types live only in the event log
   }
 }

@@ -156,6 +156,31 @@ describe("importEvents (harness contract v1)", () => {
     ]);
   });
 
+  it("stores the latest usage.limits as the 5 h and weekly windows", () => {
+    const limits = (id: string, ts: string, data: object) =>
+      `${JSON.stringify({ v: 1, id, ts, harness: "0.8.0", project: "main-harness", session: "x", sprint: null, task: null, agent: null, type: "usage.limits", data })}\n`;
+    appendFileSync(
+      join(dir, "2026-10-18.jsonl"),
+      limits("L1", "2026-10-18T10:00:00Z", {
+        five_hour: 10,
+        five_hour_resets_at: "2026-10-18T12:00:00Z",
+        seven_day: 5,
+        seven_day_resets_at: "2026-10-20T00:00:00Z",
+      }) +
+        limits("L2", "2026-10-18T11:00:00Z", {
+          five_hour: 70.4,
+          five_hour_resets_at: "2026-10-18T12:00:00Z",
+          seven_day: 27,
+          seven_day_resets_at: null,
+        }),
+    );
+    importEvents(db, dir);
+    expect(all("SELECT window, pct, resets_at, at FROM limit_window ORDER BY window")).toEqual([
+      { window: "5h", pct: 70, resets_at: "2026-10-18T12:00:00Z", at: "2026-10-18T11:00:00Z" },
+      { window: "week", pct: 5, resets_at: "2026-10-20T00:00:00Z", at: "2026-10-18T10:00:00Z" },
+    ]);
+  });
+
   it("logs invalid lines, counts unknown versions and keeps every event in the log", () => {
     expect(importEvents(db, dir)).toBe(18);
     expect(all("SELECT line, error FROM import_error")).toEqual([

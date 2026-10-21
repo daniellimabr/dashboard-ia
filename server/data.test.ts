@@ -56,6 +56,25 @@ describe("buildData", () => {
     expect(limits.week).toBeUndefined();
   });
 
+  it("reports the real limits from usage.limits: newest wins, bad dates and out-of-range pct are handled", () => {
+    const now = Date.parse("2026-10-18T12:00:00Z");
+    const limits = (ts: string, five: number, fiveAt: string, week: number, weekAt: string) =>
+      ev("usage.limits", ts, {
+        five_hour: five,
+        five_hour_resets_at: fiveAt,
+        seven_day: week,
+        seven_day_resets_at: weekAt,
+      });
+    limits("2026-10-18T11:00:00Z", 120, "2026-10-18T14:00:00Z", 18, "2026-10-22T09:00:00Z");
+    limits("2026-10-18T10:00:00Z", 5, "2026-10-18T13:00:00Z", 1, "2026-10-21T09:00:00Z"); // older: ignored
+    limits("2026-10-18T11:30:00Z", 60, "garbage", 20, "2026-10-22T09:00:00Z"); // bad 5 h date: skipped
+    expect(buildData(db, now).limits).toMatchObject({
+      h5: { pct: 100, resetsAt: "2026-10-18T14:00:00Z" },
+      week: { pct: 20, resetsAt: "2026-10-22T09:00:00Z" },
+    });
+    expect(buildData(db, now).limits.h5.estimated).toBeUndefined();
+  });
+
   it("ignores an expired limit event", () => {
     const now = Date.parse("2026-10-18T12:00:00Z");
     db.exec(
