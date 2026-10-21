@@ -77,7 +77,10 @@ function Column({ p, now }: { p: Project; now: number }) {
   const { data } = useData();
   const sprint: Sprint | undefined =
     data.sprints.find((s) => s.projectId === p.id && s.status === "active") ??
-    data.sprints.find((s) => s.projectId === p.id && s.status === "planned");
+    data.sprints.find((s) => s.projectId === p.id && s.status === "planned") ??
+    data.sprints
+      .filter((s) => s.projectId === p.id && s.status === "closed")
+      .sort((a, b) => (b.closedAt ?? "").localeCompare(a.closedAt ?? ""))[0];
   const agents = runningAgents(data, p.id);
   const adhoc = data.chats
     .filter((c) => c.projectId === p.id && !c.sprintId)
@@ -114,6 +117,7 @@ function Column({ p, now }: { p: Project; now: number }) {
             {sprint.id}
           </Link>
         )}
+        {sprint?.status === "closed" && <span className="pill p-ok">Concluída</span>}
       </header>
       {p.alerts?.map((a) => (
         <div key={a.title} className={`${css.alert} ${a.tone === "warn" ? css.w : ""}`}>

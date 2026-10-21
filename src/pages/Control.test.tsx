@@ -1,6 +1,8 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
+import { data } from "../data/mock";
+import type { Sprint } from "../data/types";
 import { renderAt } from "../test-utils";
 
 const col = (name: string) =>
@@ -139,6 +141,27 @@ describe("Control", () => {
     c.getByText(/não começou/);
     await openSprint(c);
     c.getByText(/^S03 · .+ — /);
+  });
+
+  it("shows the latest closed sprint as Concluída when none is active or planned", () => {
+    const closed = (id: string, closedAt: string) => ({
+      ...(data.sprints[0] as Sprint),
+      id,
+      status: "closed" as const,
+      closedAt,
+    });
+    renderAt("/controle", {
+      ...data,
+      sprints: [
+        closed("S01", "2026-10-01T10:00:00Z"),
+        closed("S02", "2026-10-03T10:00:00Z"),
+        ...data.sprints.filter((s) => s.projectId !== "dashboard-ia"),
+      ],
+    });
+    const c = col("Dashboard IA");
+    c.getByRole("link", { name: "S02" });
+    c.getByText("Concluída");
+    expect(col("Main Harness").queryByText("Concluída")).toBeNull();
   });
 
   it("lists running agents with context, and the spend inside Consumo", async () => {
