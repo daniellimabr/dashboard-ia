@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Link, NavLink, Outlet, useLocation } from "react-router";
+import { NavLink, Outlet } from "react-router";
 import type { Limit } from "../data/types";
 import { splitIdle } from "../lib/idle";
 import { durationMs, formatDuration, formatTime, formatWeekday } from "../lib/time";
@@ -47,7 +47,6 @@ export function Layout() {
     };
   }, [data, now, refresh]);
   const { h5, week } = data.limits;
-  const { pathname } = useLocation(); // remounts the Projetos menu closed after navigating
   return (
     <>
       <nav className="nav wrap" aria-label="Telas">
@@ -61,17 +60,7 @@ export function Layout() {
           <NavLink to="/ociosos" className="idle-tab">
             Ociosos ({board.idle.length})
           </NavLink>
-          {/* shortcut: plain list to reach the project tabs; real project navigation is in the backlog */}
-          <details key={pathname} className="projects">
-            <summary>Projetos</summary>
-            <div>
-              {data.projects.map((p) => (
-                <Link key={p.id} to={`/p/${p.id}`}>
-                  {p.name}
-                </Link>
-              ))}
-            </div>
-          </details>
+          <NavLink to="/projetos">Projetos</NavLink>
         </div>
         {offlineSince !== undefined && (
           <span className="offline" role="status">
@@ -106,7 +95,7 @@ export function Layout() {
   );
 }
 
-const tabs = [
+export const tabs = [
   ["chats", "Chats"],
   ["sprints", "Sprints"],
   ["plan", "Backlog e Roadmap"],

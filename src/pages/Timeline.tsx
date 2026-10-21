@@ -1,4 +1,5 @@
 import { useState, type CSSProperties } from "react";
+import { Link } from "react-router";
 import type { AgentKind, Data, Project, Tone } from "../data/types";
 import { formatUsd } from "../lib/format";
 import { activeSprint } from "../lib/select";
@@ -144,15 +145,16 @@ export function Timeline() {
             const shown = closed ? [] : bars.filter((b) => b.to > start && b.from < end);
             return [
               <div key={`${p.id}-h`} className={css["lane-h"]} data-project={p.id}>
-                <h2>
+                <h2 style={{ display: "flex", gap: 6 }}>
                   <button
                     type="button"
                     className={css.ctog}
+                    style={{ width: "auto" }}
+                    aria-label={`agentes de ${p.name}`}
                     aria-expanded={!closed}
                     onClick={() => toggle(p.id)}
-                  >
-                    {p.name}
-                  </button>
+                  />
+                  <Link to={`/p/${p.id}`}>{p.name}</Link>
                 </h2>
                 {p.phase && (
                   <span
@@ -165,7 +167,7 @@ export function Timeline() {
                 <span className={css.meta}>
                   {sprint && (
                     <>
-                      {sprint.id} ·{" "}
+                      <Link to={`/p/${p.id}/sprints/${sprint.id}`}>{sprint.id}</Link> ·{" "}
                       <span className="num">
                         {sprint.tasks.filter((k) => k.done).length}/{sprint.tasks.length}
                       </span>{" "}

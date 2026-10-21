@@ -20,6 +20,7 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `docs/sprints/S02-plan.md` — S02 — Design do front do painel
 - `docs/sprints/S03-plan.md` — S03 — Backend local: servidor, banco e importador
 - `docs/sprints/S04-plan.md` — S04 — Painel lendo os eventos reais do harness
+- `docs/sprints/S05-plan.md` — S05 — Navegação pelos projetos e documentos
 - `eslint.config.mjs` — ESLint flat config installed by the Main Harness (/attach). Zero errors, zero warnings.
 - `index.html` — (sem descrição)
 - `package-lock.json` — (sem descrição)
@@ -80,6 +81,8 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `src/pages/Overview.test.tsx` — (sem descrição)
 - `src/pages/Overview.tsx` — (sem descrição)
 - `src/pages/Plan.tsx` — (sem descrição)
+- `src/pages/Projects.test.tsx` — (sem descrição)
+- `src/pages/Projects.tsx` — (sem descrição)
 - `src/pages/Sprints.test.tsx` — (sem descrição)
 - `src/pages/Sprints.tsx` — (sem descrição)
 - `src/pages/Timeline.module.css` — Copied from docs/sprints/S02-draft.html (Linha do tempo).

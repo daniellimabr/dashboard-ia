@@ -32,6 +32,13 @@ describe("Control", () => {
     ).toBe("/p/dashboard-ia");
   });
 
+  it("links the sprint id to the project's sprint", () => {
+    renderAt("/controle");
+    expect(col("Dashboard IA").getByRole("link", { name: "S02" }).getAttribute("href")).toBe(
+      "/p/dashboard-ia/sprints/S02",
+    );
+  });
+
   const state = (name: string) =>
     accordions(col(name)).map(
       (b) =>

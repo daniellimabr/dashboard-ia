@@ -23,6 +23,7 @@ describe("routes", () => {
     ["/controle", "Sala de controle"],
     ["/tempo", "Linha do tempo"],
     ["/ociosos", "Ociosos"],
+    ["/projetos", "Projetos"],
   ])("%s is a menu screen with its own URL", (path, tab) => {
     renderAt(path);
     expect(
@@ -42,9 +43,10 @@ describe("routes", () => {
     screen.getByRole("link", { name: "Ociosos (2)" });
   });
 
-  it("opens any project's tabs from the Projetos menu", async () => {
+  it("opens any project's tabs from the Projetos page", async () => {
     renderAt("/controle");
-    await userEvent.click(screen.getByText("Projetos"));
+    expect(document.querySelector("details")).toBeNull();
+    await userEvent.click(screen.getByRole("link", { name: "Projetos" }));
     await userEvent.click(screen.getByRole("link", { name: "Bot Telegram" }));
     screen.getByRole("heading", { level: 1, name: "Bot Telegram" });
     expect(screen.getByRole("link", { name: "Chats" }).getAttribute("aria-current")).toBe("page");

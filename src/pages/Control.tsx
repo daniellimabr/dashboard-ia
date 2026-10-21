@@ -109,6 +109,11 @@ function Column({ p, now }: { p: Project; now: number }) {
             {p.phase.label}
           </span>
         )}
+        {sprint && (
+          <Link className="mono" to={`/p/${p.id}/sprints/${sprint.id}`}>
+            {sprint.id}
+          </Link>
+        )}
       </header>
       {p.alerts?.map((a) => (
         <div key={a.title} className={`${css.alert} ${a.tone === "warn" ? css.w : ""}`}>

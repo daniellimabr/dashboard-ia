@@ -5,6 +5,7 @@ import { Control } from "./pages/Control";
 import { Docs } from "./pages/Docs";
 import { Idle } from "./pages/Idle";
 import { Plan } from "./pages/Plan";
+import { Projects } from "./pages/Projects";
 import { Sprints } from "./pages/Sprints";
 import { Timeline } from "./pages/Timeline";
 import { Usage } from "./pages/Usage";
@@ -18,6 +19,7 @@ export function AppRoutes() {
         <Route path="controle" element={<Control />} />
         <Route path="tempo" element={<Timeline />} />
         <Route path="ociosos" element={<Idle />} />
+        <Route path="projetos" element={<Projects />} />
         <Route path="p/:projectId" element={<ProjectLayout />}>
           <Route index element={<Navigate to="chats" replace />} />
           <Route path="chats/:chatId?" element={<Chats />} />
