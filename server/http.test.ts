@@ -3,7 +3,6 @@ import type { AddressInfo } from "node:net";
 import { createServer, type Server } from "node:http";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { openDb, type Db } from "./db.ts";
-import { importEvent } from "./events.ts";
 import { handler } from "./http.ts";
 
 let db: Db;
@@ -12,15 +11,8 @@ let base: string;
 
 beforeEach(async () => {
   db = openDb(":memory:");
-  importEvent(
-    db,
-    JSON.stringify({
-      v: 1,
-      ts: "2026-10-18T10:00:00Z",
-      project: "p1",
-      type: "project.register",
-      name: "P",
-    }),
+  db.exec(
+    "INSERT INTO project (id, name, last_activity_at) VALUES ('p1', 'P', '2026-10-18T10:00:00Z')",
   );
   server = createServer(handler(db));
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));

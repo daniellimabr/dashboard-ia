@@ -8,7 +8,10 @@ export type Db = DatabaseSync;
 
 export const DEFAULT_DB = join(homedir(), ".dashboard-ia", "dashboard.db");
 
-// Spec 0001 §3, plus columns for data the sample generator carries (backlog, roadmap, phase, alerts, doc markdown).
+// Bump when the schema or the event format changes: tables are rebuilt and the events imported again.
+const VERSION = 2;
+
+// Spec 0001 §3, fed by the harness events (contract v1).
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS project (
   id TEXT PRIMARY KEY, name TEXT NOT NULL, repo_path TEXT,
@@ -22,6 +25,7 @@ CREATE TABLE IF NOT EXISTS sprint (
   title TEXT NOT NULL, goal TEXT, status TEXT NOT NULL,
   planned_at TEXT, approved_at TEXT, started_at TEXT, delivered_at TEXT, closed_at TEXT,
   planned_min INTEGER, usd_estimate REAL, feedback_rounds INTEGER NOT NULL DEFAULT 0,
+  plan_path TEXT, task_count INTEGER,
   PRIMARY KEY (project_id, id)
 );
 CREATE TABLE IF NOT EXISTS task (
@@ -61,6 +65,8 @@ CREATE TABLE IF NOT EXISTS event (
 CREATE TABLE IF NOT EXISTS limit_window (window TEXT PRIMARY KEY, pct INTEGER, resets_at TEXT, at TEXT);
 CREATE TABLE IF NOT EXISTS import_cursor (file TEXT PRIMARY KEY, offset INTEGER NOT NULL, head TEXT);
 CREATE TABLE IF NOT EXISTS import_error (file TEXT, offset INTEGER, line TEXT, error TEXT, at TEXT);
+-- Lines of an unknown contract version: ignored, only counted.
+CREATE TABLE IF NOT EXISTS import_skip (file TEXT NOT NULL, offset INTEGER NOT NULL, PRIMARY KEY (file, offset));
 
 CREATE INDEX IF NOT EXISTS event_project_at ON event(project_id, at);
 CREATE INDEX IF NOT EXISTS usage_project_at ON usage(project_id, at);
@@ -73,6 +79,22 @@ CREATE INDEX IF NOT EXISTS task_sprint ON task(project_id, sprint_id);
 export function openDb(file = DEFAULT_DB): Db {
   if (file !== ":memory:") mkdirSync(dirname(file), { recursive: true });
   const db = new DatabaseSync(file);
+  if (
+    (db.prepare("PRAGMA user_version").get() as { user_version: number }).user_version < VERSION
+  ) {
+    // Everything but `promoted` comes back from the event files; promoted projects are kept.
+    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all();
+    const promoted = tables.some((t) => t.name === "project")
+      ? db.prepare("SELECT id FROM project WHERE promoted = 1").all()
+      : [];
+    for (const t of tables) db.exec(`DROP TABLE "${String(t.name)}"`);
+    db.exec(SCHEMA);
+    for (const p of promoted)
+      db.prepare(
+        "INSERT INTO project (id, name, last_activity_at, promoted) VALUES (?, ?, '', 1)",
+      ).run(String(p.id), String(p.id));
+    db.exec(`PRAGMA user_version = ${VERSION}`);
+  }
   db.exec(SCHEMA);
   return db;
 }
@@ -89,10 +111,11 @@ function headOf(fd: number, upTo: number) {
 
 /**
  * Feeds each complete line appended to `file` since the last call to `handle`, in one transaction,
- * and advances the cursor in `import_cursor`. A line whose handler throws goes to `import_error`.
+ * and advances the cursor in `import_cursor`. A line whose handler throws goes to `import_error`;
+ * one it returns "skip" for goes to `import_skip`.
  * A partial last line (no trailing \n) waits for the next call. Returns the number of lines read.
  */
-export function importLines(db: Db, file: string, handle: (line: string) => void): number {
+export function importLines(db: Db, file: string, handle: (line: string) => unknown): number {
   const row = db.prepare("SELECT offset, head FROM import_cursor WHERE file = ?").get(file);
   const fd = openSync(file, "r");
   try {
@@ -116,7 +139,8 @@ export function importLines(db: Db, file: string, handle: (line: string) => void
         if (line) {
           count++;
           try {
-            handle(line);
+            if (handle(line) === "skip")
+              db.prepare("INSERT OR IGNORE INTO import_skip VALUES (?, ?)").run(file, start + pos);
           } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
             logError.run(file, start + pos, line.slice(0, 2000), msg, new Date().toISOString());

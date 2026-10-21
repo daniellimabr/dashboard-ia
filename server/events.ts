@@ -1,18 +1,25 @@
-// Event importer: harness JSONL files → SQLite (spec 0001 §2, S03 extensions in the spec's §2.4).
-import { createHash } from "node:crypto";
+// Event importer: harness JSONL files (contract v1, Main Harness docs/contracts/events.md) → SQLite.
 import { existsSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { importLines, type Db } from "./db.ts";
 
-export const DEFAULT_EVENTS_DIR = join(homedir(), ".main-harness", "events");
+export const DEFAULT_EVENTS_DIR = join(homedir(), ".harness", "events");
 
 type Value = string | number | null;
 type Row = Record<string, Value | undefined>;
-// Any field may be missing or of the wrong type: SQLite binding rejects objects, and that lands in import_error.
-type Event = Record<string, unknown> & { ts: string; project: string; type: string; chat?: string };
-
-const STEPS = ["test", "code", "lint", "review", "commit"];
+// Envelope fields are checked in parse(); `data` fields may be missing or of the wrong type.
+interface Event {
+  id: string;
+  ts: string;
+  project: string;
+  session: string | null;
+  sprint: string | null;
+  task: string | null;
+  agent: string | null;
+  type: string;
+  data: Record<string, unknown>;
+}
 
 /** INSERT … ON CONFLICT(key) DO UPDATE: `set` overwrites (undefined = keep), `defaults` only fill new rows. */
 function upsert(
@@ -35,298 +42,202 @@ function upsert(
   ).run(...row.values());
 }
 
-const json = (v: unknown) => (v === undefined ? undefined : JSON.stringify(v));
-const str = (v: unknown) => v as string | undefined;
-const num = (v: unknown) => v as number | undefined;
-const need = (v: unknown, name: string) => {
-  if (typeof v !== "string" || !v) throw new Error(`missing ${name}`);
-  return v;
+const str = (v: unknown) => (typeof v === "string" ? v : undefined);
+const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
+const optStr = (v: unknown, name: string) => {
+  if (v !== null && v !== undefined && typeof v !== "string") throw new Error(`bad ${name}`);
+  return v ?? null;
 };
 
-const TONES = ["ok", "bad", "warn", "run"];
-
-const strings = (v: unknown, name: string) => {
-  if (v !== undefined && !(Array.isArray(v) && v.every((x) => typeof x === "string")))
-    throw new Error(`bad ${name}`);
-  return v as string[] | undefined;
-};
-
-/** JSON fields go to the front as-is: throw unless `v` is missing or an object with these string fields (`x?` = optional). */
-function check(v: unknown, name: string, fields: string[], tones = TONES) {
-  if (v === undefined) return;
-  if (typeof v !== "object" || v === null || Array.isArray(v)) throw new Error(`bad ${name}`);
-  const o = v as Record<string, unknown>;
-  for (const f of fields) {
-    const k = f.replace("?", "");
-    if (!(f.endsWith("?") && o[k] === undefined) && typeof o[k] !== "string")
-      throw new Error(`bad ${name}.${k}`);
-  }
-  if ("tone" in o && !tones.includes(o.tone as string)) throw new Error(`bad ${name}.tone`);
-}
-
-function checkStatus(e: Event) {
-  if (e.whereStopped !== undefined && typeof e.whereStopped !== "string")
-    throw new Error("bad whereStopped");
-  check(e.nextStep, "nextStep", ["title", "detail", "action"]);
-  check(e.phase, "phase", ["label", "tone"]);
-  if (
-    e.phase &&
-    (e.phase as { live?: unknown }).live !== undefined &&
-    typeof (e.phase as { live?: unknown }).live !== "boolean"
-  )
-    throw new Error("bad phase.live");
-  if (e.alerts !== undefined && !Array.isArray(e.alerts)) throw new Error("bad alerts");
-  for (const a of (e.alerts ?? []) as unknown[])
-    check(a ?? null, "alert", ["tone", "title", "detail"], ["bad", "warn"]);
-}
-
-function parse(line: string): Event {
-  const e = JSON.parse(line) as Partial<Event>;
-  if (typeof e !== "object" || e === null) throw new Error("not an object");
-  if (e.v !== 1) throw new Error("unsupported v");
+/** Parses one line; "skip" for an unknown contract version. Throws on an invalid envelope. */
+function parse(line: string): Event | "skip" {
+  const e = JSON.parse(line) as Record<string, unknown> | null;
+  if (typeof e !== "object" || e === null || Array.isArray(e)) throw new Error("not an object");
+  if (e.v !== 1) return "skip";
+  if (typeof e.id !== "string" || !e.id) throw new Error("bad id");
   if (typeof e.ts !== "string" || Number.isNaN(Date.parse(e.ts))) throw new Error("bad ts");
   if (typeof e.project !== "string" || !e.project) throw new Error("bad project");
   if (typeof e.type !== "string") throw new Error("bad type");
-  if (e.chat !== undefined && typeof e.chat !== "string") throw new Error("bad chat");
-  return e as Event;
+  if (typeof e.data !== "object" || e.data === null || Array.isArray(e.data))
+    throw new Error("bad data");
+  return {
+    id: e.id,
+    ts: e.ts,
+    project: e.project,
+    session: optStr(e.session, "session"),
+    sprint: optStr(e.sprint, "sprint"),
+    task: optStr(e.task, "task"),
+    agent: optStr(e.agent, "agent"),
+    type: e.type,
+    data: e.data as Record<string, unknown>,
+  };
 }
 
-/** Is there an already imported event of this type and project newer than `ts`? */
-const newer = (db: Db, e: Event) =>
-  !!db
-    .prepare(
-      "SELECT 1 FROM event WHERE project_id = ? AND type = ? AND at > ? AND json_extract(body, '$.window') IS ?",
-    )
-    .get(e.project, e.type, e.ts, (e.window as string | undefined) ?? null);
+// hx task phase → steps done (src/data/types.ts STEPS: Teste, Código, Lint, Revisão, Commit).
+const PHASE_STEPS: Record<string, number> = {
+  testes: 0,
+  código: 1,
+  codigo: 1,
+  lint: 2,
+  revisão: 3,
+  revisao: 3,
+  commit: 4,
+};
+const AGENT_NAMES: Record<string, string> = { "tech-lead": "Tech Lead", reviewer: "Reviewer" };
+const agentKind = (a: string) => (a === "tech-lead" || a === "reviewer" ? a : "clone");
 
 function sprintRow(db: Db, e: Event, set: Row, merge?: Record<string, string>) {
-  const id = str(e.sprint);
-  if (!id) throw new Error("missing sprint");
-  upsert(db, "sprint", { project_id: e.project, id }, set, { title: id, status: "planned" }, merge);
+  if (!e.sprint) throw new Error("missing sprint");
+  upsert(
+    db,
+    "sprint",
+    { project_id: e.project, id: e.sprint },
+    set,
+    { title: e.sprint, status: "planned" },
+    merge,
+  );
 }
 
 function taskRow(db: Db, e: Event, set: Row, merge?: Record<string, string>) {
-  const id = str(e.task);
-  const sprint = str(e.sprint);
-  if (!id) throw new Error("missing task");
-  if (!sprint && !e.chat) throw new Error("task without sprint or chat");
-  const key = { project_id: e.project, scope: sprint ?? `chat:${e.chat}`, id };
-  upsert(db, "task", key, set, { title: id, sprint_id: sprint ?? null }, merge);
+  if (!e.task) throw new Error("missing task");
+  if (!e.sprint && !e.session) throw new Error("task without sprint or session");
+  const key = { project_id: e.project, scope: e.sprint ?? `chat:${e.session}`, id: e.task };
+  upsert(db, "task", key, set, { title: e.task, sprint_id: e.sprint ?? undefined }, merge);
+}
+
+/** Chat = session; agents = the `agent` values seen in it (first event → start, session.end → end). */
+function sessionRows(db: Db, e: Event) {
+  if (!e.session) return;
+  upsert(
+    db,
+    "chat",
+    { id: e.session },
+    { started_at: e.ts, sprint_id: e.sprint ?? undefined },
+    { project_id: e.project, title: e.session },
+    { started_at: "min(started_at, excluded.started_at)" },
+  );
+  // alert.context has no agent: the main session's context is the Tech Lead's.
+  const agent = e.agent ?? (e.type === "alert.context" ? "tech-lead" : null);
+  if (!agent) return;
+  upsert(
+    db,
+    "agent",
+    { id: `${e.session}:${agent}` },
+    { started_at: e.ts, task_id: e.task ?? undefined },
+    { chat_id: e.session, kind: agentKind(agent), name: AGENT_NAMES[agent] ?? agent },
+    { started_at: "min(started_at, excluded.started_at)" },
+  );
 }
 
 function apply(db: Db, e: Event) {
-  const { ts, project, chat } = e;
+  const { ts, data: d } = e;
+  sessionRows(db, e);
   switch (e.type) {
-    case "project.register":
-      return upsert(
-        db,
-        "project",
-        { id: project },
-        {
-          name: str(e.name),
-          repo_path: str(e.repoPath),
-          backlog: str(e.backlog),
-          roadmap: str(e.roadmap),
-        },
-        { name: project, last_activity_at: ts }, // NOT NULL is checked before ON CONFLICT
+    case "session.end":
+      if (!e.session) return;
+      db.prepare("UPDATE chat SET ended_at = ? WHERE id = ?").run(ts, e.session);
+      db.prepare("UPDATE agent SET ended_at = ? WHERE chat_id = ? AND ended_at IS NULL").run(
+        ts,
+        e.session,
       );
-    case "project.status":
-      checkStatus(e);
-      if (newer(db, e)) return;
-      return upsert(
-        db,
-        "project",
-        { id: project },
-        {
-          where_stopped: str(e.whereStopped) ?? null,
-          next_step_json: json(e.nextStep) ?? null,
-          phase_json: json(e.phase) ?? null,
-          alerts_json: json(e.alerts) ?? null,
-        },
-        { name: project, last_activity_at: ts },
-      );
-    case "sprint.plan": {
-      const tasks = (e.tasks ?? []) as Record<string, unknown>[];
-      if (!Array.isArray(tasks)) throw new Error("tasks is not a list");
-      sprintRow(db, e, {
-        title: str(e.title),
-        goal: str(e.goal),
-        planned_at: ts,
-        planned_min: num(e.plannedMin),
-        usd_estimate: num(e.usdEstimate),
-      });
-      for (const t of tasks) {
-        const plan = (t.plan ?? {}) as Record<string, unknown>;
-        taskRow(
-          db,
-          { ...e, task: t.id },
-          {
-            title: str(t.title),
-            wave: num(t.wave),
-            agent_kind: str(t.agent),
-            plan_start: num(plan.start),
-            plan_duration: num(plan.duration),
-            plan_deps: json(strings(plan.deps, "plan.deps")),
-          },
-        );
-      }
       return;
-    }
-    case "sprint.approve":
-      return sprintRow(db, e, { approved_at: ts });
+    case "sprint.approved":
+      return sprintRow(db, e, {
+        approved_at: str(d.approved_at) ?? ts,
+        plan_path: str(d.plan),
+      });
     case "sprint.open":
       return sprintRow(
         db,
         e,
-        { started_at: ts, status: "active" },
+        { started_at: ts, status: "active", task_count: num(d.tasks) },
         { status: "CASE status WHEN 'closed' THEN status ELSE 'active' END" },
       );
-    case "sprint.delivered":
-      return sprintRow(db, e, { delivered_at: ts });
     case "sprint.feedback":
-      return sprintRow(
-        db,
-        e,
-        { feedback_rounds: num(e.round) ?? 1 },
-        { feedback_rounds: "max(feedback_rounds, excluded.feedback_rounds)" },
-      );
+      return sprintRow(db, e, { feedback_rounds: 1 }, { feedback_rounds: "feedback_rounds + 1" });
     case "sprint.close":
       return sprintRow(db, e, { closed_at: ts, status: "closed" });
     case "task.start":
       return taskRow(db, e, {
-        title: str(e.title),
-        agent_kind: str(e.agent),
-        chat_id: chat,
+        agent_kind: e.agent ? agentKind(e.agent) : undefined,
+        chat_id: e.session ?? undefined,
         started_at: ts,
+        done: 0,
+        ended_at: null,
+        steps: 0,
       });
     case "task.phase": {
-      const steps = STEPS.indexOf(str(e.step) ?? "");
-      if (steps < 0) throw new Error("bad step");
-      return taskRow(db, e, { steps }, { steps: "max(steps, excluded.steps)" });
+      const steps = PHASE_STEPS[str(d.phase) ?? ""];
+      return steps === undefined ? undefined : taskRow(db, e, { steps });
     }
     case "task.done":
-      return taskRow(db, e, { done: 1, ended_at: ts });
-    case "task.review": {
-      if (e.result !== "pass" && e.result !== "fail") throw new Error("bad result");
-      const round = num(e.round) ?? 1;
+      return taskRow(db, e, { done: 1, ended_at: ts, steps: 5 });
+    case "review.result": {
+      if (d.result !== "pass" && d.result !== "fail") throw new Error("bad result");
+      // review_round = how many times the Reviewer rejected the task
       return taskRow(
         db,
         e,
-        { review: e.result, review_round: round },
-        {
-          review:
-            "CASE WHEN excluded.review_round >= review_round THEN excluded.review ELSE review END",
-          review_round: "max(review_round, excluded.review_round)",
-        },
+        { review: d.result, review_round: d.result === "fail" ? 1 : 0 },
+        { review_round: "review_round + excluded.review_round" },
       );
     }
-    case "chat.start":
-    case "chat.end": {
-      if (!chat) throw new Error("missing chat");
-      const set =
-        e.type === "chat.start"
-          ? { title: str(e.title), sprint_id: str(e.sprint), started_at: ts }
-          : { ended_at: ts };
-      return upsert(db, "chat", { id: chat }, set, {
-        project_id: project,
-        title: chat,
-        started_at: ts,
-      });
-    }
-    case "agent.start":
-    case "agent.context":
-    case "agent.end": {
-      const id = str(e.agent);
-      if (!id || !chat) throw new Error("missing agent or chat");
-      const set =
-        e.type === "agent.start"
-          ? {
-              kind: str(e.kind),
-              name: str(e.name),
-              task_id: str(e.task),
-              doing: str(e.doing),
-              started_at: ts,
-            }
-          : e.type === "agent.context"
-            ? { context_pct: num(e.pct) }
-            : { ended_at: ts };
-      return upsert(db, "agent", { id }, set, {
-        chat_id: chat,
-        kind: "clone",
-        name: id,
-        started_at: ts,
-      });
-    }
-    case "doc.write":
-      return upsert(
-        db,
-        "doc",
-        { project_id: project, id: need(e.id, "id") },
-        {
-          kind: str(e.kind),
-          title: str(e.title),
-          path: str(e.path),
-          markdown: str(e.markdown),
-          date: str(e.date) ?? ts,
-        },
+    case "alert.context": {
+      const tokens = num(d.tokens);
+      const max = num(d.limit);
+      if (!e.session || tokens === undefined || !max) return;
+      db.prepare("UPDATE agent SET context_pct = ? WHERE id = ?").run(
+        Math.round((tokens / max) * 100),
+        `${e.session}:${e.agent ?? "tech-lead"}`,
       );
-    case "limit":
-      if (typeof e.pct !== "number") throw new Error("bad pct");
-      if (newer(db, e)) return;
-      return upsert(
-        db,
-        "limit_window",
-        { window: need(e.window, "window") },
-        { pct: num(e.pct), resets_at: str(e.resetsAt), at: ts },
-      );
-    case "usage":
+      return;
+    }
+    case "usage": {
+      const id = str(d.message_id);
+      if (!id) throw new Error("missing message_id");
+      // Same id as the transcript importer (message.id): whichever comes first wins.
       return upsert(
         db,
         "usage",
-        { id: need(e.id, "id") },
+        { id },
         {},
         {
-          project_id: project,
-          chat_id: chat,
-          agent_id: str(e.agent),
+          project_id: e.project,
+          chat_id: e.session ?? undefined,
+          agent_id: e.agent ?? undefined,
           at: ts,
-          model: str(e.model) ?? "unknown",
-          tokens_in: num(e.tokensIn),
-          tokens_out: num(e.tokensOut),
-          cache_read: num(e.cacheRead),
-          cache_write: num(e.cacheWrite),
+          model: str(d.model) ?? "unknown",
+          tokens_in: num(d.input),
+          tokens_out: num(d.output),
+          cache_read: num(d.cache_read),
+          cache_write: num(d.cache_write),
         },
       );
-    case "project.event":
-      return check({ tone: e.kind, text: e.text }, "project.event", ["tone", "text"]);
-    // command and unknown types live only in the event log
+    }
+    // other types live only in the event log
   }
 }
 
-/** Imports one event line; a duplicate (same line already imported) is a no-op. Throws on invalid lines. */
-export function importEvent(db: Db, line: string) {
+/** Imports one event line; a repeated event id is a no-op. Throws on invalid lines. */
+export function importEvent(db: Db, line: string): "skip" | undefined {
   const e = parse(line);
-  const hash = createHash("sha1").update(line).digest("hex");
+  if (e === "skip") return e;
   db.exec("SAVEPOINT ev");
   try {
     const { changes } = db
       .prepare(
         "INSERT OR IGNORE INTO event (project_id, at, type, chat_id, body, hash) VALUES (?, ?, ?, ?, ?, ?)",
       )
-      .run(e.project, e.ts, e.type, e.chat ?? null, line, hash);
+      .run(e.project, e.ts, e.type, e.session, line, e.id);
     if (changes) {
-      if (e.project !== "*") {
-        upsert(
-          db,
-          "project",
-          { id: e.project },
-          { last_activity_at: e.ts },
-          { name: e.project },
-          {
-            last_activity_at: "max(last_activity_at, excluded.last_activity_at)",
-          },
-        );
-      }
+      upsert(
+        db,
+        "project",
+        { id: e.project },
+        { last_activity_at: e.ts },
+        { name: e.project },
+        { last_activity_at: "max(last_activity_at, excluded.last_activity_at)" },
+      );
       apply(db, e);
     }
     db.exec("RELEASE ev");
@@ -342,5 +253,6 @@ export function importEvents(db: Db, dir = DEFAULT_EVENTS_DIR): number {
   if (!existsSync(dir)) return 0;
   return readdirSync(dir)
     .filter((f) => f.endsWith(".jsonl"))
+    .sort()
     .reduce((n, f) => n + importLines(db, join(dir, f), (line) => importEvent(db, line)), 0);
 }
