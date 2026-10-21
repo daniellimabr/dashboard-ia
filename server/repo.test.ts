@@ -1,0 +1,124 @@
+// @vitest-environment node
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { afterAll, describe, expect, it } from "vitest";
+import { listDocs, readDocsFile, readPlan } from "./repo.ts";
+
+const REPO = resolve(import.meta.dirname, "fixtures", "repo");
+const ROOT = resolve(import.meta.dirname, "..");
+
+describe("readDocsFile", () => {
+  it("reads files inside docs", () => {
+    expect(readDocsFile(REPO, "docs/backlog.md")).toContain("B001");
+    expect(readDocsFile(REPO, "docs\\backlog.md")).toContain("B001");
+  });
+
+  it("refuses paths outside docs, absolute paths and missing files", () => {
+    expect(readFileSync(join(REPO, "secret.md"), "utf8")).toContain("fora");
+    for (const rel of [
+      "secret.md",
+      "docs/../secret.md",
+      "../repo/secret.md",
+      "docs/../../repo.test.ts",
+      join(REPO, "docs", "backlog.md"),
+      "/etc/passwd",
+      "C:/Windows/win.ini",
+      "docs",
+      "docs/missing.md",
+      "",
+    ]) {
+      expect(readDocsFile(REPO, rel), rel).toBeUndefined();
+    }
+  });
+
+  describe("symlink out of docs", () => {
+    const tmp = mkdtempSync(join(tmpdir(), "repo-test-"));
+    afterAll(() => rmSync(tmp, { recursive: true, force: true }));
+    mkdirSync(join(tmp, "docs"));
+    mkdirSync(join(tmp, "out"));
+    writeFileSync(join(tmp, "out", "x.md"), "secret");
+    symlinkSync(join(tmp, "out"), join(tmp, "docs", "link"), "junction");
+
+    it("is refused", () => {
+      expect(readDocsFile(tmp, "docs/link/x.md")).toBeUndefined();
+    });
+  });
+});
+
+describe("readPlan", () => {
+  it("reads title, goal, tasks, ranges and waves", () => {
+    expect(readPlan(REPO, "docs/sprints/S01-plan.md")).toEqual({
+      title: "Primeira sprint de teste",
+      goal: "Testar o leitor de planos em duas linhas.",
+      tasks: [
+        {
+          id: "T01",
+          title: "Base do server/a.ts",
+          agent: "tech-lead",
+          deps: [],
+          plannedMin: 15,
+          wave: 1,
+        },
+        { id: "T02", title: "Segunda", agent: "clone", deps: ["T01"], plannedMin: 65, wave: 1 },
+        {
+          id: "T03",
+          title: "Terceira",
+          agent: "clone",
+          deps: ["T01", "T02"],
+          plannedMin: 120,
+          wave: 2,
+        },
+        { id: "T04", title: "Revisão", agent: "reviewer (opus)", deps: ["T01", "T02", "T03"] },
+      ],
+    });
+  });
+
+  it("plan without table has no tasks; title without dash is kept whole", () => {
+    expect(readPlan(REPO, "docs/sprints/S02-plan.md")).toEqual({
+      title: "Plano sem tabela",
+      goal: "Só texto.",
+      tasks: [],
+    });
+  });
+
+  it("refuses paths outside docs", () => {
+    expect(readPlan(REPO, "secret.md")).toBeUndefined();
+    expect(readPlan(REPO, "docs/sprints/missing.md")).toBeUndefined();
+  });
+
+  it("parses this project's real plans", () => {
+    for (const s of ["S01", "S02", "S03", "S04"]) {
+      const p = readPlan(ROOT, `docs/sprints/${s}-plan.md`);
+      expect(p?.title, s).toBeTruthy();
+      expect(p?.tasks.length, s).toBeGreaterThan(4);
+      for (const t of p?.tasks ?? []) expect(t.id, s).toMatch(/^T\d+$/);
+    }
+    const s04 = readPlan(ROOT, "docs/sprints/S04-plan.md");
+    expect(s04?.title).toBe("Painel lendo os eventos reais do harness");
+    expect(s04?.tasks.map((t) => t.wave)).toEqual([1, 1, 2, 1, 3, undefined]);
+    expect(s04?.tasks[5]).toMatchObject({
+      deps: ["T01", "T02", "T03", "T04", "T05"],
+      plannedMin: 8,
+    });
+  });
+});
+
+describe("listDocs", () => {
+  it("lists plans, releases, ADRs and PRDs", () => {
+    const docs = listDocs(REPO, "p");
+    expect(docs.map((d) => [d.id, d.kind, d.title]).sort()).toEqual([
+      ["p:docs/adr/0001-x.md", "adr", "ADR 0001 — Decisão X"],
+      ["p:docs/sprints/S01-plan.md", "sprint-plan", "S01 — Primeira `sprint` de teste"],
+      ["p:docs/sprints/S01-release.md", "release-report", "Release Report S01"],
+      ["p:docs/sprints/S02-plan.md", "sprint-plan", "Plano sem tabela"],
+    ]);
+    const adr = docs.find((d) => d.kind === "adr");
+    expect(adr).toMatchObject({ projectId: "p", markdown: expect.stringContaining("Decidimos X") });
+    expect(Date.parse(adr?.date ?? "")).not.toBeNaN();
+  });
+
+  it("missing folders give an empty list", () => {
+    expect(listDocs(join(REPO, "nope"), "p")).toEqual([]);
+  });
+});
