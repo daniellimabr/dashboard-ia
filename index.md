@@ -19,6 +19,7 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `docs/sprints/S01-plan.md` — S01 — Draft do front do painel
 - `docs/sprints/S02-plan.md` — S02 — Design do front do painel
 - `docs/sprints/S03-plan.md` — S03 — Backend local: servidor, banco e importador
+- `docs/sprints/S04-plan.md` — S04 — Painel lendo os eventos reais do harness
 - `eslint.config.mjs` — ESLint flat config installed by the Main Harness (/attach). Zero errors, zero warnings.
 - `index.html` — (sem descrição)
 - `package-lock.json` — (sem descrição)
@@ -31,12 +32,21 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `server/db.ts` — SQLite access lives only here (node:sqlite is still experimental; see ADR 0001).
 - `server/events.test.ts` — @vitest-environment node
 - `server/events.ts` — Event importer: harness JSONL files → SQLite (spec 0001 §2, S03 extensions in the spec's §2.4).
+- `server/fixtures/harness-events.jsonl` — (sem descrição)
+- `server/fixtures/repo/docs/adr/0001-x.md` — ADR 0001 — Decisão X
+- `server/fixtures/repo/docs/backlog.md` — Backlog
+- `server/fixtures/repo/docs/sprints/S01-plan.md` — S01 — Primeira `sprint` de teste
+- `server/fixtures/repo/docs/sprints/S01-release.md` — Release Report S01
+- `server/fixtures/repo/docs/sprints/S02-plan.md` — Plano sem tabela
+- `server/fixtures/repo/secret.md` — (sem descrição)
 - `server/fixtures/transcript.jsonl` — (sem descrição)
 - `server/http.test.ts` — @vitest-environment node
 - `server/http.ts` — HTTP API (spec 0001 §4): GET /api/data and POST /api/projects/:id/promote. JSON only.
 - `server/importer.test.ts` — @vitest-environment node
 - `server/importer.ts` — One import round: events first, then transcripts of the registered repos.
 - `server/main.ts` — Local server: imports events and transcripts every ~2 s and serves the API on 127.0.0.1:5174.
+- `server/repo.test.ts` — @vitest-environment node
+- `server/repo.ts` — Reads a project's repo files, only inside <repo>/docs: sprint plans and the document list.
 - `server/usage.test.ts` — @vitest-environment node
 - `server/usage.ts` — Claude Code transcripts (~/.claude/projects/**/*.jsonl) -> `usage` rows, plus the `price` table.
 - `src/App.test.tsx` — (sem descrição)
@@ -45,6 +55,7 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `src/components/Gantt.test.tsx` — (sem descrição)
 - `src/components/Gantt.tsx` — (sem descrição)
 - `src/components/Layout.tsx` — (sem descrição)
+- `src/components/Markdown.test.tsx` — (sem descrição)
 - `src/components/Markdown.tsx` — (sem descrição)
 - `src/components/TaskList.module.css` — (sem descrição)
 - `src/components/TaskList.tsx` — (sem descrição)

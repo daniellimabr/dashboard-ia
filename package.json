@@ -20,6 +20,7 @@
     "vitest": "^5.0.5"
   },
   "dependencies": {
+    "dompurify": "^3.4.17",
     "marked": "^18.1.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
@@ -28,7 +29,6 @@
   "scripts": {
     "dev": "node scripts/dev.ts",
     "server": "node server/main.ts",
-    "sample-events": "node scripts/sample-events.ts",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run",
