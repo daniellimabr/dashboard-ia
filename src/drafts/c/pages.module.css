@@ -1,4 +1,6 @@
 /* Direction C, new screens and the sidebar project accordion. Tokens come from .root in c.module.css. */
+
+/* Timeline: same reading as src/pages/Timeline.tsx (axis, one bar per agent), grouped by sprint or loose chat. */
 .tlBar {
   display: flex;
   flex-wrap: wrap;
@@ -15,20 +17,34 @@
   color: var(--muted);
 }
 
-.legend span[data-kind]::before {
+.legend span::before {
   content: "";
   display: inline-block;
-  width: 10px;
-  height: 10px;
+  width: 14px;
+  height: 8px;
   margin-right: 6px;
   border-radius: 2px;
-  vertical-align: -1px;
+  vertical-align: 0;
   background: var(--c);
+}
+
+.legend [data-key="open"]::before {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--muted) 0 3px,
+    color-mix(in srgb, var(--muted) 35%, transparent) 3px 6px
+  );
+}
+
+.legend [data-key="adhoc"]::before {
+  background: none;
+  outline: 1px dashed var(--muted);
+  outline-offset: -1px;
 }
 
 .legend [data-kind="tech-lead"],
 .track [data-kind="tech-lead"] {
-  --c: #2c6b62;
+  --c: #3a8a7c;
 }
 
 .legend [data-kind="clone"],
@@ -41,81 +57,188 @@
   --c: #d9962b;
 }
 
-.lanes {
-  display: grid;
-  gap: 6px;
+.tl {
+  overflow-x: auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
 }
 
-.lane {
-  display: grid;
-  grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
+.tlInner {
+  min-width: 760px;
 }
 
-.who {
+.row {
   display: grid;
-  min-width: 0;
-  line-height: 1.25;
+  grid-template-columns: 220px minmax(0, 1fr);
 }
 
-.who small {
-  overflow: hidden;
-  text-overflow: ellipsis;
+.axis {
+  position: relative;
+  height: 28px;
+  border-bottom: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+}
+
+.axis span {
+  position: absolute;
+  top: 7px;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: var(--muted);
   white-space: nowrap;
+}
+
+.projHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--track) 45%, var(--panel));
+}
+
+.projHead h2 {
+  margin: 0;
+  font: 650 17px/1.2 var(--display);
+}
+
+.projHead > span:last-child {
   font-size: 12px;
 }
 
-.track {
+.ctog {
+  border: 0;
+  background: none;
+  padding: 0 2px;
+  color: var(--muted) !important;
+}
+
+.ctog::before {
+  content: "▾";
+}
+
+.ctog[aria-expanded="false"]::before {
+  content: "▸";
+}
+
+.none {
+  margin: 0;
+  padding: 10px 14px 10px 28px;
+  border-bottom: 1px solid var(--line);
+}
+
+.gHead {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  justify-items: start;
+  min-width: 0;
+  padding: 10px 14px 10px 28px;
+  border-bottom: 1px solid var(--line);
+}
+
+.gHead b {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.gHead small {
+  font-size: 12px;
+}
+
+.lane {
   position: relative;
-  height: 14px;
-  border-radius: 3px;
-  background: var(--track);
+  border-bottom: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0 calc(100% / 6 - 1px),
+    color-mix(in srgb, var(--line) 60%, transparent) calc(100% / 6 - 1px) calc(100% / 6)
+  );
+}
+
+.track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 12px;
 }
 
 .track i {
   position: absolute;
-  top: 0;
-  bottom: 0;
+  height: 100%;
   border-radius: 3px;
   background: var(--c);
 }
 
-.track i[data-adhoc] {
-  background: color-mix(in srgb, var(--c) 18%, var(--panel));
-  box-shadow: inset 0 0 0 1.5px var(--c);
-}
-
 .track i[data-open] {
-  background-image: repeating-linear-gradient(
-    -45deg,
-    transparent 0 4px,
-    color-mix(in srgb, var(--panel) 35%, transparent) 4px 8px
+  background: repeating-linear-gradient(
+    45deg,
+    var(--c) 0 6px,
+    color-mix(in srgb, var(--c) 55%, transparent) 6px 12px
   );
 }
 
-.track[data-marks] {
+.track i[data-adhoc] {
   background: none;
-  border-bottom: 1px dashed var(--line);
-  border-radius: 0;
+  border: 1.5px dashed var(--c);
 }
 
-.track i[data-mark] {
-  top: 2px;
-  bottom: auto;
-  width: 9px;
-  height: 9px;
-  margin-left: -4px;
-  border-radius: 50%;
-  background: var(--ok);
+.track i[data-adhoc][data-open] {
+  background: repeating-linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--c) 35%, transparent) 0 6px,
+    transparent 6px 12px
+  );
 }
 
-.axis {
-  display: flex;
-  justify-content: space-between;
-  margin-left: calc(min(220px, 40%) + 12px);
+.who {
+  position: absolute;
+  transform: translateY(-13px);
   font-size: 11px;
   color: var(--muted);
+  white-space: nowrap;
+}
+
+.mk {
+  --c: var(--muted);
+
+  position: absolute;
+  top: 5px;
+  transform: translateX(-50%);
+  padding: 0 6px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--c);
+  background: color-mix(in srgb, var(--c) 13%, var(--panel));
+}
+
+.mk[data-tone="ok"] {
+  --c: var(--ok);
+}
+
+.mk[data-tone="warn"] {
+  --c: var(--warn);
+}
+
+.mk[data-tone="bad"] {
+  --c: var(--bad);
+}
+
+.now {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--pick);
+  z-index: 2;
 }
 
 /* Project tabs */
@@ -216,42 +339,81 @@
   flex: none;
 }
 
-/* Thin scrollbar that blends with the dark sidebar. */
-.side {
-  scrollbar-width: thin;
-  scrollbar-color: #ffffff2e transparent;
-}
-
-.side::-webkit-scrollbar {
-  width: 6px;
-}
-
-.side::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.side::-webkit-scrollbar-thumb {
-  border-radius: 99px;
-  background: #ffffff2e;
-}
-
-.side::-webkit-scrollbar-thumb:hover {
-  background: #ffffff52;
-}
-
 .accK {
   padding: 0 8px;
   font-size: 11px;
   color: var(--side-muted);
 }
 
+/* Sidebar in a column: only the navigation scrolls; limits + theme sit below it, full width. */
+.side.side {
+  height: 100vh;
+  height: 100dvh;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+
+.sideNav {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 18px 12px;
+}
+
+/* Long names shrink to an ellipsis instead of widening the menu. */
+.sideNav li,
+.sideNav li > button {
+  min-width: 0;
+}
+
+.sideNav ul > li > button:first-child {
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+}
+
+.limits.limits {
+  flex: none;
+  margin: 0;
+  padding: 12px 22px 16px;
+  background: var(--side);
+}
+
+.limits > button {
+  justify-self: start;
+}
+
 @media (width <= 760px) {
-  .lane,
   .docs {
     grid-template-columns: 1fr;
   }
 
-  .axis {
-    margin-left: 0;
+  /* Sidebar sits on top of the page here, so the limits ride along at the bottom of the screen. */
+  .side.side {
+    height: auto;
+    overflow: visible;
+  }
+
+  .sideNav {
+    overflow: visible;
+  }
+
+  .limits.limits {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 3;
+    grid-template-columns: 1fr 1fr auto;
+    align-items: center;
+    padding: 8px 16px;
+  }
+
+  .foot {
+    bottom: 58px !important;
+  }
+
+  .main {
+    padding-bottom: 58px !important;
   }
 }

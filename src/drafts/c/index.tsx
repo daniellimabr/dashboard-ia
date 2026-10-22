@@ -277,58 +277,52 @@ export function Draft({
   return (
     <div className={s.root} data-theme={dark ? "dark" : "light"}>
       <aside className={`${s.side} ${pg.side}`}>
-        <div className={s.brand}>
-          <span>Painel IA</span>
-          <button
-            type="button"
-            className={s.themeBtn}
-            aria-pressed={dark}
-            onClick={() => setDark(!dark)}
-          >
-            {dark ? "Tema claro" : "Tema escuro"}
-          </button>
-        </div>
-        <nav aria-label="Telas" className={s.screens}>
-          {SCREENS.map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              aria-current={id === view ? "page" : undefined}
-              onClick={() => go(id)}
-            >
-              {id === "idle" ? `${label} (${idleCount})` : label}
-            </button>
-          ))}
-        </nav>
-        {project && (
-          <nav aria-label="Itens" className={s.screens}>
-            <span className={s.sideK}>Itens de {project.name}</span>
-            {ITEMS.map(([t, label]) => {
-              const on = t === "sprints" ? view === "sprints" : view === "project" && tab === t;
-              return (
-                <button
-                  key={t}
-                  type="button"
-                  aria-current={on ? "page" : undefined}
-                  onClick={() => (t === "sprints" ? go("sprints") : openTab(project.id, t))}
-                >
-                  {label}
-                </button>
-              );
-            })}
+        <div className={pg.sideNav}>
+          <div className={s.brand}>
+            <span>Painel IA</span>
+          </div>
+          <nav aria-label="Telas" className={s.screens}>
+            {SCREENS.map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                aria-current={id === view ? "page" : undefined}
+                onClick={() => go(id)}
+              >
+                {id === "idle" ? `${label} (${idleCount})` : label}
+              </button>
+            ))}
           </nav>
-        )}
-        <nav aria-label="Projetos" className={s.projects}>
-          <span className={s.sideK}>Projetos</span>
-          <ul>{active.map(projectButton)}</ul>
-          {idle.length > 0 && (
-            <>
-              <span className={s.sideK}>Ociosos</span>
-              <ul data-idle>{idle.map(projectButton)}</ul>
-            </>
+          {project && (
+            <nav aria-label="Itens" className={s.screens}>
+              <span className={s.sideK}>Itens de {project.name}</span>
+              {ITEMS.map(([t, label]) => {
+                const on = t === "sprints" ? view === "sprints" : view === "project" && tab === t;
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    aria-current={on ? "page" : undefined}
+                    onClick={() => (t === "sprints" ? go("sprints") : openTab(project.id, t))}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </nav>
           )}
-        </nav>
-        <div className={s.limits}>
+          <nav aria-label="Projetos" className={s.projects}>
+            <span className={s.sideK}>Projetos</span>
+            <ul>{active.map(projectButton)}</ul>
+            {idle.length > 0 && (
+              <>
+                <span className={s.sideK}>Ociosos</span>
+                <ul data-idle>{idle.map(projectButton)}</ul>
+              </>
+            )}
+          </nav>
+        </div>
+        <div className={`${s.limits} ${pg.limits}`}>
           <div>
             <span>
               Limite 5 h <b>{h5.pct}%</b>
@@ -351,9 +345,17 @@ export function Draft({
                 : ""}
             </small>
           </div>
+          <button
+            type="button"
+            className={s.themeBtn}
+            aria-pressed={dark}
+            onClick={() => setDark(!dark)}
+          >
+            {dark ? "Tema claro" : "Tema escuro"}
+          </button>
         </div>
       </aside>
-      <main className={s.main}>
+      <main className={`${s.main} ${pg.main}`}>
         {offlineSince !== undefined && (
           <div className={s.offline} role="status">
             Sem conexão com o servidor desde {formatTime(new Date(offlineSince).toISOString())}. Os
@@ -367,7 +369,7 @@ export function Draft({
         {view === "timeline" && <TimelineScreen />}
         {view === "idle" && <IdleScreen />}
         {view === "project" && project && <ProjectScreen project={project} tab={tab} />}
-        <footer className={s.foot}>
+        <footer className={`${s.foot} ${pg.foot}`}>
           <p>
             <b>Ideia:</b> um espaço de trabalho. Os projetos ficam sempre à vista no menu lateral, e
             o conteúdo se organiza em painéis; o projeto escolhido ganha o painel largo.

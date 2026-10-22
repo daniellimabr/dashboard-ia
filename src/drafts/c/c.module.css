@@ -51,6 +51,13 @@
   outline-offset: 2px;
 }
 
+/* Thin scrollbars everywhere (vertical and horizontal); currentColor adapts to dark sidebar and light panels. */
+.root,
+.root * {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, currentColor 28%, transparent) transparent;
+}
+
 .root button {
   font: inherit;
   color: inherit;

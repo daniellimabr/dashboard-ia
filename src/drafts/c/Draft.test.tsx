@@ -128,10 +128,22 @@ describe("Draft C", () => {
     await nav("Linha do tempo");
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Linha do tempo");
     const lane = within(screen.getByRole("region", { name: "Dashboard IA" }));
-    expect(lane.getAllByText("Clone 1").length).toBeGreaterThan(0);
-    expect(lane.getByText(/fora da sprint/)).toBeTruthy();
+    // Agents grouped under their sprint, or under the loose chat they ran in.
+    const sprint = within(lane.getByRole("group", { name: "S02 Layout da tela principal" }));
+    expect(sprint.getByText("Clone 1")).toBeTruthy();
+    expect(sprint.getByText("Clone 2")).toBeTruthy();
+    expect(sprint.getByText("Em execução")).toBeTruthy();
+    const loose = within(lane.getByRole("group", { name: "hook lento" }));
+    expect(loose.getByText("Tech Lead")).toBeTruthy();
+    expect(loose.getByText("fora da sprint")).toBeTruthy();
+    expect(loose.queryByText("Clone 1")).toBeNull();
+
     await userEvent.click(screen.getByRole("tab", { name: "7 dias" }));
     expect(screen.getByRole("tab", { name: "7 dias" }).getAttribute("aria-selected")).toBe("true");
+    expect(lane.getByRole("group", { name: "S01 Draft do front do painel" })).toBeTruthy();
+
+    await userEvent.click(lane.getByRole("button", { name: "Agentes de Dashboard IA" }));
+    expect(lane.queryByRole("group")).toBeNull();
   });
 
   it("opens Ociosos from the menu and brings a project back", async () => {
