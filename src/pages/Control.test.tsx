@@ -164,6 +164,24 @@ describe("Control", () => {
     expect(col("Main Harness").queryByText("Concluída")).toBeNull();
   });
 
+  it("shows recent sprints as tabs with status, and switches the sprint on click", async () => {
+    renderAt("/controle");
+    const c = col("Main Harness");
+    const tabs = c.getAllByRole("tab");
+    expect(tabs.map((t) => t.textContent)).toEqual([
+      "S05 · Em execução",
+      "S04 · Concluída",
+      "S03 · Concluída",
+    ]);
+    expect(tabs[0]?.getAttribute("aria-selected")).toBe("true");
+    await userEvent.click(tabs[1] as HTMLElement);
+    expect(c.getByRole("tab", { name: /S04/ }).getAttribute("aria-selected")).toBe("true");
+    c.getByRole("link", { name: "S04" });
+    c.getByText("Concluída");
+    await openSprint(c);
+    c.getByText(/^S04 · (?!Concluída$)/); // the sprint items row, not the tab
+  });
+
   it("lists running agents with context, and the spend inside Consumo", async () => {
     renderAt("/controle");
     const c = col("Dashboard IA");

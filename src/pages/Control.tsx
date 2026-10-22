@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router";
 import { Gantt } from "../components/Gantt";
 import { ProgressRow } from "../components/ProgressRow";
@@ -73,14 +74,23 @@ function TaskRow({ t, agents, now }: { t: Task; agents: Agent[]; now: number }) 
   );
 }
 
+const STATUS = { active: "Em execução", planned: "Planejada", closed: "Concluída" };
+
 function Column({ p, now }: { p: Project; now: number }) {
   const { data } = useData();
-  const sprint: Sprint | undefined =
+  const initial: Sprint | undefined =
     data.sprints.find((s) => s.projectId === p.id && s.status === "active") ??
     data.sprints.find((s) => s.projectId === p.id && s.status === "planned") ??
     data.sprints
       .filter((s) => s.projectId === p.id && s.status === "closed")
       .sort((a, b) => (b.closedAt ?? "").localeCompare(a.closedAt ?? ""))[0];
+  // most recent first; numeric compare so S10 > S09
+  const recent = data.sprints
+    .filter((s) => s.projectId === p.id)
+    .sort((a, b) => b.id.localeCompare(a.id, undefined, { numeric: true }))
+    .slice(0, 5);
+  const [picked, setPicked] = useState(initial?.id);
+  const sprint = recent.find((s) => s.id === picked) ?? initial;
   const agents = runningAgents(data, p.id);
   const adhoc = data.chats
     .filter((c) => c.projectId === p.id && !c.sprintId)
@@ -119,13 +129,31 @@ function Column({ p, now }: { p: Project; now: number }) {
         )}
         {sprint?.status === "closed" && <span className="pill p-ok">Concluída</span>}
       </header>
+      {recent.length > 1 && (
+        <div className="tabs" role="tablist" aria-label={`Sprints de ${p.name}`}>
+          {recent.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              role="tab"
+              aria-selected={s.id === sprint?.id}
+              className={s.id === sprint?.id ? "active" : ""}
+              title={s.title}
+              onClick={() => setPicked(s.id)}
+            >
+              {`${s.id} · ${STATUS[s.status]}`}
+            </button>
+          ))}
+        </div>
+      )}
       {p.alerts?.map((a) => (
         <div key={a.title} className={`${css.alert} ${a.tone === "warn" ? css.w : ""}`}>
           <b>{a.title}</b>
           <span className="muted">{a.detail}</span>
         </div>
       ))}
-      <div className={css.trk}>
+      {/* key: remount per sprint so the accordions reopen with that sprint's defaults */}
+      <div key={sprint?.id} className={css.trk}>
         {sprint && (
           <ProgressRow
             title="Horários"
