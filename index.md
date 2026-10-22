@@ -26,6 +26,7 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `docs/sprints/S06-draft-projects-a.html` — (sem descrição)
 - `docs/sprints/S06-draft-projects-b.html` — (sem descrição)
 - `docs/sprints/S06-plan.md` — S06 — Drafts da Sala de controle e das abas de Projetos
+- `docs/sprints/S07-plan.md` — S07 — Telas escolhidas nos drafts da S06
 - `eslint.config.mjs` — ESLint flat config installed by the Main Harness (/attach). Zero errors, zero warnings.
 - `index.html` — (sem descrição)
 - `package-lock.json` — (sem descrição)
@@ -67,22 +68,13 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `src/components/TaskList.tsx` — (sem descrição)
 - `src/data/mock.ts` — (sem descrição)
 - `src/data/types.ts` — Shapes mirror the future harness events (see docs/adr/0001-arquitetura.md).
-- `src/drafts/ControlDraft.test.tsx` — (sem descrição)
-- `src/drafts/ControlDraft.tsx` — (sem descrição)
-- `src/drafts/ProjectsDraftA.test.tsx` — (sem descrição)
-- `src/drafts/ProjectsDraftA.tsx` — (sem descrição)
-- `src/drafts/ProjectsDraftB.test.tsx` — (sem descrição)
-- `src/drafts/ProjectsDraftB.tsx` — (sem descrição)
-- `src/drafts/Variants.tsx` — (sem descrição)
-- `src/drafts/drafts.css` — S06 drafts only: buttons inside .tabs look like the app's tab links.
-- `src/drafts/main.tsx` — (sem descrição)
-- `src/drafts/routes.tsx` — (sem descrição)
 - `src/lib/progress.test.ts` — (sem descrição)
 - `src/lib/progress.ts` — (sem descrição)
 - `src/lib/useData.tsx` — (sem descrição)
 - `src/lib/useNow.ts` — (sem descrição)
 - `src/lib/useProject.ts` — (sem descrição)
 - `src/main.tsx` — (sem descrição)
+- `src/pages/Chats.module.css` — (sem descrição)
 - `src/pages/Chats.test.tsx` — (sem descrição)
 - `src/pages/Chats.tsx` — (sem descrição)
 - `src/pages/Control.module.css` — Draft "Sala de controle" (variant B).
@@ -95,6 +87,8 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `src/pages/Idle.tsx` — (sem descrição)
 - `src/pages/Overview.test.tsx` — (sem descrição)
 - `src/pages/Overview.tsx` — (sem descrição)
+- `src/pages/Plan.module.css` — (sem descrição)
+- `src/pages/Plan.test.tsx` — (sem descrição)
 - `src/pages/Plan.tsx` — (sem descrição)
 - `src/pages/Projects.test.tsx` — (sem descrição)
 - `src/pages/Projects.tsx` — (sem descrição)
