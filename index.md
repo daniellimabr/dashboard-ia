@@ -28,6 +28,7 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `docs/sprints/S06-plan.md` — S06 — Drafts da Sala de controle e das abas de Projetos
 - `docs/sprints/S07-plan.md` — S07 — Telas escolhidas nos drafts da S06
 - `docs/sprints/S07-release.md` — S07 — Release Report
+- `docs/sprints/S08-plan.md` — S08 — Drafts do revamp do frontend
 - `eslint.config.mjs` — ESLint flat config installed by the Main Harness (/attach). Zero errors, zero warnings.
 - `index.html` — (sem descrição)
 - `package-lock.json` — (sem descrição)
@@ -69,6 +70,22 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `src/components/TaskList.tsx` — (sem descrição)
 - `src/data/mock.ts` — (sem descrição)
 - `src/data/types.ts` — Shapes mirror the future harness events (see docs/adr/0001-arquitetura.md).
+- `src/drafts/Drafts.test.tsx` — (sem descrição)
+- `src/drafts/Drafts.tsx` — Draft switcher (S08): each direction lives in src/drafts/<x>/index.tsx and exports `Draft`.
+- `src/drafts/a/Draft.test.tsx` — (sem descrição)
+- `src/drafts/a/a.module.css` — (sem descrição)
+- `src/drafts/a/index.tsx` — (sem descrição)
+- `src/drafts/a/screens.tsx` — (sem descrição)
+- `src/drafts/a/ui.tsx` — (sem descrição)
+- `src/drafts/b/Draft.test.tsx` — (sem descrição)
+- `src/drafts/b/b.module.css` — (sem descrição)
+- `src/drafts/b/index.tsx` — (sem descrição)
+- `src/drafts/b/ui.tsx` — (sem descrição)
+- `src/drafts/c/Draft.test.tsx` — (sem descrição)
+- `src/drafts/c/c.module.css` — (sem descrição)
+- `src/drafts/c/index.tsx` — (sem descrição)
+- `src/drafts/c/screens.tsx` — (sem descrição)
+- `src/drafts/c/ui.tsx` — (sem descrição)
 - `src/lib/progress.test.ts` — (sem descrição)
 - `src/lib/progress.ts` — (sem descrição)
 - `src/lib/useData.tsx` — (sem descrição)
