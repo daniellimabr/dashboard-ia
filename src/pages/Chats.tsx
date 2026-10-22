@@ -1,11 +1,22 @@
 import { Link, useParams } from "react-router";
 import { TaskList } from "../components/TaskList";
+import type { Chat } from "../data/types";
 import { durationMs, formatDate, formatDuration, formatTime } from "../lib/time";
 import { useNow } from "../lib/useNow";
 import { useProject } from "../lib/useProject";
 import { useData } from "../lib/useData";
+import css from "./Chats.module.css";
 
 const when = (iso: string) => `${formatDate(iso)} ${formatTime(iso)}`;
+
+// Chat has no "last interaction" field: latest end among chat, agents and tasks; undefined = still open (sorts first).
+function lastAt(c: Chat) {
+  if (!c.endedAt || c.agents.some((a) => !a.endedAt)) return undefined;
+  return [...c.agents.map((a) => a.endedAt), ...c.tasks.map((t) => t.endedAt)].reduce<string>(
+    (max, x) => (x && x > max ? x : max),
+    c.endedAt,
+  );
+}
 
 function Status({ end, live }: { end?: string; live: string }) {
   return end ? (
@@ -23,29 +34,51 @@ export function Chats() {
   const chats = data.chats.filter((c) => c.projectId === project.id);
 
   if (!chatId) {
+    const rows = chats
+      .map((c) => ({ ...c, last: lastAt(c) }))
+      .sort(
+        (x, y) =>
+          Number(!y.last) - Number(!x.last) ||
+          (y.last ?? y.startedAt).localeCompare(x.last ?? x.startedAt),
+      );
     return (
       <>
         <h2>Chats</h2>
-        {!chats.length && <p className="muted">Nenhum chat.</p>}
-        <div className="grid">
-          {chats.map((c) => {
-            const running = c.agents.filter((a) => !a.endedAt).length;
-            return (
-              <div key={c.id} className="card">
-                <h3>
-                  <Link to={c.id}>{c.title}</Link>
-                </h3>
-                <p className="muted">
-                  {when(c.startedAt)} · {formatDuration(durationMs(c.startedAt, c.endedAt, now))}
-                </p>
-                <Status end={c.endedAt} live="em andamento" />{" "}
-                {running > 0 && (
-                  <span className="muted">{`${running} ${running > 1 ? "agentes rodando" : "agente rodando"}`}</span>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        {!rows.length ? (
+          <p className={`card muted ${css.empty}`}>Nenhum chat neste projeto ainda.</p>
+        ) : (
+          <table className={css.table}>
+            <thead>
+              <tr>
+                <th>Chat</th>
+                <th>Início</th>
+                <th>Última interação</th>
+                <th>Sprint</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((c) => {
+                const running = c.agents.filter((a) => !a.endedAt).length;
+                return (
+                  <tr key={c.id} className={c.last ? undefined : css.open}>
+                    <td>
+                      <Link to={c.id} className={css.title}>
+                        {c.title}
+                      </Link>{" "}
+                      <Status end={c.endedAt} live="em andamento" />
+                      {running > 0 && (
+                        <div className="muted">{`${running} ${running > 1 ? "agentes rodando" : "agente rodando"}`}</div>
+                      )}
+                    </td>
+                    <td className="num">{when(c.startedAt)}</td>
+                    <td className="num">{c.last ? when(c.last) : "agora"}</td>
+                    <td>{c.sprintId ?? <span className="muted">fora da sprint</span>}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </>
     );
   }

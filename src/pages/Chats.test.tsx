@@ -1,16 +1,33 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { renderAt } from "../test-utils";
 
 describe("Chats", () => {
-  it("lists the project's chats with status, running agents and detail links", () => {
+  it("lists the project's chats newest first, with start and last interaction", () => {
     renderAt("/p/dashboard-ia/chats");
-    const link = screen.getByRole("link", { name: "Executar sprint S02" });
-    expect(link.getAttribute("href")).toBe("/p/dashboard-ia/chats/c-dash-2");
-    screen.getByRole("link", { name: "hook lento" });
+    screen.getByRole("columnheader", { name: "Início" });
+    screen.getByRole("columnheader", { name: "Última interação" });
+    const rows = screen.getAllByRole("row").slice(1) as [HTMLElement, HTMLElement, HTMLElement];
+    expect(rows.map((r) => within(r).getByRole("link").textContent)).toEqual([
+      "Executar sprint S02",
+      "hook lento",
+      "Executar sprint S01",
+    ]);
+    expect(within(rows[0]).getByRole("link").getAttribute("href")).toBe(
+      "/p/dashboard-ia/chats/c-dash-2",
+    );
+    within(rows[0]).getByText("em andamento");
+    within(rows[0]).getByText("3 agentes rodando");
+    expect(rows[0].className).toMatch(/open/);
+    within(rows[1]).getByText("encerrado");
+    expect(rows[1].className).not.toMatch(/open/);
+    within(rows[1]).getByText("fora da sprint");
     expect(screen.queryByText("Executar sprint S05")).toBeNull();
-    screen.getByText("3 agentes rodando");
-    expect(screen.getAllByText("encerrado").length).toBeGreaterThan(0);
+  });
+
+  it("shows an empty state when the project has no chats", () => {
+    renderAt("/p/planilha-orcamento/chats");
+    screen.getByText(/Nenhum chat/);
   });
 
   it("shows detail with sprint link, child agents and tasks", () => {
