@@ -27,6 +27,7 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `docs/sprints/S07-release.md` — S07 — Release Report
 - `docs/sprints/S08-plan.md` — S08 — Drafts do revamp do frontend
 - `docs/sprints/S09-plan.md` — S09 — Revamp do frontend: aplicar a direção C
+- `docs/sprints/S09-release.md` — S09 — Release Report
 - `eslint.config.mjs` — ESLint flat config installed by the Main Harness (/attach). Zero errors, zero warnings.
 - `index.html` — (sem descrição)
 - `package-lock.json` — (sem descrição)
