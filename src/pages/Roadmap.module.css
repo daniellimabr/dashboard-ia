@@ -1,0 +1,42 @@
+.cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.col {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.col h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.col p {
+  margin: 0;
+}
+
+.cards {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  overflow-wrap: anywhere;
+}
+
+.card a {
+  font-weight: 600;
+}

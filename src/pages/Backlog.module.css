@@ -1,0 +1,23 @@
+/* Raw-markdown fallback: ported from src/drafts/c/pages.module.css (.md). */
+.md {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.md :global(pre),
+.md :global(table) {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.md :global(img) {
+  max-width: 100%;
+}
+
+.sub {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
