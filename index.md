@@ -27,6 +27,7 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `docs/sprints/S06-draft-projects-b.html` — (sem descrição)
 - `docs/sprints/S06-plan.md` — S06 — Drafts da Sala de controle e das abas de Projetos
 - `docs/sprints/S07-plan.md` — S07 — Telas escolhidas nos drafts da S06
+- `docs/sprints/S07-release.md` — S07 — Release Report
 - `eslint.config.mjs` — ESLint flat config installed by the Main Harness (/attach). Zero errors, zero warnings.
 - `index.html` — (sem descrição)
 - `package-lock.json` — (sem descrição)
