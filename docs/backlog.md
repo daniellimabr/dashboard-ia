@@ -14,6 +14,12 @@ Pedidos do projeto. Um item por linha: `- [prioridade] data [status: SNN] — te
   - **Consumo:** no sentido da variante A, em acordeão: dia › sprints.
 
 - [alta] 2026-10-22 [planejado: S08] — Revamp total do frontend: visual, navegação e layout, tela principal e componentes base (drafts de 3 direções na S08, aplicação na S09).
+- [alta] 2026-10-22 — S09: aplicar a direção C escolhida na S08 (`drafts.html` › C) em todas as telas e apagar `drafts.html` e `src/drafts`:
+  - **Tema escuro como padrão** (hoje o draft abre no claro).
+  - **Backlog e Roadmap:** novo formato de exibição (o draft só mostra o markdown).
+  - **Consumo** como item do projeto (ficou fora do draft).
+  - **Dados que faltam** (hoje "exemplo" no draft): espera por resposta de Daniel, espera de limite de sessão, custo/tokens por agente, estado do agente vindo do harness, id do agente na tarefa, tarefas tocadas por agente.
+  - A faixa de notas do draft e o seletor A/B/C não entram na versão final.
 - [alta] 2026-10-16 [planejado: S08] — Redesenho da tela principal: mostrar o máximo de informação de cada projeto; aprofundar o layout (drafts) antes da comunicação com agentes/projetos.
 - [alta] 2026-10-18 [concluído: S05] — Navegação pelos projetos (candidato à S05): entrar em cada projeto (chats, sprints, backlog/roadmap, documentos, consumo) a partir das telas principais e navegar pelos documentos dos projetos por aqui; hoje há só o menu provisório "Projetos" e os links do Bem-vindo.
 - [alta] 2026-10-16 [concluído: S06] — Investigação: a fonte mais confiável para o % do limite da assinatura (5 h e semanal).
