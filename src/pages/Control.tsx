@@ -209,7 +209,7 @@ function ControlRoom({ project: p }: { project: Project }) {
         <h1>{p.name} › Sala de controle</h1>
         <p className={s.muted}>
           {sprint ? `${sprint.id} · ${sprint.title}` : "Sem sprint"}
-          {sprint && ` · onda ${wave.current} de ${wave.total}`}
+          {sprint && (wave.total ? ` · onda ${wave.current} de ${wave.total}` : " · onda sem dado")}
         </p>
       </div>
       <div className={s.ctl}>
