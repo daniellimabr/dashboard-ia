@@ -1,208 +1,111 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { data } from "../data/mock";
-import type { Sprint } from "../data/types";
+import { formatTime } from "../lib/time";
 import { renderAt } from "../test-utils";
 
-const col = (name: string) =>
-  within(screen.getByRole("heading", { name, level: 2 }).closest("section") as HTMLElement);
+const region = (name: string | RegExp) => within(screen.getByRole("region", { name }));
+const s02 = data.sprints.find((x) => x.projectId === "dashboard-ia" && x.status === "active");
+const pick = (name: RegExp) =>
+  userEvent.click(
+    within(screen.getByRole("navigation", { name: "Projetos" })).getByRole("button", { name }),
+  );
 
-const accordions = (c: ReturnType<typeof col>) =>
-  c.getAllByRole("button").filter((b) => b.hasAttribute("aria-expanded"));
-
-async function openSprint(c: ReturnType<typeof col>) {
-  const btn = accordions(c).find((b) => b.textContent?.startsWith("Itens da sprint"));
-  btn?.focus();
-  await userEvent.keyboard("{Enter}");
-  return btn as HTMLElement;
-}
-
-describe("Control", () => {
-  it("shows one column per active project with phase and alerts", () => {
+describe("Control (Sala de controle)", () => {
+  beforeEach(() => localStorage.clear()); // the menu remembers the picked project
+  it("titles the page with the project and puts Agentes and Consumo before the tasks", () => {
     renderAt("/controle");
-    const c = col("Dashboard IA");
-    c.getByText("Execução");
-    c.getByText("Reviewer reprovou T02");
-    expect(screen.queryByRole("heading", { name: "Bot Telegram" })).toBeNull();
-  });
-
-  it("links the project name to its page", () => {
-    renderAt("/controle");
-    expect(
-      col("Dashboard IA").getByRole("link", { name: "Dashboard IA" }).getAttribute("href"),
-    ).toBe("/p/dashboard-ia");
-  });
-
-  it("links the sprint id to the project's sprint", () => {
-    renderAt("/controle");
-    expect(col("Dashboard IA").getByRole("link", { name: "S02" }).getAttribute("href")).toBe(
-      "/p/dashboard-ia/sprints/S02",
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "Dashboard IA › Sala de controle",
     );
+    const tasks = screen.getByRole("region", { name: /Tarefas da sprint/ });
+    for (const name of [/Agentes/, /Consumo/]) {
+      const panel = screen.getByRole("region", { name });
+      expect(panel.compareDocumentPosition(tasks) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
   });
 
-  const state = (name: string) =>
-    accordions(col(name)).map(
-      (b) =>
-        `${/^(Horários|Fora|Itens|Agentes|Consumo)/.exec(b.textContent ?? "")?.[0]}:${b.getAttribute("aria-expanded")}`,
-    );
-
-  it("orders the accordions and opens only where something is running", () => {
+  it("task list: counter, times, waves, step labels, agent and progress value", () => {
     renderAt("/controle");
-    expect(state("Dashboard IA")).toEqual([
-      "Horários:false",
-      "Fora:false",
-      "Itens:true",
-      "Agentes:false",
-      "Consumo:true",
-    ]);
-    expect(state("Main Harness")).toEqual([
-      "Horários:false",
-      "Fora:true",
-      "Itens:false",
-      "Agentes:false",
-      "Consumo:true",
-    ]);
-    expect(state("Finanças Casa")).toEqual([
-      "Horários:false",
-      "Itens:false",
-      "Agentes:false",
-      "Consumo:true",
-    ]);
+    const r = region(/Tarefas da sprint/);
+    expect(r.getByText("1 / 7 concluídas")).toBeTruthy();
+    for (const w of [1, 2, 3, 4]) expect(r.getByText(`Onda ${w}`)).toBeTruthy();
+    const t01 = s02?.tasks[0];
+    const row = (id: string) =>
+      r.getAllByRole("row").find((x) => x.querySelector("b")?.textContent === id);
+    expect(row("T01")?.textContent).toContain(formatTime(t01?.startedAt ?? ""));
+    expect(row("T01")?.textContent).toContain(formatTime(t01?.endedAt ?? ""));
+    expect(row("T03")?.textContent).toContain("40%");
   });
 
-  it("shows the main info on closed accordions", () => {
+  it("gantt: legend with status, idle and the sprint's real waits, no example", () => {
     renderAt("/controle");
-    const [hours, , , agents, money] = accordions(col("Dashboard IA"));
-    expect(hours?.textContent).toMatch(/\d+\/7 feitas/);
-    expect(agents?.textContent).toMatch(/\d+ rodando · contexto máx\. \d+%/);
-    expect(money?.textContent).toMatch(/US\$.* hoje · \d+% do limite 5 h/);
-    const fc = accordions(col("Finanças Casa"));
-    expect(fc[2]?.textContent).toContain("nenhum rodando");
+    const key = within(screen.getByRole("list", { name: "Legenda do plano" }));
+    for (const k of ["Feita", "Rodando", "A fazer", "Ocioso", "Aguardando resposta"])
+      expect(key.getByText(k)).toBeTruthy();
+    expect(screen.queryByText(/exemplo/)).toBeNull();
+    // T05 plan: start 70 of a 120 min plan window, 20 min long
+    const t05 = screen
+      .getAllByRole("tooltip")
+      .find((t) => t.textContent?.startsWith("T05"))?.parentElement;
+    expect(t05?.style.left).toMatch(/^58\.33/);
+    expect(t05?.style.width).toMatch(/^16\.66/);
   });
 
-  it("puts the gantt and the elapsed bar inside Horários", async () => {
+  it("andamento: reply and limit waits summed from sprint.waits", () => {
     renderAt("/controle");
-    const c = col("Dashboard IA");
-    expect(c.queryByTestId("gantt")).toBeNull();
-    const btn = accordions(c)[0] as HTMLElement;
-    btn.focus();
-    await userEvent.keyboard("{Enter}");
-    const box = within(btn.parentElement as HTMLElement);
-    box.getByText("Corrido");
-    box.getByTestId("gantt");
-    box.getByText("Duração corrida");
+    const r = region(/Andamento/);
+    expect(r.getByText("Ocioso")).toBeTruthy();
+    const dd = (dt: string) => r.getByText(dt).nextElementSibling?.textContent;
+    expect(dd("Aguardando você")).toBe("8 min");
+    expect(dd("Aguardando limite")).toBe("15 min");
+    expect(r.queryByText("Fim")).toBeNull();
   });
 
-  it("shows tasks outside the sprint without %, and hides the block when there are none", async () => {
-    renderAt("/controle");
-    const c = col("Dashboard IA");
-    const btn = accordions(c)[1] as HTMLElement;
-    expect(btn.textContent).toContain("1 tarefa");
-    btn.focus();
-    await userEvent.keyboard("{Enter}");
-    const row = c
-      .getByText("Ajustar hook post-edit (lento no Windows)")
-      .closest("div") as HTMLElement;
-    expect(row.parentElement?.textContent).not.toMatch(/%/);
-    c.getByText("hook lento");
-    within(row.parentElement as HTMLElement).getByText("feita");
-    const fc = col("Finanças Casa");
-    expect(accordions(fc).some((b) => b.textContent?.startsWith("Fora da sprint"))).toBe(false);
-  });
-
-  it("opens and closes the sprint items by keyboard, with % and steps", async () => {
-    renderAt("/controle");
-    const c = col("Dashboard IA");
-    const btn = accordions(c).find((b) =>
-      b.textContent?.startsWith("Itens da sprint"),
-    ) as HTMLElement;
-    expect(btn.getAttribute("aria-expanded")).toBe("true");
-    expect(btn.textContent).toContain("31%");
-    c.getByText("1 reprov.");
-    c.getByText("onda 2 de 4");
-    c.getByText("Revisão ✕");
-    const items = within(btn.parentElement as HTMLElement);
-    expect(items.queryByText("Duração corrida")).toBeNull();
-    expect(items.queryByText("Gasto da sprint")).toBeNull();
-    btn.focus();
-    const on = c.getByTitle("Clone 1 executando agora"); // getBy: exactly one lit icon
-    expect(on.textContent).toBe("C1");
-    expect(on.className).toContain("on");
-    expect(on.closest("button, div")?.textContent).toContain("T03");
-    await userEvent.keyboard("{Enter}");
-    expect(btn.getAttribute("aria-expanded")).toBe("false");
-    expect(c.queryByText("Revisão ✕")).toBeNull();
-  });
-
-  it("uses the planned sprint when none is active", async () => {
-    renderAt("/controle");
-    const c = col("Finanças Casa");
-    c.getByText(/não começou/);
-    await openSprint(c);
-    c.getByText(/^S03 · .+ — /);
-  });
-
-  it("shows the latest closed sprint as Concluída when none is active or planned", () => {
-    const closed = (id: string, closedAt: string) => ({
-      ...(data.sprints[0] as Sprint),
-      id,
-      status: "closed" as const,
-      closedAt,
-    });
+  it("andamento: no waits = sem dado", () => {
     renderAt("/controle", {
       ...data,
-      sprints: [
-        closed("S01", "2026-10-01T10:00:00Z"),
-        closed("S02", "2026-10-03T10:00:00Z"),
-        ...data.sprints.filter((s) => s.projectId !== "dashboard-ia"),
-      ],
+      sprints: data.sprints.map((x) => (x.id === s02?.id ? { ...x, waits: undefined } : x)),
     });
-    const c = col("Dashboard IA");
-    c.getByRole("link", { name: "S02" });
-    c.getByText("Concluída");
-    expect(col("Main Harness").queryByText("Concluída")).toBeNull();
+    const r = region(/Andamento/);
+    expect(r.getByText("Aguardando limite").nextElementSibling?.textContent).toBe("sem dado");
   });
 
-  it("shows recent sprints as tabs with status, and switches the sprint on click", async () => {
+  it("agents: x/y ativos, real cost per agent, at most 4, chevron expands", async () => {
     renderAt("/controle");
-    const c = col("Main Harness");
-    const tabs = c.getAllByRole("tab");
-    expect(tabs.map((t) => t.textContent)).toEqual([
-      "S05 · Em execução",
-      "S04 · Concluída",
-      "S03 · Concluída",
-    ]);
-    expect(tabs[0]?.getAttribute("aria-selected")).toBe("true");
-    await userEvent.click(tabs[1] as HTMLElement);
-    expect(c.getByRole("tab", { name: /S04/ }).getAttribute("aria-selected")).toBe("true");
-    c.getByRole("link", { name: "S04" });
-    c.getByText("Concluída");
-    await openSprint(c);
-    c.getByText(/^S04 · (?!Concluída$)/); // the sprint items row, not the tab
+    await pick(/Main Harness/);
+    const r = region(/Agentes/);
+    expect(r.getByText("0/5 ativos")).toBeTruthy();
+    expect(r.getAllByRole("group").length).toBe(4);
+    expect(r.getAllByRole("group")[0]?.textContent).toContain("aguardando teste");
+    expect(r.getByText(/1,35/).textContent).toMatch(/tokens/);
+    await userEvent.click(r.getByRole("button", { name: "Mostrar todos os agentes" }));
+    expect(r.getAllByRole("group").length).toBe(5);
+    await userEvent.click(r.getByRole("button", { name: "Mostrar menos" }));
+    expect(r.getAllByRole("group").length).toBe(4);
+    expect(screen.getAllByRole("region", { name: /Andamento/ })[0]?.textContent).toContain("Fim");
   });
 
-  it("lists running agents with context, and the spend inside Consumo", async () => {
+  it("agents: missing cost reads sem dado", () => {
+    renderAt("/controle", {
+      ...data,
+      chats: data.chats.map((c) => ({
+        ...c,
+        agents: c.agents.map((a) => ({ ...a, usd: undefined, tokens: undefined })),
+      })),
+    });
+    const r = region(/Agentes/);
+    expect(r.getAllByText(/custo sem dado · tokens sem dado/).length).toBeGreaterThan(0);
+    expect(r.getAllByText("trabalhando").length).toBeGreaterThan(0);
+  });
+
+  it("consumo: axis title and tooltip with spend and tokens", () => {
     renderAt("/controle");
-    const c = col("Dashboard IA");
-    const [, , , agents, money] = accordions(c) as [
-      HTMLElement,
-      HTMLElement,
-      HTMLElement,
-      HTMLElement,
-      HTMLElement,
-    ];
-    agents.focus();
-    await userEvent.keyboard("{Enter}");
-    c.getByText("Clone 1");
-    c.getByTitle("contexto 21%");
-    const m = within(money.parentElement as HTMLElement);
-    m.getByText(/tokens hoje/);
-    m.getByRole("img", { name: /gasto/i });
-    m.getByText("Gasto da sprint");
-    const fc = col("Finanças Casa");
-    (accordions(fc)[2] as HTMLElement).focus();
-    await userEvent.keyboard("{Enter}");
-    fc.getByText("nenhum agente rodando");
+    const r = region(/Consumo/);
+    expect(r.getByText(/Gasto por dia/)).toBeTruthy();
+    expect(r.getAllByRole("tooltip").some((t) => /US\$.*tokens/.test(t.textContent ?? ""))).toBe(
+      true,
+    );
   });
 });

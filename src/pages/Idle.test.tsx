@@ -1,16 +1,24 @@
-import { screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
 import { renderAt } from "../test-utils";
 
-describe("Idle", () => {
-  it("lists idle projects with last sprint, activity and weekly cost", () => {
+describe("Idle (Ociosos)", () => {
+  it("lists idle projects with sprint and days stopped, and brings one back", async () => {
+    const fetch = vi.fn(() => Promise.resolve(new Response("{}")));
+    vi.stubGlobal("fetch", fetch);
     renderAt("/ociosos");
-    screen.getByRole("heading", { level: 1, name: "Ociosos" });
-    screen.getByText(/sem atividade há mais de 7 dias/);
-    screen.getByRole("heading", { level: 2, name: "Bot Telegram" });
-    screen.getByRole("heading", { level: 2, name: "Planilha Orçamento" });
-    screen.getByText("S04 fechada · última atividade há 9 dias");
-    screen.getByText("sem sprint · última atividade há 23 dias");
-    expect(screen.getAllByText(/US\$\s0,00 na semana/)).toHaveLength(2);
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Ociosos");
+    const r = within(screen.getByRole("region", { name: /Ociosos \(2\)/ }));
+    expect(r.getByText("Bot Telegram")).toBeTruthy();
+    expect(r.getByText("S04 · parado há 9 dias")).toBeTruthy();
+    expect(r.getByText("sem sprint · parado há 23 dias")).toBeTruthy();
+    const [back] = r.getAllByRole("button", { name: "Trazer para ativos" });
+    if (back) await userEvent.click(back);
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringMatching(/\/api\/projects\/.+\/promote/),
+      expect.anything(),
+    );
+    vi.unstubAllGlobals();
   });
 });
