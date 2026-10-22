@@ -1,5 +1,6 @@
 import { Link, useParams } from "react-router";
-import type { Sprint } from "../data/types";
+import type { Doc, Sprint } from "../data/types";
+import { ProgressRow } from "../components/ProgressRow";
 import { TaskList } from "../components/TaskList";
 import { durationMs, formatDate, formatDuration } from "../lib/time";
 import { useProject } from "../lib/useProject";
@@ -48,16 +49,57 @@ export function Sprints() {
   }
 
   if (!sprints.length) return <p className="muted">Nenhuma sprint ainda.</p>;
+  // Doc ids are "SNN-plan" (mock) or "<project>:docs/sprints/SNN-plan.md" (repo): match on the file name.
+  const docOf = (s: Sprint, kind: Doc["kind"]) =>
+    data.docs.find(
+      (d) =>
+        d.projectId === project.id &&
+        d.kind === kind &&
+        d.id.split("/").pop()?.startsWith(`${s.id}-`),
+    );
   return (
-    <div className="grid">
-      {sprints.map((s) => (
-        <article key={s.id} className="card">
-          <Link to={s.id}>
-            <strong>{s.id}</strong> <span>{s.title}</span>
-          </Link>
-          <Meta sprint={s} />
-        </article>
-      ))}
-    </div>
+    <section>
+      {sprints.reverse().map((s) => {
+        const [label, cls] = STATUS[s.status];
+        const done = s.tasks.filter((t) => t.done).length;
+        const link = (kind: Doc["kind"], text: string) => {
+          const d = docOf(s, kind);
+          return d ? (
+            <Link to={`/p/${project.id}/docs/${encodeURIComponent(d.id)}`}>{text}</Link>
+          ) : (
+            <span className="muted">{text}: ainda não existe</span>
+          );
+        };
+        return (
+          <ProgressRow
+            key={s.id}
+            title={
+              <>
+                <strong>{s.id}</strong> {s.title}
+              </>
+            }
+            sub={s.goal}
+            right={
+              s.startedAt
+                ? `${formatDate(s.startedAt)} – ${s.closedAt ? formatDate(s.closedAt) : "hoje"}`
+                : "não iniciada"
+            }
+            pct={s.tasks.length ? Math.round((done / s.tasks.length) * 100) : 0}
+            chips={
+              <>
+                <span className={`badge ${cls}`}>{label}</span>{" "}
+                <span className="muted">{`${done}/${s.tasks.length} tarefas`}</span>
+              </>
+            }
+            defaultOpen={s.status === "active"}
+          >
+            <p>
+              {link("sprint-plan", "Sprint plan")} · {link("release-report", "Release Report")}
+            </p>
+            <TaskList tasks={s.tasks} />
+          </ProgressRow>
+        );
+      })}
+    </section>
   );
 }

@@ -1,16 +1,31 @@
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { renderAt } from "../test-utils";
 
 describe("Sprints", () => {
-  it("lists sprints with status, progress and detail link", () => {
+  it("lists sprints as accordion rows with status and progress", () => {
     renderAt("/p/main-harness/sprints");
     screen.getByText("Comando hx run");
     screen.getByText("Registro central de projetos");
     expect(screen.getAllByText("fechada")).toHaveLength(2);
     screen.getByText("3/3 tarefas");
-    const link = screen.getByRole("link", { name: /S05/ });
-    expect(link.getAttribute("href")).toBe("/p/main-harness/sprints/S05");
+  });
+
+  it("opens the active sprint with its tasks", () => {
+    renderAt("/p/dashboard-ia/sprints");
+    const active = screen.getByRole("button", { name: /S02/ });
+    expect(active.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getAllByRole("checkbox")).toHaveLength(7);
+  });
+
+  it("links the plan and marks a missing Release Report when opened", () => {
+    renderAt("/p/dashboard-ia/sprints");
+    fireEvent.click(screen.getByRole("button", { name: /S01/ }));
+    const hrefs = screen
+      .getAllByRole("link", { name: "Sprint plan" })
+      .map((a) => a.getAttribute("href"));
+    expect(hrefs).toContain("/p/dashboard-ia/docs/S01-plan");
+    expect(screen.getAllByText("Release Report: ainda não existe").length).toBeGreaterThan(0);
   });
 
   it("shows empty message when project has no sprints", () => {
