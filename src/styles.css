@@ -24,17 +24,6 @@
   --r-sm: 5px;
   --display: "Bricolage Grotesque", system-ui, sans-serif;
 
-  /* older names still read by page CSS until each page moves to the C components */
-  --fg: var(--ink);
-  --card: var(--panel);
-  --surface: var(--panel);
-  --border: var(--line);
-  --text: var(--ink);
-  --accent: var(--run);
-  --r: var(--r-sm);
-  --mono: ui-monospace, monospace;
-  --f-mono: var(--mono);
-
   color-scheme: dark;
 }
 

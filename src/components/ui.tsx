@@ -216,7 +216,7 @@ const WAIT = {
 } as const;
 
 /**
- * Mini-gantt (model: src/components/Gantt.tsx): position = sprint plan, color = status,
+ * Mini-gantt: position = sprint plan, color = status,
  * intensity = %, dashed = not started. The axis is the plan, so long pauses never squash
  * the tasks; pauses go in their own lane, clipped to the plan window. Real times: tooltip.
  */
