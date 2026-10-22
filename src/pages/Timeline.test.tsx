@@ -1,70 +1,54 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { renderAt } from "../test-utils";
 
-const lane = (name: string) =>
-  screen.getByRole("link", { name }).closest("[data-project]")?.nextElementSibling as HTMLElement;
+const project = (name: string) => within(screen.getByRole("region", { name }));
 const axis = () => screen.getByTestId("axis").textContent;
 
 describe("Timeline", () => {
-  it("draws one bar per agent; out-of-sprint chats are dashed", () => {
+  it("groups agents by sprint or loose chat", () => {
     renderAt("/tempo");
-    const dash = lane("Dashboard IA");
-    expect(dash.textContent).toContain("Tech Lead · fora da sprint");
-    expect(dash.textContent).toContain("Reviewer");
-    const bars = dash.querySelectorAll("[data-agent]");
-    expect(bars).toHaveLength(5);
-    const adhoc = dash.querySelector('[data-agent="a5"]') as Element;
-    expect(adhoc.className).toMatch(/adhoc/);
-    expect(adhoc.className).not.toMatch(/open/);
-    expect((dash.querySelector('[data-agent="a1"]') as Element).className).toMatch(/open/);
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Linha do tempo");
+    const lane = project("Dashboard IA");
+    const sprint = within(lane.getByRole("group", { name: "S02 Layout da tela principal" }));
+    expect(sprint.getByText("Clone 1")).toBeTruthy();
+    expect(sprint.getByText("Clone 2")).toBeTruthy();
+    expect(sprint.getByText("Em execução")).toBeTruthy();
+    const loose = within(lane.getByRole("group", { name: "hook lento" }));
+    expect(loose.getByText("Tech Lead")).toBeTruthy();
+    expect(loose.getByText("fora da sprint")).toBeTruthy();
+    expect(loose.queryByText("Clone 1")).toBeNull();
   });
 
-  it("shows milestones and the now line", () => {
-    renderAt("/tempo");
-    expect(lane("Dashboard IA").textContent).toContain("T01 ✓");
-    expect(lane("Dashboard IA").textContent).toContain("T02 reprovada");
-    expect(lane("Main Harness").textContent).toContain("entregue, esperando teste");
-    expect(lane("Finanças Casa").textContent).toContain("plano pronto");
-    expect(screen.getAllByTestId("now")).toHaveLength(3);
-  });
-
-  it("collapses and reopens a lane", () => {
-    renderAt("/tempo");
-    const btn = screen.getByRole("button", { name: "agentes de Dashboard IA" });
-    expect(btn.getAttribute("aria-expanded")).toBe("true");
-    fireEvent.click(btn);
-    expect(btn.getAttribute("aria-expanded")).toBe("false");
-    expect(lane("Dashboard IA").querySelectorAll("[data-agent]")).toHaveLength(0);
-    fireEvent.click(btn);
-    expect(lane("Dashboard IA").querySelectorAll("[data-agent]")).toHaveLength(5);
-  });
-
-  it("links the project name and the sprint id", () => {
-    renderAt("/tempo");
-    expect(screen.getByRole("link", { name: "Dashboard IA" }).getAttribute("href")).toBe(
-      "/p/dashboard-ia",
-    );
-    expect(screen.getByRole("link", { name: "S02" }).getAttribute("href")).toBe(
-      "/p/dashboard-ia/sprints/S02",
-    );
-  });
-
-  it("the range buttons change the axis", () => {
+  it("the range tabs change the axis and the groups", async () => {
     renderAt("/tempo");
     const today = axis();
     expect(today).toMatch(/\d\d:00/);
-    expect(screen.getByRole("button", { name: "Hoje" }).getAttribute("aria-pressed")).toBe("true");
-
-    fireEvent.click(screen.getByRole("button", { name: "7 dias" }));
-    expect(screen.getByRole("button", { name: "7 dias" }).getAttribute("aria-pressed")).toBe(
-      "true",
-    );
+    await userEvent.click(screen.getByRole("tab", { name: "7 dias" }));
+    expect(screen.getByRole("tab", { name: "7 dias" }).getAttribute("aria-selected")).toBe("true");
     expect(axis()).toMatch(/\d\d\/\d\d/);
-    expect(axis()).not.toMatch(/:00/);
-
-    fireEvent.click(screen.getByRole("button", { name: "Sprint" }));
+    expect(
+      project("Dashboard IA").getByRole("group", { name: "S01 Draft do front do painel" }),
+    ).toBeTruthy();
+    await userEvent.click(screen.getByRole("tab", { name: "Sprint" }));
     expect(axis()).toMatch(/:00/);
     expect(axis()).not.toBe(today);
+  });
+
+  it("opens with the range from the URL", () => {
+    renderAt("/tempo?periodo=7%20dias");
+    expect(screen.getByRole("tab", { name: "7 dias" }).getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("collapses and reopens a project", async () => {
+    renderAt("/tempo");
+    const lane = project("Dashboard IA");
+    const btn = lane.getByRole("button", { name: "Agentes de Dashboard IA" });
+    await userEvent.click(btn);
+    expect(btn.getAttribute("aria-expanded")).toBe("false");
+    expect(lane.queryByRole("group")).toBeNull();
+    await userEvent.click(btn);
+    expect(lane.getAllByRole("group").length).toBeGreaterThan(0);
   });
 });

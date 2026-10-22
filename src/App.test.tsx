@@ -108,7 +108,9 @@ describe("data from the server", () => {
     expect(fetch).toHaveBeenCalledWith("/api/projects/bot-telegram/promote", { method: "POST" });
     await screen.findByRole("link", { name: "Ociosos (1)" });
     within(
-      within(screen.getByRole("navigation", { name: "Projetos" })).getAllByRole("list")[0] as HTMLElement,
+      within(screen.getByRole("navigation", { name: "Projetos" })).getAllByRole(
+        "list",
+      )[0] as HTMLElement,
     ).getByText("Bot Telegram");
   });
 

@@ -1,106 +1,156 @@
-/* Copied from docs/sprints/S02-draft.html (Linha do tempo). */
-.tlbar {
+/* Direction C timeline, ported from src/drafts/c/pages.module.css (tl*). */
+.tlBar {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px 20px;
-  align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
+  align-items: center;
+  gap: 10px 20px;
 }
+
 .legend {
   display: flex;
-  gap: 14px;
+  flex-wrap: wrap;
+  gap: 4px 14px;
   font-size: 12px;
   color: var(--muted);
-  flex-wrap: wrap;
 }
+
 .legend span::before {
   content: "";
   display: inline-block;
   width: 14px;
-  height: 6px;
+  height: 8px;
   margin-right: 6px;
-  vertical-align: middle;
+  border-radius: 2px;
+  vertical-align: 0;
   background: var(--c);
 }
-.legend .adhoc-key::before {
-  background: transparent;
+
+.legend [data-key="open"]::before {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--muted) 0 3px,
+    color-mix(in srgb, var(--muted) 35%, transparent) 3px 6px
+  );
+}
+
+.legend [data-key="adhoc"]::before {
+  background: none;
   outline: 1px dashed var(--muted);
   outline-offset: -1px;
 }
-.range {
-  display: inline-flex;
-  border: 1px solid var(--line);
+
+.legend [data-kind="tech-lead"],
+.track [data-kind="tech-lead"] {
+  --c: #3a8a7c;
 }
-.range button {
-  border: 0;
-  background: transparent;
-  color: var(--muted);
-  padding: 5px 10px;
-  font-size: 12px;
+
+.legend [data-kind="clone"],
+.track [data-kind="clone"] {
+  --c: #5b8fc9;
 }
-.range button[aria-pressed="true"] {
-  background: var(--fg);
-  color: var(--bg);
+
+.legend [data-kind="reviewer"],
+.track [data-kind="reviewer"] {
+  --c: #d9962b;
 }
-.scroll {
-  overflow-x: auto;
-  border: 1px solid var(--line);
-  background: var(--card);
-}
+
 .tl {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+
+.tlInner {
   min-width: 760px;
+}
+
+.row {
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: 220px minmax(0, 1fr);
 }
+
 .axis {
-  grid-column: 2;
   position: relative;
-  height: 26px;
+  height: 28px;
   border-bottom: 1px solid var(--line);
+  border-left: 1px solid var(--line);
 }
+
 .axis span {
   position: absolute;
-  top: 6px;
-  font: 11px var(--f-mono);
-  color: var(--muted);
+  top: 7px;
   transform: translateX(-50%);
-}
-.lane-h {
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--line);
-  display: grid;
-  gap: 6px;
-  align-content: start;
-}
-.lane-h h2 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-}
-.lane-h .meta {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--muted);
+  white-space: nowrap;
 }
-.ctog {
+
+.projHead {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  width: 100%;
-  background: transparent;
-  border: 0;
-  padding: 0;
-  text-align: left;
+  gap: 6px 12px;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--track) 45%, var(--panel));
 }
+
+.projHead h2 {
+  margin: 0;
+  font: 650 17px/1.2 var(--display);
+}
+
+.projHead > span:last-child {
+  font-size: 12px;
+}
+
+.ctog {
+  border: 0;
+  background: none;
+  padding: 0 2px;
+  color: var(--muted) !important;
+}
+
 .ctog::before {
   content: "▾";
-  font-size: 10px;
-  color: var(--accent);
 }
+
 .ctog[aria-expanded="false"]::before {
   content: "▸";
-  color: var(--muted);
 }
+
+.none {
+  margin: 0;
+  padding: 10px 14px 10px 28px;
+  border-bottom: 1px solid var(--line);
+}
+
+.gHead {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  justify-items: start;
+  min-width: 0;
+  padding: 10px 14px 10px 28px;
+  border-bottom: 1px solid var(--line);
+}
+
+.gHead b {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.gHead small {
+  font-size: 12px;
+}
+
 .lane {
   position: relative;
   border-bottom: 1px solid var(--line);
@@ -108,71 +158,85 @@
   background-image: repeating-linear-gradient(
     90deg,
     transparent 0 calc(100% / 6 - 1px),
-    var(--line) calc(100% / 6 - 1px) calc(100% / 6)
+    color-mix(in srgb, var(--line) 60%, transparent) calc(100% / 6 - 1px) calc(100% / 6)
   );
 }
+
 .track {
   position: absolute;
   left: 0;
   right: 0;
-  height: 14px;
+  height: 12px;
 }
-.seg-b {
+
+.track i {
   position: absolute;
   height: 100%;
-  border-radius: 1px;
+  border-radius: 3px;
   background: var(--c);
 }
-.seg-b.open {
+
+.track i[data-open] {
   background: repeating-linear-gradient(
     45deg,
     var(--c) 0 6px,
     color-mix(in srgb, var(--c) 55%, transparent) 6px 12px
   );
 }
-.seg-b.adhoc {
-  background: transparent;
-  border: 1px dashed var(--c);
+
+.track i[data-adhoc] {
+  background: none;
+  border: 1.5px dashed var(--c);
 }
-.seg-b.adhoc.open {
+
+.track i[data-adhoc][data-open] {
   background: repeating-linear-gradient(
     45deg,
     color-mix(in srgb, var(--c) 35%, transparent) 0 6px,
     transparent 6px 12px
   );
 }
+
 .who {
   position: absolute;
-  font-size: 10px;
+  transform: translateY(-13px);
+  font-size: 11px;
   color: var(--muted);
   white-space: nowrap;
-  transform: translateY(-12px);
 }
+
 .mk {
+  --c: var(--muted);
+
   position: absolute;
-  top: 4px;
+  top: 5px;
   transform: translateX(-50%);
+  padding: 0 6px;
+  border-radius: 99px;
   font-size: 11px;
-  white-space: nowrap;
-  padding: 1px 6px;
-  background: var(--card);
-  border: 1px solid var(--c);
-  color: var(--c);
   font-weight: 600;
+  white-space: nowrap;
+  color: var(--c);
+  background: color-mix(in srgb, var(--c) 13%, var(--panel));
 }
-.nowline {
+
+.mk[data-tone="ok"] {
+  --c: var(--ok);
+}
+
+.mk[data-tone="warn"] {
+  --c: var(--warn);
+}
+
+.mk[data-tone="bad"] {
+  --c: var(--bad);
+}
+
+.now {
   position: absolute;
   top: 0;
   bottom: 0;
   width: 2px;
-  background: var(--bad);
+  background: var(--pick);
   z-index: 2;
-}
-.nowline::after {
-  content: "agora";
-  position: absolute;
-  top: -1px;
-  left: 4px;
-  font: 600 10px var(--f-mono);
-  color: var(--bad);
 }
