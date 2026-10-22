@@ -4,7 +4,7 @@ Pedidos do projeto. Um item por linha: `- [prioridade] data [status: SNN] — te
 
 ## Itens
 
-- [alta] 2026-10-21 [planejado: S07] — Implementar as telas escolhidas nos drafts da S06 (`drafts.html`); apagar `drafts.html` e `src/drafts` ao final:
+- [alta] 2026-10-21 [concluído: S07] — Implementar as telas escolhidas nos drafts da S06 (`drafts.html`); apagar `drafts.html` e `src/drafts` ao final:
   - **Sala de controle:** variante B (sprints recentes como abas na janela da sprint, com id + situação).
   - **Chats:** lista (variante B), mas com acabamento bem melhor que o draft.
   - **Sprints:** variante B (acordeão; a ativa aberta com as tarefas).
