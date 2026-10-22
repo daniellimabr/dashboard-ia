@@ -16,8 +16,9 @@ afterEach(() => {
 describe("Layout (direction C frame)", () => {
   it("lists the screens, the picked project's items, the projects and both limits", () => {
     renderAt("/");
-    for (const name of ["Início", "Sala de controle", "Linha do tempo", "Componentes"])
+    for (const name of ["Início", "Sala de controle", "Linha do tempo"])
       telas().getByRole("link", { name });
+    expect(telas().queryByRole("link", { name: "Componentes" })).toBeNull();
     telas().getByRole("link", { name: "Ociosos (2)" });
     for (const [path, name] of [
       ["chats", "Chats"],

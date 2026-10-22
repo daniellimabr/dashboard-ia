@@ -23,7 +23,6 @@ describe("routes", () => {
     ["/controle", "Sala de controle"],
     ["/tempo", "Linha do tempo"],
     ["/ociosos", "Ociosos"],
-    ["/componentes", "Componentes"],
   ])("%s is a menu screen with its own URL", (path, tab) => {
     renderAt(path);
     expect(

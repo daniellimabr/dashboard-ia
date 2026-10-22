@@ -25,7 +25,6 @@ export const SCREENS = [
   ["/controle", "Sala de controle"],
   ["/tempo", "Linha do tempo"],
   ["/ociosos", "Ociosos"],
-  ["/componentes", "Componentes"],
 ] as const;
 
 export const ITEMS = [
