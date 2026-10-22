@@ -1,5 +1,5 @@
 // Claude Code transcripts (~/.claude/projects/**/*.jsonl) -> `usage` rows, plus the `price` table.
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { importLines, type Db } from "./db.ts";
@@ -18,6 +18,9 @@ interface Line {
   sessionId?: string;
   agentId?: string;
   timestamp?: string;
+  origin?: { kind?: string }; // "human" = Daniel typed it (not a tool result, notification or sdk prompt)
+  isApiErrorMessage?: boolean;
+  error?: string; // "rate_limit" on the synthetic "You've hit your … limit" message
   message?: {
     id?: string;
     model?: string;
@@ -30,7 +33,17 @@ interface Line {
   };
 }
 
-/** Imports new transcript lines under `root`; returns the number of lines read. */
+/** agentType of a subagent's .meta.json (e.g. "main-harness:reviewer"); null if missing or unreadable. */
+function metaType(meta: string): string | null {
+  try {
+    const t = (JSON.parse(readFileSync(meta, "utf8")) as { agentType?: unknown }).agentType;
+    return typeof t === "string" ? t : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Imports new transcript lines under `root` (usage rows, chat names and main-session turns); returns the number of lines read. */
 export function importUsage(
   db: Db,
   root: string,
@@ -40,21 +53,31 @@ export function importUsage(
   const byPath = new Map(projects.map((p) => [norm(p.repoPath), p.id]));
   // Several lines repeat one message.id (one content block each); the id keys the row.
   const upsert = db.prepare(
-    `INSERT INTO usage (id, project_id, chat_id, agent_id, at, model, tokens_in, tokens_out, cache_read, cache_write)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO usage (id, project_id, chat_id, agent_id, at, model, tokens_in, tokens_out, cache_read, cache_write, agent_type)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET tokens_in = excluded.tokens_in, tokens_out = excluded.tokens_out,
        cache_read = excluded.cache_read, cache_write = excluded.cache_write`,
   );
   const rename = db.prepare("UPDATE chat SET title = ? WHERE id = ?");
-  const handle = (raw: string) => {
+  const turn = db.prepare("INSERT OR IGNORE INTO turn VALUES (?, ?, ?)");
+  const handle = (raw: string, agentType: string | null) => {
     const l = JSON.parse(raw) as Line;
     // shortcut: a chat created after its ai-title line was read keeps the session id; fine while events import first.
     if (l.type === "ai-title" && l.aiTitle && l.sessionId) rename.run(l.aiTitle, l.sessionId);
-    const m = l.message;
-    const u = m?.usage;
-    if (!u || !m?.id || !l.cwd || !l.timestamp) return;
+    if (!l.cwd || !l.timestamp) return;
     const projectId = byPath.get(norm(l.cwd));
     if (!projectId) return;
+    if (!l.agentId && l.sessionId) {
+      const kind =
+        l.type === "user"
+          ? l.origin?.kind === "human" && "human"
+          : l.type === "assistant" &&
+            (l.isApiErrorMessage && l.error === "rate_limit" ? "limit" : "assistant");
+      if (kind) turn.run(l.sessionId, l.timestamp, kind);
+    }
+    const m = l.message;
+    const u = m?.usage;
+    if (!u || !m?.id) return;
     upsert.run(
       m.id,
       projectId,
@@ -66,11 +89,16 @@ export function importUsage(
       u.output_tokens ?? 0,
       u.cache_read_input_tokens ?? 0,
       u.cache_creation_input_tokens ?? 0,
+      agentType,
     );
   };
   let n = 0;
   for (const rel of readdirSync(root, { recursive: true, encoding: "utf8" })) {
-    if (rel.endsWith(".jsonl")) n += importLines(db, join(root, rel), handle);
+    if (!rel.endsWith(".jsonl")) continue;
+    const file = join(root, rel);
+    let type: string | null | undefined; // the subagent's .meta.json, read once and only when the file has new lines
+    const agentType = () => (type ??= metaType(file.replace(/\.jsonl$/, ".meta.json")));
+    n += importLines(db, file, (raw) => handle(raw, agentType()));
   }
   return n;
 }

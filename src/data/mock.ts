@@ -177,6 +177,7 @@ const s02Tasks: Task[] = [
     startedAt: at(13, 40),
     endedAt: at(13, 58),
     agent: "tech-lead",
+    agentId: "a1",
     plan: plan(0, 30),
     wave: 1,
   },
@@ -198,6 +199,7 @@ const s02Tasks: Task[] = [
     done: false,
     startedAt: at(14, 38),
     agent: "clone",
+    agentId: "a3",
     steps: 2,
     plan: plan(30, 40, ["T01"]),
     wave: 2,
@@ -208,6 +210,7 @@ const s02Tasks: Task[] = [
     done: false,
     startedAt: at(14, 41),
     agent: "clone",
+    agentId: "a4",
     steps: 1,
     plan: plan(30, 40, ["T01"]),
     wave: 2,
@@ -244,6 +247,7 @@ const mhTask = (
   e: [number, number],
   p: ReturnType<typeof plan>,
   wave: number,
+  agentId?: string,
 ): Task => ({
   id,
   title,
@@ -254,10 +258,20 @@ const mhTask = (
   agent,
   plan: p,
   wave,
+  agentId,
 });
 
 const s05Tasks: Task[] = [
-  mhTask("T01", "Formato dos eventos (ADR 0007)", "tech-lead", [10, 5], [10, 20], plan(0, 20), 1),
+  mhTask(
+    "T01",
+    "Formato dos eventos (ADR 0007)",
+    "tech-lead",
+    [10, 5],
+    [10, 20],
+    plan(0, 20),
+    1,
+    "a8",
+  ),
   mhTask(
     "T02",
     "Gravar eventos de tarefa e sprint",
@@ -266,6 +280,7 @@ const s05Tasks: Task[] = [
     [11, 50],
     plan(20, 40, ["T01"]),
     2,
+    "a9",
   ),
   mhTask(
     "T03",
@@ -275,6 +290,7 @@ const s05Tasks: Task[] = [
     [11, 40],
     plan(20, 40, ["T01"]),
     2,
+    "a10",
   ),
   mhTask(
     "T04",
@@ -284,8 +300,9 @@ const s05Tasks: Task[] = [
     [12, 0],
     plan(60, 20, ["T02", "T03"]),
     3,
+    "a8",
   ),
-  mhTask("T05", "Revisão", "reviewer", [12, 0], [12, 20], plan(80, 30, ["T04"]), 4),
+  mhTask("T05", "Revisão", "reviewer", [12, 0], [12, 20], plan(80, 30, ["T04"]), 4, "a11"),
 ];
 
 const fcTasks: Task[] = [
@@ -328,6 +345,10 @@ const sprints: Sprint[] = [
     startedAt: at(13, 40),
     plannedMin: 220,
     usd: 3.1,
+    waits: [
+      { kind: "reply", start: at(13, 58), end: at(14, 6) },
+      { kind: "limit", start: at(14, 22), end: at(14, 37) },
+    ],
     tasks: s02Tasks,
   },
   {
@@ -366,6 +387,7 @@ const sprints: Sprint[] = [
     deliveredAt: at(12, 31),
     plannedMin: 150,
     usd: 5.62,
+    waits: [{ kind: "reply", start: at(11, 0), end: at(11, 4) }],
     tasks: s05Tasks,
   },
   {
@@ -415,21 +437,29 @@ const chats: Chat[] = [
       agent("a1", "tech-lead", "Tech Lead", at(13, 40), {
         doing: "coordena a onda 2",
         contextPct: 38,
+        usd: 1.42,
+        tokens: 2_310_000,
       }),
       agent("a2", "reviewer", "Reviewer", at(14, 10), {
         task: "T02",
         doing: "revisão da T02",
         endedAt: at(14, 22),
+        usd: 0.31,
+        tokens: 498_000,
       }),
       agent("a3", "clone", "Clone 1", at(14, 38), {
         task: "T03",
         doing: "T03 cards",
         contextPct: 21,
+        usd: 0.78,
+        tokens: 1_270_000,
       }),
       agent("a4", "clone", "Clone 2", at(14, 41), {
         task: "T04",
         doing: "T04 linha do tempo",
         contextPct: 15,
+        usd: 0.59,
+        tokens: 940_000,
       }),
     ],
   },
@@ -473,10 +503,29 @@ const chats: Chat[] = [
     sprintId: "S05",
     tasks: s05Tasks,
     agents: [
-      agent("a8", "tech-lead", "Tech Lead", at(10, 5), { endedAt: at(12, 30) }),
-      agent("a9", "clone", "Clone 1", at(10, 30), { task: "T02", endedAt: at(11, 50) }),
-      agent("a10", "clone", "Clone 2", at(10, 32), { task: "T03", endedAt: at(11, 40) }),
-      agent("a11", "reviewer", "Reviewer", at(12, 0), { task: "T05", endedAt: at(12, 20) }),
+      agent("a8", "tech-lead", "Tech Lead", at(10, 5), {
+        endedAt: at(12, 30),
+        usd: 2.1,
+        tokens: 3_400_000,
+      }),
+      agent("a9", "clone", "Clone 1", at(10, 30), {
+        task: "T02",
+        endedAt: at(11, 50),
+        usd: 1.35,
+        tokens: 2_150_000,
+      }),
+      agent("a10", "clone", "Clone 2", at(10, 32), {
+        task: "T03",
+        endedAt: at(11, 40),
+        usd: 1.4,
+        tokens: 2_260_000,
+      }),
+      agent("a11", "reviewer", "Reviewer", at(12, 0), {
+        task: "T05",
+        endedAt: at(12, 20),
+        usd: 0.77,
+        tokens: 1_180_000,
+      }),
     ],
   },
   {

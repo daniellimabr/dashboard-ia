@@ -1,5 +1,14 @@
 // Builds the front's `Data` (src/data/types.ts) from the database and the repos' docs (spec 0001 §4.1).
-import type { Agent, Data, Limit, Project, ProjectEvent, Sprint, Task } from "../src/data/types.ts";
+import type {
+  Agent,
+  Data,
+  Limit,
+  Project,
+  ProjectEvent,
+  Sprint,
+  Task,
+  Wait,
+} from "../src/data/types.ts";
 import type { Db } from "./db.ts";
 import { listDocs, readDocsFile, readPlan, type Plan } from "./repo.ts";
 import { USD_SQL, usageByDay } from "./usage.ts";
@@ -27,6 +36,7 @@ const toTask = (r: Row): Task => ({
   agent: s(r.agent_kind) as Task["agent"],
   steps: n(r.steps),
   wave: n(r.wave),
+  agentId: s(r.agent_id),
   plan:
     r.plan_start == null
       ? undefined
@@ -45,6 +55,29 @@ function limit(db: Db, window: string, now: number): Limit | undefined {
 }
 
 const AGENT_KINDS = ["tech-lead", "clone", "reviewer"];
+
+/** Waits in turns sorted by chat and time: the gap from a chat's last assistant line to Daniel's next message, clipped to [from, to]. */
+function waitsOf(turns: Row[], from: string, to: string): Wait[] {
+  const out: Wait[] = [];
+  const lo = Date.parse(from);
+  const hi = Date.parse(to);
+  let prev: Row | undefined;
+  for (const t of turns) {
+    if (t.kind === "human" && prev && prev.chat_id === t.chat_id && prev.kind !== "human") {
+      // shortcut: a limit wait runs until Daniel's next message, not until the limit resets.
+      const start = Math.max(lo, Date.parse(String(prev.at)));
+      const end = Math.min(hi, Date.parse(String(t.at)));
+      if (end > start)
+        out.push({
+          kind: prev.kind === "limit" ? "limit" : "reply",
+          start: new Date(start).toISOString(),
+          end: new Date(end).toISOString(),
+        });
+    }
+    prev = t;
+  }
+  return out;
+}
 
 /** Plan tasks in plan order with their state from the events; tasks only in the events go last. Schedule: start = end of the latest dependency. */
 function mergePlan(own: Task[], plan: Plan | undefined): Task[] {
@@ -186,9 +219,32 @@ export function buildData(db: Db, now = Date.now()): Data {
   const iso = new Date(now).toISOString();
 
   const tasks = all("SELECT * FROM task ORDER BY id");
+  // Task's agent = the last non-reviewer agent of its task.start / task.phase events (same id as the agent rows).
+  const taskAgent = new Map<string, string>();
+  for (const e of all(
+    `SELECT project_id p, coalesce(json_extract(body, '$.sprint'), 'chat:' || chat_id) scope, json_extract(body, '$.task') task,
+       chat_id || ':' || json_extract(body, '$.agent') agent
+     FROM event WHERE type IN ('task.start', 'task.phase') AND chat_id IS NOT NULL AND json_extract(body, '$.agent') IS NOT NULL
+       AND json_extract(body, '$.agent') != 'reviewer' AND json_extract(body, '$.agent') NOT LIKE '%:reviewer'
+     ORDER BY at, rowid`,
+  ))
+    taskAgent.set(`${e.p}/${e.scope}/${e.task}`, String(e.agent));
+  for (const t of tasks) t.agent_id = taskAgent.get(`${t.project_id}/${t.scope}/${t.id}`) ?? null;
   const spend = db.prepare(
     `SELECT coalesce(sum(${USD_SQL}), 0) usd FROM usage u WHERE u.project_id = ? AND julianday(u.at) BETWEEN julianday(?) AND julianday(?)`,
   );
+  const turnsOf = db.prepare(
+    "SELECT t.chat_id, t.at, t.kind FROM turn t JOIN chat c ON c.id = t.chat_id WHERE c.project_id = ? AND c.sprint_id = ? ORDER BY t.chat_id, t.at",
+  );
+  /** Waits of the sprint's chats inside its window; undefined = no transcript turn to read them from. */
+  const sprintWaits = (r: Row): Wait[] | undefined => {
+    if (!r.started_at) return undefined;
+    const turns = turnsOf.all(String(r.project_id), String(r.id)) as Row[];
+    if (!turns.length) return undefined;
+    return waitsOf(turns, String(r.started_at), s(r.closed_at) ?? iso).sort((a, b) =>
+      a.start.localeCompare(b.start),
+    );
+  };
   const repoOf = new Map(
     all("SELECT id, repo_path FROM project").map((r) => [String(r.id), s(r.repo_path)]),
   );
@@ -226,6 +282,7 @@ export function buildData(db: Db, now = Date.now()): Data {
               .usd,
           )
         : undefined,
+      waits: sprintWaits(r),
       tasks: list,
       rounds: Object.fromEntries(
         tasks
@@ -275,6 +332,15 @@ export function buildData(db: Db, now = Date.now()): Data {
     s(end) ?? (last && now - Date.parse(last) >= LIVE_MS ? last : undefined);
 
   const agents = all("SELECT * FROM agent ORDER BY started_at");
+  // Agent row id = "<chat>:<harness agent>": main-session lines are the Tech Lead's, a subagent's carry its agentType.
+  const agentUse = new Map(
+    all(
+      `SELECT u.chat_id || ':' || coalesce(u.agent_type, u.agent_id, 'tech-lead') id,
+         sum(coalesce(u.tokens_in, 0) + coalesce(u.tokens_out, 0) + coalesce(u.cache_read, 0) + coalesce(u.cache_write, 0)) tokens,
+         sum(${USD_SQL}) usd
+       FROM usage u WHERE u.chat_id IS NOT NULL GROUP BY 1`,
+    ).map((r) => [String(r.id), r]),
+  );
   const chats = all("SELECT * FROM chat ORDER BY started_at DESC").map((r) => ({
     id: String(r.id),
     projectId: String(r.project_id),
@@ -293,6 +359,8 @@ export function buildData(db: Db, now = Date.now()): Data {
         contextPct: n(a.context_pct),
         startedAt: String(a.started_at),
         endedAt: ended(a.ended_at, agentLast.get(String(a.id)) ?? chatLast.get(String(r.id))),
+        tokens: n(agentUse.get(String(a.id))?.tokens),
+        usd: n(agentUse.get(String(a.id))?.usd),
       })),
     tasks: tasks.filter((t) => t.chat_id === r.id).map(toTask),
   }));

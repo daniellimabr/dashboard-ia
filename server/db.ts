@@ -9,7 +9,7 @@ export type Db = DatabaseSync;
 export const DEFAULT_DB = join(homedir(), ".dashboard-ia", "dashboard.db");
 
 // Bump when the schema or the event format changes: tables are rebuilt and the events imported again.
-const VERSION = 5; // 5: transcripts' ai-title names the chats
+const VERSION = 6; // 6: usage.agent_type and the transcripts' turns (waits)
 
 // Spec 0001 §3, fed by the harness events (contract v1).
 const SCHEMA = `
@@ -50,8 +50,12 @@ CREATE TABLE IF NOT EXISTS agent (
 CREATE TABLE IF NOT EXISTS usage (
   id TEXT PRIMARY KEY,
   project_id TEXT NOT NULL, chat_id TEXT, agent_id TEXT, at TEXT NOT NULL, model TEXT NOT NULL,
-  tokens_in INTEGER, tokens_out INTEGER, cache_read INTEGER, cache_write INTEGER
+  tokens_in INTEGER, tokens_out INTEGER, cache_read INTEGER, cache_write INTEGER,
+  agent_type TEXT -- subagent's agentType (its .meta.json), the harness' agent name
 );
+-- Main-session transcript lines: kind = 'assistant', 'limit' (usage limit hit) or 'human'.
+CREATE TABLE IF NOT EXISTS turn (chat_id TEXT NOT NULL, at TEXT NOT NULL, kind TEXT NOT NULL,
+  PRIMARY KEY (chat_id, at, kind));
 CREATE TABLE IF NOT EXISTS price (model TEXT PRIMARY KEY, in_per_mtok REAL, out_per_mtok REAL,
   cache_read_per_mtok REAL, cache_write_per_mtok REAL);
 CREATE TABLE IF NOT EXISTS doc (

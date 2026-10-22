@@ -10,6 +10,8 @@ export interface Agent {
   contextPct?: number;
   startedAt: string;
   endedAt?: string; // missing = running now
+  usd?: number; // from the transcripts; missing = "sem dado"
+  tokens?: number;
 }
 
 /** Task steps in order; `steps` counts how many are done. */
@@ -32,6 +34,14 @@ export interface Task {
   steps?: number; // steps done (0–5) while not done
   plan?: TaskPlan;
   wave?: number; // 1-based
+  agentId?: string; // Agent.id that worked on it, when the events say
+}
+
+/** A pause of the sprint chat: waiting for Daniel's reply, or stopped by a usage limit. */
+export interface Wait {
+  kind: "reply" | "limit";
+  start: string; // ISO
+  end: string;
 }
 
 export interface Chat {
@@ -57,6 +67,7 @@ export interface Sprint {
   closedAt?: string;
   plannedMin?: number;
   usd?: number;
+  waits?: Wait[]; // missing = "sem dado"; [] = no waits
   tasks: Task[];
 }
 

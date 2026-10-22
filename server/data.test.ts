@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { copyFileSync, mkdtempSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { buildData } from "./data.ts";
 import { openDb, type Db } from "./db.ts";
 import { importEvent, importEvents } from "./events.ts";
-import { seedPrices } from "./usage.ts";
+import { importUsage, seedPrices } from "./usage.ts";
 
 let db: Db;
 beforeEach(() => {
@@ -220,5 +220,74 @@ describe("derived state from harness events and the repo", () => {
     fixture();
     db.exec("UPDATE sprint SET plan_path = '../secret.md' WHERE id = 'S01'");
     expect(s01()?.title).toBe("S01");
+  });
+});
+
+describe("real per-agent spend, task agent and waits from the transcripts", () => {
+  const NOW = Date.parse("2026-10-18T12:00:00Z");
+  const env = (task: string | null, agent: string) => ({
+    session: "c1",
+    sprint: "S01",
+    task,
+    agent,
+  });
+  const setup = () => {
+    ev("sprint.open", "2026-10-18T10:00:00Z", { tasks: 2 }, env(null, "tech-lead"));
+    ev("task.start", "2026-10-18T10:01:00Z", {}, env("T01", "tech-lead"));
+    ev(
+      "task.phase",
+      "2026-10-18T10:30:00Z",
+      { phase: "fila" },
+      env("T01", "main-harness:tech-lead"),
+    );
+    ev(
+      "task.phase",
+      "2026-10-18T10:40:00Z",
+      { phase: "revisão" },
+      env("T01", "main-harness:reviewer"),
+    );
+    ev("task.start", "2026-10-18T10:02:00Z", {}, { sprint: "S01", task: "T02" }); // no agent
+    ev("sprint.open", "2026-10-18T09:00:00Z", { tasks: 1 }, { session: "c2", sprint: "S02" });
+    const root = mkdtempSync(join(tmpdir(), "tx-"));
+    const dir = join(root, "C--x");
+    const sub = join(dir, "c1", "subagents");
+    mkdirSync(sub, { recursive: true });
+    copyFileSync(new URL("fixtures/sprint-chat.jsonl", import.meta.url), join(dir, "c1.jsonl"));
+    const line = (agentId: string, id: string) =>
+      `{"type":"assistant","cwd":"C:\\\\x","sessionId":"c1","agentId":"${agentId}","timestamp":"2026-10-18T10:35:00Z","message":{"id":"${id}","model":"claude-haiku-4-5","usage":{"input_tokens":1000000}}}\n`;
+    writeFileSync(join(sub, "agent-a1.jsonl"), line("a1", "s1"));
+    writeFileSync(join(sub, "agent-a1.meta.json"), `{"agentType":"main-harness:tech-lead"}`);
+    writeFileSync(join(sub, "agent-a2.jsonl"), line("a2", "s2")); // no meta: not attributed
+    importUsage(db, root, [{ id: "p1", repoPath: "C:/x" }]);
+    return buildData(db, NOW);
+  };
+
+  it("sums tokens and US$ per agent; an agent without usage has no data", () => {
+    const agents = setup().chats.find((c) => c.id === "c1")?.agents ?? [];
+    const by = Object.fromEntries(agents.map((a) => [a.id, [a.tokens, a.usd]]));
+    expect(by).toEqual({
+      "c1:tech-lead": [1_000_000, 4],
+      "c1:main-harness:tech-lead": [1_000_000, 1],
+      "c1:main-harness:reviewer": [undefined, undefined],
+    });
+  });
+
+  it("links a task to the last non-reviewer agent that touched it", () => {
+    const tasks = setup().sprints.find((s) => s.id === "S01")?.tasks ?? [];
+    expect(tasks.map((t) => [t.id, t.agentId])).toEqual([
+      ["T01", "c1:main-harness:tech-lead"],
+      ["T02", undefined],
+    ]);
+  });
+
+  it("finds Daniel's reply waits and limit waits inside the sprint window", () => {
+    const d = setup();
+    expect(d.sprints.find((s) => s.id === "S01")?.waits).toEqual([
+      { kind: "reply", start: "2026-10-18T10:00:00.000Z", end: "2026-10-18T10:05:00.000Z" },
+      { kind: "reply", start: "2026-10-18T10:15:00.000Z", end: "2026-10-18T10:20:00.000Z" },
+      { kind: "limit", start: "2026-10-18T10:21:00.000Z", end: "2026-10-18T11:00:00.000Z" },
+    ]);
+    // S02's chat has no transcript: no data, not "no waits"
+    expect(d.sprints.find((s) => s.id === "S02")?.waits).toBeUndefined();
   });
 });
