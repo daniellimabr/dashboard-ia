@@ -15,6 +15,27 @@
   text-anchor: middle;
 }
 
+.day {
+  border-bottom: 1px solid var(--border);
+}
+
+.day summary {
+  display: grid;
+  grid-template-columns: 4em 1fr auto;
+  gap: 8px;
+  padding: 6px 0;
+  cursor: pointer;
+}
+
+.day[open] summary {
+  font-weight: 600;
+}
+
+.day .table {
+  margin: 0 0 8px 1.5em;
+  width: calc(100% - 1.5em);
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;

@@ -89,23 +89,30 @@ export const USD_SQL = `coalesce((SELECT (coalesce(u.tokens_in, 0) * p.in_per_mt
   + coalesce(u.cache_read, 0) * p.cache_read_per_mtok + coalesce(u.cache_write, 0) * p.cache_write_per_mtok) / 1e6
   FROM price p WHERE substr(u.model, 1, length(p.model)) = p.model ORDER BY length(p.model) DESC LIMIT 1), 0)`;
 
-/** Tokens (all four kinds) and US$ per project and local day (YYYY-MM-DD). */
+/** SQL: the sprint whose window [started_at, closed_at or now (?2)] holds usage row `u`; latest start wins. Same window as the sprint's spend. */
+const SPRINT_OF_SQL = `(SELECT s.id FROM sprint s WHERE s.project_id = u.project_id AND s.started_at IS NOT NULL
+  AND julianday(u.at) BETWEEN julianday(s.started_at) AND julianday(coalesce(s.closed_at, ?2))
+  ORDER BY s.started_at DESC LIMIT 1)`;
+
+/** Tokens (all four kinds) and US$ per project, local day (YYYY-MM-DD) and sprint (none = outside a sprint). */
 export function usageByDay(
   db: Db,
   projectId?: string,
-): { projectId: string; date: string; tokens: number; usd: number }[] {
+  now = Date.now(),
+): { projectId: string; date: string; sprintId?: string; tokens: number; usd: number }[] {
   const rows = db
     .prepare(
-      `SELECT u.project_id AS projectId, date(u.at, 'localtime') AS date,
+      `SELECT u.project_id AS projectId, date(u.at, 'localtime') AS date, ${SPRINT_OF_SQL} AS sprintId,
          sum(coalesce(u.tokens_in, 0) + coalesce(u.tokens_out, 0) + coalesce(u.cache_read, 0) + coalesce(u.cache_write, 0)) AS tokens,
          sum(${USD_SQL}) AS usd
        FROM usage u WHERE ?1 IS NULL OR u.project_id = ?1
-       GROUP BY 1, 2 ORDER BY 1, 2`,
+       GROUP BY 1, 2, 3 ORDER BY 1, 2, 3`,
     )
-    .all(projectId ?? null);
+    .all(projectId ?? null, new Date(now).toISOString());
   return rows.map((r) => ({
     projectId: String(r.projectId),
     date: String(r.date),
+    sprintId: r.sprintId == null ? undefined : String(r.sprintId),
     tokens: Number(r.tokens),
     usd: Number(r.usd),
   }));

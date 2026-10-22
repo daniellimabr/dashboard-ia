@@ -187,7 +187,7 @@ export function buildData(db: Db, now = Date.now()): Data {
 
   const tasks = all("SELECT * FROM task ORDER BY id");
   const spend = db.prepare(
-    `SELECT coalesce(sum(${USD_SQL}), 0) usd FROM usage u WHERE u.project_id = ? AND u.at >= ? AND u.at <= ?`,
+    `SELECT coalesce(sum(${USD_SQL}), 0) usd FROM usage u WHERE u.project_id = ? AND julianday(u.at) BETWEEN julianday(?) AND julianday(?)`,
   );
   const repoOf = new Map(
     all("SELECT id, repo_path FROM project").map((r) => [String(r.id), s(r.repo_path)]),
@@ -320,7 +320,7 @@ export function buildData(db: Db, now = Date.now()): Data {
     projects,
     chats,
     sprints: sprints.map(({ rounds: _, ...x }) => x),
-    usage: usageByDay(db),
+    usage: usageByDay(db, undefined, now),
     docs,
   };
 }

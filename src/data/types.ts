@@ -63,6 +63,7 @@ export interface Sprint {
 export interface UsageDay {
   projectId: string;
   date: string; // YYYY-MM-DD
+  sprintId?: string; // missing = outside a sprint; one row per project, day and sprint
   tokens: number;
   usd: number;
 }

@@ -101,4 +101,25 @@ describe("prices", () => {
     ]);
     expect(usageByDay(db)).toHaveLength(1);
   });
+
+  it("splits each day by sprint window (edges included) and leaves the rest outside a sprint", () => {
+    const sprint = db.prepare(
+      "INSERT INTO sprint (project_id, id, title, status, started_at, closed_at) VALUES ('dash', ?, 't', 's', ?, ?)",
+    );
+    sprint.run("S01", "2026-10-16T10:00:00Z", "2026-10-16T12:00:00Z");
+    sprint.run("S02", "2026-10-16T14:00:00Z", null);
+    const use = db.prepare(
+      "INSERT INTO usage (id, project_id, at, model, tokens_in) VALUES (?, 'dash', ?, 'm', ?)",
+    );
+    use.run("a", "2026-10-16T10:00:00Z", 1); // S01 start edge
+    use.run("b", "2026-10-16T12:00:00Z", 2); // S01 close edge
+    use.run("c", "2026-10-16T13:00:00Z", 4); // between sprints
+    use.run("d", "2026-10-16T15:00:00Z", 8); // S02, still open
+    const rows = usageByDay(db, "dash", Date.parse("2026-10-16T16:00:00Z"));
+    expect(rows.map((r) => [r.sprintId, r.tokens])).toEqual([
+      [undefined, 4],
+      ["S01", 3],
+      ["S02", 8],
+    ]);
+  });
 });

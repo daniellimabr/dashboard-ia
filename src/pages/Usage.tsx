@@ -59,6 +59,33 @@ export function Usage() {
         })}
       </svg>
 
+      <h3>Por dia</h3>
+      {series.toReversed().map((d) => {
+        const rows = data.usage.filter((u) => u.projectId === project.id && u.date === d.date);
+        const sorted = [...rows.filter((u) => u.sprintId), ...rows.filter((u) => !u.sprintId)];
+        return !rows.length ? null : (
+          <details key={d.date} className={css.day} data-testid="usage-day">
+            <summary>
+              <span>{day(d.date)}</span>
+              <span>{formatUsd(d.usd)}</span>
+              <span className="muted">{formatTokens(d.tokens)} tokens</span>
+            </summary>
+            <table className={css.table}>
+              <tbody>
+                {sorted.map((u) => (
+                  <tr key={u.sprintId ?? ""}>
+                    <td>{u.sprintId ?? "Fora de sprint"}</td>
+                    <td>{formatUsd(u.usd)}</td>
+                    <td>{formatTokens(u.tokens)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </details>
+        );
+      })}
+
+      <h3>Projetos</h3>
       <table className={css.table}>
         <thead>
           <tr>
