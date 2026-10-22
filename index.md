@@ -29,6 +29,7 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `docs/sprints/S07-plan.md` — S07 — Telas escolhidas nos drafts da S06
 - `docs/sprints/S07-release.md` — S07 — Release Report
 - `docs/sprints/S08-plan.md` — S08 — Drafts do revamp do frontend
+- `docs/sprints/S09-plan.md` — S09 — Revamp do frontend: aplicar a direção C
 - `eslint.config.mjs` — ESLint flat config installed by the Main Harness (/attach). Zero errors, zero warnings.
 - `index.html` — (sem descrição)
 - `package-lock.json` — (sem descrição)
@@ -48,6 +49,7 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `server/fixtures/repo/docs/sprints/S01-release.md` — Release Report S01
 - `server/fixtures/repo/docs/sprints/S02-plan.md` — Plano sem tabela
 - `server/fixtures/repo/secret.md` — (sem descrição)
+- `server/fixtures/sprint-chat.jsonl` — (sem descrição)
 - `server/fixtures/transcript.jsonl` — (sem descrição)
 - `server/http.test.ts` — @vitest-environment node
 - `server/http.ts` — HTTP API (spec 0001 §4): GET /api/data and POST /api/projects/:id/promote. JSON only.
@@ -63,11 +65,16 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `src/components/Gantt.module.css` — mini-gantt: position = sprint plan; color = stage; intensity = %
 - `src/components/Gantt.test.tsx` — (sem descrição)
 - `src/components/Gantt.tsx` — (sem descrição)
+- `src/components/Layout.module.css` — Direction C frame: sidebar (screens, project items, projects accordion, limits + theme) and main area.
+- `src/components/Layout.test.tsx` — (sem descrição)
 - `src/components/Layout.tsx` — (sem descrição)
 - `src/components/Markdown.test.tsx` — (sem descrição)
 - `src/components/Markdown.tsx` — (sem descrição)
 - `src/components/TaskList.module.css` — (sem descrição)
 - `src/components/TaskList.tsx` — (sem descrição)
+- `src/components/ui.module.css` — (sem descrição)
+- `src/components/ui.test.tsx` — (sem descrição)
+- `src/components/ui.tsx` — (sem descrição)
 - `src/data/mock.ts` — (sem descrição)
 - `src/data/types.ts` — Shapes mirror the future harness events (see docs/adr/0001-arquitetura.md).
 - `src/drafts/Drafts.test.tsx` — (sem descrição)
@@ -89,18 +96,24 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `src/drafts/c/pages.tsx` — (sem descrição)
 - `src/drafts/c/screens.tsx` — (sem descrição)
 - `src/drafts/c/ui.tsx` — (sem descrição)
+- `src/lib/docsParse.test.ts` — (sem descrição)
+- `src/lib/docsParse.ts` — (sem descrição)
 - `src/lib/progress.test.ts` — (sem descrição)
 - `src/lib/progress.ts` — (sem descrição)
 - `src/lib/useData.tsx` — (sem descrição)
 - `src/lib/useNow.ts` — (sem descrição)
 - `src/lib/useProject.ts` — (sem descrição)
 - `src/main.tsx` — (sem descrição)
+- `src/pages/Backlog.module.css` — Raw-markdown fallback: ported from src/drafts/c/pages.module.css (.md).
+- `src/pages/Backlog.test.tsx` — (sem descrição)
+- `src/pages/Backlog.tsx` — (sem descrição)
 - `src/pages/Chats.module.css` — (sem descrição)
 - `src/pages/Chats.test.tsx` — (sem descrição)
 - `src/pages/Chats.tsx` — (sem descrição)
 - `src/pages/Control.module.css` — Draft "Sala de controle" (variant B).
 - `src/pages/Control.test.tsx` — (sem descrição)
 - `src/pages/Control.tsx` — (sem descrição)
+- `src/pages/Docs.module.css` — (sem descrição)
 - `src/pages/Docs.test.tsx` — (sem descrição)
 - `src/pages/Docs.tsx` — (sem descrição)
 - `src/pages/Idle.module.css` — (sem descrição)
@@ -113,6 +126,9 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `src/pages/Plan.tsx` — (sem descrição)
 - `src/pages/Projects.test.tsx` — (sem descrição)
 - `src/pages/Projects.tsx` — (sem descrição)
+- `src/pages/Roadmap.module.css` — (sem descrição)
+- `src/pages/Roadmap.test.tsx` — (sem descrição)
+- `src/pages/Roadmap.tsx` — (sem descrição)
 - `src/pages/Sprints.test.tsx` — (sem descrição)
 - `src/pages/Sprints.tsx` — (sem descrição)
 - `src/pages/Timeline.module.css` — Copied from docs/sprints/S02-draft.html (Linha do tempo).

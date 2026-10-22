@@ -1,0 +1,291 @@
+/* Direction C frame: sidebar (screens, project items, projects accordion, limits + theme) and main area. */
+.root {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+/* Sidebar in a column: only the navigation scrolls; limits + theme sit below it, full width. */
+.side {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--side);
+  color: var(--side-ink);
+}
+
+.sideNav {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 18px 12px;
+}
+
+.brand {
+  padding: 0 8px;
+  font: 700 18px/1 var(--display);
+}
+
+.themeBtn {
+  justify-self: start;
+  border: 1px solid #ffffff2e;
+  background: none;
+  border-radius: 99px;
+  padding: 3px 10px;
+  font-size: 12px;
+  color: var(--side-ink);
+}
+
+.screens,
+.projects ul {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.screens a,
+.proj {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+  border: 0;
+  background: none;
+  border-radius: var(--r-sm);
+  padding: 7px 10px;
+  color: var(--side-ink);
+  text-decoration: none;
+}
+
+.screens a:hover,
+.proj:hover {
+  background: #ffffff12;
+}
+
+.screens a[aria-current] {
+  background: #ffffff1f;
+  font-weight: 600;
+}
+
+.sideK {
+  display: block;
+  padding: 0 10px 4px;
+  font-size: 12px;
+  color: var(--side-muted);
+}
+
+.projects {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.projects li {
+  min-width: 0;
+}
+
+.proj {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 10px;
+  box-shadow: inset 3px 0 0 transparent;
+}
+
+.proj[aria-current] {
+  background: #ffffff1a;
+  box-shadow: inset 3px 0 0 var(--pick);
+}
+
+.proj > span {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.proj > small {
+  grid-column: 2;
+  font-size: 12px;
+  color: var(--side-muted);
+}
+
+.projects ul[data-idle] .proj {
+  opacity: 0.6;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--side-muted);
+}
+
+.dot[data-tone="ok"] {
+  background: #4fbf7a;
+}
+
+.dot[data-tone="warn"] {
+  background: #e0a53c;
+}
+
+.dot[data-tone="bad"] {
+  background: #f06a5b;
+}
+
+.dot[data-tone="run"] {
+  background: #6ea1f2;
+}
+
+.dot[data-live] {
+  box-shadow: 0 0 0 3px #6ea1f240;
+}
+
+.badge {
+  grid-row: 1;
+  grid-column: 3;
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 99px;
+  background: var(--pick);
+  color: #1f1a0e;
+  font-size: 11px;
+  text-align: center;
+}
+
+/* Sidebar accordion: pills sit on the dark sidebar, so tones get the bright set. */
+.acc {
+  --ok: #4fbf7a;
+  --warn: #e0a53c;
+  --bad: #f06a5b;
+  --run: #6ea1f2;
+  --muted: var(--side-muted);
+
+  display: grid;
+  gap: 8px;
+  margin: 2px 0 8px 15px;
+  padding: 4px 0 4px 12px;
+  border-left: 1px solid #ffffff24;
+  font-size: 13px;
+}
+
+.acc ul {
+  gap: 0;
+}
+
+.acc li a {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  border-radius: var(--r-sm);
+  padding: 4px 8px;
+  color: var(--side-ink);
+  text-decoration: none;
+}
+
+.acc li a:hover {
+  background: #ffffff12;
+}
+
+.acc li a > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.acc li a > :last-child {
+  flex: none;
+}
+
+.accK {
+  padding: 0 8px;
+  font-size: 11px;
+  color: var(--side-muted);
+}
+
+.limits {
+  flex: none;
+  display: grid;
+  gap: 12px;
+  padding: 12px 22px 16px;
+  border-top: 1px solid #ffffff1f;
+  background: var(--side);
+  font-size: 12px;
+}
+
+.limits > div {
+  display: grid;
+  gap: 4px;
+}
+
+.limits span {
+  display: flex;
+  justify-content: space-between;
+}
+
+.limits small {
+  color: var(--side-muted);
+}
+
+.limits [role="meter"] {
+  background: #ffffff1f;
+}
+
+/* Main area. clip, not hidden: wide content scrolls in its own panel and sticky keeps working. */
+.main {
+  min-width: 0;
+  overflow-x: clip;
+  padding: 24px 28px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.offline {
+  padding: 10px 14px;
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--warn) 16%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent);
+}
+
+@media (width <= 760px) {
+  .root {
+    grid-template-columns: 1fr;
+  }
+
+  /* Sidebar sits on top of the page here, so the limits ride along at the bottom of the screen. */
+  .side {
+    position: static;
+    height: auto;
+    overflow: visible;
+  }
+
+  .sideNav {
+    overflow: visible;
+  }
+
+  .limits {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 3;
+    grid-template-columns: 1fr 1fr auto;
+    align-items: center;
+    padding: 8px 16px;
+  }
+
+  .main {
+    padding: 16px 16px 74px;
+  }
+}

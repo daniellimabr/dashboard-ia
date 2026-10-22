@@ -1,122 +1,287 @@
-import { useMemo } from "react";
-import { NavLink, Outlet } from "react-router";
-import type { Limit } from "../data/types";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Link,
+  NavLink,
+  Outlet,
+  useLocation,
+  useMatch,
+  useNavigate,
+  useOutletContext,
+} from "react-router";
+import type { Data, Project, Sprint, Tone } from "../data/types";
 import { splitIdle } from "../lib/idle";
+import { sprintPct } from "../lib/progress";
 import { durationMs, formatDuration, formatTime, formatWeekday } from "../lib/time";
 import type { Board } from "../lib/useBoard";
 import { useData } from "../lib/useData";
 import { useNow } from "../lib/useNow";
 import { useMaybeProject } from "../lib/useProject";
+import s from "./Layout.module.css";
+import { mainSprint, Meter, Pill } from "./ui";
+import u from "./ui.module.css";
 
-const barTone = (pct: number) => (pct >= 80 ? "bad" : pct >= 60 ? "warn" : "");
+export const SCREENS = [
+  ["/", "Início"],
+  ["/controle", "Sala de controle"],
+  ["/tempo", "Linha do tempo"],
+  ["/ociosos", "Ociosos"],
+  ["/componentes", "Componentes"],
+] as const;
 
-function LimitBar({ label, limit, reset }: { label: string; limit?: Limit; reset: string }) {
-  const pct = limit?.pct ?? 0;
-  return (
-    <div className="lim">
-      <span className="lbl">
-        {label} · <span className="num">{limit ? `${pct}%` : "sem dado"}</span>
-      </span>
-      <div
-        className="bar"
-        role="meter"
-        aria-label={label}
-        aria-valuenow={pct}
-        aria-valuetext={limit ? undefined : "sem dado"}
-        aria-valuemin={0}
-        aria-valuemax={100}
-      >
-        <i className={barTone(pct)} style={{ width: `${pct}%` }} />
-      </div>
-      <small className="muted">{reset}</small>
-    </div>
-  );
-}
-
-export function Layout() {
-  const now = useNow();
-  const { data, offlineSince, refresh } = useData();
-  const board = useMemo<Board>(() => {
-    const promoted = new Set(data.projects.filter((p) => p.promoted).map((p) => p.id));
-    return {
-      ...splitIdle(data.projects, now, promoted),
-      promote: (id) =>
-        void fetch(`/api/projects/${encodeURIComponent(id)}/promote`, { method: "POST" })
-          .catch(() => {}) // offline: the next poll shows the real state
-          .then(refresh),
-    };
-  }, [data, now, refresh]);
-  const { h5, week } = data.limits;
-  return (
-    <>
-      <nav className="nav wrap" aria-label="Telas">
-        <span className="brand">Dashboard IA</span>
-        <div className="tabs">
-          <NavLink to="/" end>
-            Bem-vindo de volta
-          </NavLink>
-          <NavLink to="/controle">Sala de controle</NavLink>
-          <NavLink to="/tempo">Linha do tempo</NavLink>
-          <NavLink to="/ociosos" className="idle-tab">
-            Ociosos ({board.idle.length})
-          </NavLink>
-          <NavLink to="/projetos">Projetos</NavLink>
-        </div>
-        {offlineSince !== undefined && (
-          <span className="offline" role="status">
-            sem conexão desde {formatTime(new Date(offlineSince).toISOString())}
-          </span>
-        )}
-        <div className="limits">
-          <LimitBar
-            label="Limite 5 h"
-            limit={h5}
-            reset={
-              h5.estimated || !h5.resetsAt
-                ? "estimado"
-                : `renova em ${formatDuration(durationMs(new Date(now).toISOString(), h5.resetsAt))}`
-            }
-          />
-          <LimitBar
-            label="Semanal"
-            limit={week}
-            reset={
-              week?.resetsAt
-                ? `renova ${formatWeekday(week.resetsAt)} ${formatTime(week.resetsAt)}`
-                : ""
-            }
-          />
-        </div>
-      </nav>
-      <main className="wrap">
-        <Outlet context={board} />
-      </main>
-    </>
-  );
-}
-
-export const tabs = [
+export const ITEMS = [
   ["chats", "Chats"],
   ["sprints", "Sprints"],
-  ["plan", "Backlog e Roadmap"],
+  ["backlog", "Backlog"],
+  ["roadmap", "Roadmap"],
   ["docs", "Documentos"],
   ["usage", "Consumo"],
 ] as const;
 
+/** Sprint status as Daniel reads it in the menu. */
+export function sprintState(x: Sprint): [string, Tone | undefined, boolean?] {
+  if (x.status === "closed") return ["Fechada", undefined];
+  if (x.deliveredAt) return ["Entregue", "warn"];
+  if (x.status === "active") return ["Em execução", "run", true];
+  return x.approvedAt ? ["Aprovada", "ok"] : ["Planejada", undefined];
+}
+
+const recentSprints = (data: Data, projectId: string) =>
+  data.sprints
+    .filter((x) => x.projectId === projectId)
+    .sort((a, b) => b.id.localeCompare(a.id, undefined, { numeric: true }))
+    .slice(0, 5);
+
+/** 5 latest chats not tied to a sprint; once a chat gets a sprint plan it shows up as that sprint. */
+const looseChats = (data: Data, projectId: string) =>
+  data.chats
+    .filter((c) => c.projectId === projectId && !c.sprintId)
+    .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
+    .slice(0, 5);
+
+// Per-viewer conveniences only: storage may be missing or blocked, so every access is guarded.
+const load = (key: string) => {
+  try {
+    return localStorage.getItem(key) ?? undefined;
+  } catch {
+    return undefined;
+  }
+};
+const save = (key: string, value: string) => {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* blocked storage: the choice lasts until reload */
+  }
+};
+
+export function Layout() {
+  const now = useNow();
+  const { data, offlineSince, refresh } = useData();
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const inProject = useMatch("/p/:projectId/:item/*");
+  const [picked, setPicked] = useState(() => load("dash.project"));
+  const [light, setLight] = useState(() => load("dash.theme") === "light");
+  const board = useMemo<Board>(() => {
+    const promoted = new Set(data.projects.filter((p) => p.promoted).map((p) => p.id));
+    const split = splitIdle(data.projects, now, promoted);
+    const id = inProject?.params.projectId ?? picked;
+    return {
+      ...split,
+      project: data.projects.find((p) => p.id === id) ?? split.active[0] ?? data.projects[0],
+      promote: (pid) =>
+        void fetch(`/api/projects/${encodeURIComponent(pid)}/promote`, { method: "POST" })
+          .catch(() => {}) // offline: the next poll shows the real state
+          .then(refresh),
+    };
+  }, [data, now, refresh, inProject?.params.projectId, picked]);
+  const { active, idle, project } = board;
+  const [expanded, setExpanded] = useState(project?.id);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = light ? "light" : "dark";
+  }, [light]);
+
+  const item = inProject && ITEMS.find(([path]) => path === inProject.params.item)?.[1];
+  const page = item
+    ? `${project?.name ?? ""} › ${item}`
+    : SCREENS.find(([path]) => path === pathname)?.[1];
+  useEffect(() => {
+    document.title = page ? `Dashboard IA: ${page}` : "Dashboard IA";
+  }, [page]);
+
+  const pick = (p: Project) => {
+    setPicked(p.id);
+    save("dash.project", p.id);
+    setExpanded(expanded === p.id ? undefined : p.id);
+    if (inProject) navigate(`/p/${p.id}/${inProject.params.item ?? "chats"}`);
+  };
+
+  const projectItem = (p: Project) => {
+    const sprint = mainSprint(data, p.id);
+    const open = expanded === p.id;
+    const loose = looseChats(data, p.id);
+    return (
+      <li key={p.id}>
+        <button
+          type="button"
+          className={s.proj}
+          aria-current={p.id === project?.id || undefined}
+          aria-expanded={open}
+          onClick={() => pick(p)}
+        >
+          <i className={s.dot} data-tone={p.phase?.tone} data-live={p.phase?.live || undefined} />
+          <span>{p.name}</span>
+          <small>
+            {sprint?.status === "active" ? `${sprint.id} · ${sprintPct(sprint.tasks)}%` : ""}
+          </small>
+          {!!p.alerts?.length && <b className={s.badge}>{p.alerts.length}</b>}
+        </button>
+        {open && (
+          <div className={s.acc}>
+            <span className={s.accK}>Sprints recentes</span>
+            <ul aria-label={`Sprints de ${p.name}`}>
+              {recentSprints(data, p.id).map((x) => {
+                const [label, tone, live] = sprintState(x);
+                return (
+                  <li key={x.id}>
+                    <Link to={`/p/${p.id}/sprints/${x.id}`}>
+                      <span title={`${x.id} ${x.title}`}>
+                        {x.id} {x.title}
+                      </span>
+                      <Pill tone={tone} live={live}>
+                        {label}
+                      </Pill>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+            {loose.length > 0 && (
+              <>
+                <span className={s.accK}>Chats sem sprint</span>
+                <ul aria-label={`Chats sem sprint de ${p.name}`}>
+                  {loose.map((c) => (
+                    <li key={c.id}>
+                      <Link to={`/p/${p.id}/chats/${c.id}`}>
+                        <span title={c.title}>{c.title}</span>
+                        <Pill tone={c.endedAt ? undefined : "run"} live={!c.endedAt}>
+                          {c.endedAt ? "encerrado" : "aberto"}
+                        </Pill>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        )}
+      </li>
+    );
+  };
+
+  const { h5, week } = data.limits;
+  return (
+    <div className={s.root}>
+      <aside className={s.side}>
+        <div className={s.sideNav}>
+          <div className={s.brand}>Dashboard IA</div>
+          <nav aria-label="Telas" className={s.screens}>
+            {SCREENS.map(([path, label]) => (
+              <NavLink key={path} to={path} end>
+                {path === "/ociosos" ? `${label} (${idle.length})` : label}
+              </NavLink>
+            ))}
+          </nav>
+          {project && (
+            <nav aria-label="Itens do projeto" className={s.screens}>
+              <span className={s.sideK}>Itens de {project.name}</span>
+              {ITEMS.map(([path, label]) => (
+                <NavLink key={path} to={`/p/${project.id}/${path}`}>
+                  {label}
+                </NavLink>
+              ))}
+            </nav>
+          )}
+          <nav aria-label="Projetos" className={s.projects}>
+            <span className={s.sideK}>Projetos</span>
+            <ul>{active.map(projectItem)}</ul>
+            {idle.length > 0 && (
+              <>
+                <span className={s.sideK}>Ociosos</span>
+                <ul data-idle>{idle.map(projectItem)}</ul>
+              </>
+            )}
+          </nav>
+        </div>
+        <div className={s.limits}>
+          <div>
+            <span>
+              Limite 5 h <b>{h5.pct}%</b>
+            </span>
+            <Meter label="Limite 5 h" pct={h5.pct} />
+            <small>
+              {h5.estimated || !h5.resetsAt
+                ? "estimado"
+                : `renova em ${formatDuration(durationMs(new Date(now).toISOString(), h5.resetsAt))}`}
+            </small>
+          </div>
+          <div>
+            <span>
+              Semanal <b>{week ? `${week.pct}%` : "sem dado"}</b>
+            </span>
+            <Meter label="Semanal" pct={week?.pct} />
+            <small>
+              {week?.resetsAt
+                ? `renova ${formatWeekday(week.resetsAt)} ${formatTime(week.resetsAt)}`
+                : ""}
+            </small>
+          </div>
+          <button
+            type="button"
+            className={s.themeBtn}
+            aria-pressed={!light}
+            onClick={() => {
+              setLight(!light);
+              save("dash.theme", light ? "dark" : "light");
+            }}
+          >
+            {light ? "Tema escuro" : "Tema claro"}
+          </button>
+        </div>
+      </aside>
+      <main className={s.main}>
+        {offlineSince !== undefined && (
+          <div className={s.offline} role="status">
+            Sem conexão com o servidor desde {formatTime(new Date(offlineSince).toISOString())}. Os
+            números abaixo são da última leitura.
+          </div>
+        )}
+        <Outlet context={board} />
+      </main>
+    </div>
+  );
+}
+
+/** Project item pages: checks the project and gives every item the same page head. */
 export function ProjectLayout() {
   const project = useMaybeProject();
-  if (!project) return <h1>Projeto não encontrado</h1>;
+  const item = useMatch("/p/:projectId/:item/*")?.params.item;
+  const board = useOutletContext<Board>();
+  if (!project)
+    return (
+      <div className={u.pageHead}>
+        <h1>Projeto não encontrado</h1>
+      </div>
+    );
   return (
     <>
-      <h1>{project.name}</h1>
-      <nav className="tabs" aria-label="Seções do projeto">
-        {tabs.map(([path, label]) => (
-          <NavLink key={path} to={`/p/${project.id}/${path}`}>
-            {label}
-          </NavLink>
-        ))}
-      </nav>
-      <Outlet />
+      <div className={u.pageHead}>
+        <h1>
+          {project.name} › {ITEMS.find(([path]) => path === item)?.[1] ?? ""}
+        </h1>
+      </div>
+      <Outlet context={board} />
     </>
   );
 }

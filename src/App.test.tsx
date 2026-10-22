@@ -19,11 +19,11 @@ afterEach(() => void vi.unstubAllGlobals());
 
 describe("routes", () => {
   it.each([
-    ["/", "Bem-vindo de volta"],
+    ["/", "Início"],
     ["/controle", "Sala de controle"],
     ["/tempo", "Linha do tempo"],
     ["/ociosos", "Ociosos"],
-    ["/projetos", "Projetos"],
+    ["/componentes", "Componentes"],
   ])("%s is a menu screen with its own URL", (path, tab) => {
     renderAt(path);
     expect(
@@ -43,18 +43,17 @@ describe("routes", () => {
     screen.getByRole("link", { name: "Ociosos (2)" });
   });
 
-  it("opens any project's tabs from the Projetos page", async () => {
+  it("opens another project's items from the side menu", async () => {
     renderAt("/controle");
-    expect(document.querySelector("details")).toBeNull();
-    await userEvent.click(screen.getByRole("link", { name: "Projetos" }));
-    await userEvent.click(screen.getByRole("link", { name: "Bot Telegram" }));
-    screen.getByRole("heading", { level: 1, name: "Bot Telegram" });
+    await userEvent.click(screen.getByRole("button", { name: /Bot Telegram/ }));
+    await userEvent.click(screen.getByRole("link", { name: "Chats" }));
+    screen.getByRole("heading", { level: 1, name: "Bot Telegram › Chats" });
     expect(screen.getByRole("link", { name: "Chats" }).getAttribute("aria-current")).toBe("page");
   });
 
   it.each([
-    ["/p/dashboard-ia/chats", "Dashboard IA"],
-    ["/p/main-harness/sprints", "Main Harness"],
+    ["/p/dashboard-ia/chats", "Dashboard IA › Chats"],
+    ["/p/main-harness/sprints", "Main Harness › Sprints"],
     ["/p/x/chats", "Projeto não encontrado"],
     ["/nada", "Página não encontrada"],
   ])("%s renders", (path, title) => {
@@ -85,14 +84,14 @@ describe("data from the server", () => {
     });
     renderAt("/", null);
     await screen.findByRole("link", { name: "Ociosos (2)" });
-    expect(screen.queryByText(/sem conexão desde/)).toBeNull();
+    expect(screen.queryByText(/Sem conexão com o servidor/)).toBeNull();
     down = true;
     await poll();
-    await screen.findByText(/^sem conexão desde \d\d:\d\d$/);
+    await screen.findByText(/^Sem conexão com o servidor desde \d\d:\d\d\./);
     screen.getByRole("link", { name: "Ociosos (2)" });
     down = false;
     await poll();
-    await vi.waitFor(() => expect(screen.queryByText(/sem conexão desde/)).toBeNull());
+    await vi.waitFor(() => expect(screen.queryByText(/Sem conexão com o servidor/)).toBeNull());
   });
 
   it("promotes through the server and shows its new state", async () => {
@@ -108,9 +107,9 @@ describe("data from the server", () => {
     await user.click(first as HTMLElement);
     expect(fetch).toHaveBeenCalledWith("/api/projects/bot-telegram/promote", { method: "POST" });
     await screen.findByRole("link", { name: "Ociosos (1)" });
-    expect(screen.queryByRole("heading", { name: "Bot Telegram" })).toBeNull();
-    await user.click(screen.getByRole("link", { name: "Bem-vindo de volta" }));
-    within(screen.getByRole("main")).getByText("Bot Telegram");
+    within(
+      within(screen.getByRole("navigation", { name: "Projetos" })).getAllByRole("list")[0] as HTMLElement,
+    ).getByText("Bot Telegram");
   });
 
   it("polls every 5 s and pauses while the tab is hidden", async () => {
