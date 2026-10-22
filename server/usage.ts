@@ -12,6 +12,8 @@ const norm = (p: string) => {
 };
 
 interface Line {
+  type?: string;
+  aiTitle?: string; // type "ai-title": Claude Code's name for the session
   cwd?: string;
   sessionId?: string;
   agentId?: string;
@@ -43,8 +45,11 @@ export function importUsage(
      ON CONFLICT(id) DO UPDATE SET tokens_in = excluded.tokens_in, tokens_out = excluded.tokens_out,
        cache_read = excluded.cache_read, cache_write = excluded.cache_write`,
   );
+  const rename = db.prepare("UPDATE chat SET title = ? WHERE id = ?");
   const handle = (raw: string) => {
     const l = JSON.parse(raw) as Line;
+    // shortcut: a chat created after its ai-title line was read keeps the session id; fine while events import first.
+    if (l.type === "ai-title" && l.aiTitle && l.sessionId) rename.run(l.aiTitle, l.sessionId);
     const m = l.message;
     const u = m?.usage;
     if (!u || !m?.id || !l.cwd || !l.timestamp) return;

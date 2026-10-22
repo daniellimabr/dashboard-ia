@@ -74,6 +74,18 @@ describe("importUsage", () => {
     expect(count()).toBe(3);
   });
 
+  it("names the chat with the transcript's latest ai-title", () => {
+    db.prepare(
+      "INSERT INTO chat (id, project_id, title, started_at) VALUES ('s1', 'dash', 's1', '2026-10-16T12:00:00Z')",
+    ).run();
+    appendFileSync(file, `{"type":"ai-title","aiTitle":"Primeiro","sessionId":"s1"}\n`);
+    appendFileSync(file, `{"type":"ai-title","aiTitle":"Testando status line","sessionId":"s1"}\n`);
+    importUsage(db, root, projects);
+    expect(db.prepare("SELECT title FROM chat WHERE id = 's1'").get()?.title).toBe(
+      "Testando status line",
+    );
+  });
+
   it("returns 0 when the root does not exist", () => {
     expect(importUsage(db, join(root, "missing"), projects)).toBe(0);
   });

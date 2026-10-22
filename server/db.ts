@@ -9,7 +9,7 @@ export type Db = DatabaseSync;
 export const DEFAULT_DB = join(homedir(), ".dashboard-ia", "dashboard.db");
 
 // Bump when the schema or the event format changes: tables are rebuilt and the events imported again.
-const VERSION = 4; // 4: usage.limits now fills limit_window
+const VERSION = 5; // 5: transcripts' ai-title names the chats
 
 // Spec 0001 §3, fed by the harness events (contract v1).
 const SCHEMA = `
