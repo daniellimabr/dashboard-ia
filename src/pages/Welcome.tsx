@@ -4,6 +4,7 @@ import { formatTokens, formatUsd } from "../lib/format";
 import { sinceLastCommand } from "../lib/since";
 import { formatDate, formatTime, formatWeekday } from "../lib/time";
 import { useBoard } from "../lib/useBoard";
+import { parseBacklog } from "./Plan";
 import s from "./Welcome.module.css";
 import { useData } from "../lib/useData";
 
@@ -25,16 +26,10 @@ const DOC_KINDS: [Doc["kind"], string][] = [
 ];
 
 const backlogTop = (md: string) =>
-  md
-    .split("\n")
-    .filter((l) => l.startsWith("- "))
+  parseBacklog(md)
+    .filter((i) => i.status !== "Concluído")
     .slice(0, 3)
-    .map((l) =>
-      l
-        .slice(2)
-        .replace(/^\*\*\[.*?\]\*\*\s*/, "")
-        .replace(/\.$/, ""),
-    );
+    .map((i) => i.text.replace(/[.:]$/, ""));
 
 function Column({ p }: { p: Project }) {
   const { data } = useData();

@@ -65,4 +65,17 @@ describe("Welcome page", () => {
       "Consumo real em tokens e US$",
     ]);
   });
+
+  it("skips done backlog items and hides the status mark", () => {
+    const backlog = `- [alta] 2026-10-18 [concluído: S05] — Feito.
+- [alta] 2026-10-21 [planejado: S07] — Telas dos drafts:
+  - **Sala:** B.
+- [média] 2026-10-16 — Link VS Code.
+- [baixa] 2026-10-16 — Ações.`;
+    const projects = data.projects.map((p) => (p.id === "dashboard-ia" ? { ...p, backlog } : p));
+    renderAt("/", { ...data, projects });
+    const col = screen.getByRole("region", { name: "Dashboard IA" });
+    const items = within(col).getAllByRole("listitem").slice(-3);
+    expect(items.map((i) => i.textContent)).toEqual(["Telas dos drafts", "Link VS Code", "Ações"]);
+  });
 });
