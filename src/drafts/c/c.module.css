@@ -520,22 +520,116 @@
 }
 
 .meter i {
+  --c: var(--ok);
+
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--ok);
+  background: var(--c);
 }
 
 .meter i[data-tone="run"] {
-  background: var(--run);
+  --c: var(--run);
 }
 
 .meter i[data-tone="warn"] {
-  background: var(--warn);
+  --c: var(--warn);
 }
 
 .meter i[data-tone="bad"] {
-  background: var(--bad);
+  --c: var(--bad);
+}
+
+/* Value inside the bar: tinted fill + solid edge so ink text stays readable. */
+.meter[data-value] {
+  position: relative;
+  height: 18px;
+  border-radius: 4px;
+}
+
+.meter[data-value] i {
+  background: color-mix(in srgb, var(--c) 38%, var(--track));
+  box-shadow: inset -2px 0 0 var(--c);
+}
+
+.meter[data-value] span {
+  position: absolute;
+  inset: 0 6px;
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.ex {
+  display: inline-block;
+  padding: 0 6px;
+  border: 1px dashed var(--warn);
+  border-radius: 99px;
+  color: var(--warn);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.5;
+  vertical-align: 1px;
+}
+
+.tipHost {
+  position: relative;
+}
+
+.tip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  z-index: 3;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  border-radius: var(--r-sm);
+  background: var(--ink);
+  color: var(--panel);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.tipHost:hover > .tip,
+.tipHost:focus-visible > .tip {
+  opacity: 1;
+}
+
+/* Wave colors (order re-stepped from the main app for color-blind separation). */
+.root [data-wave="0"] {
+  --wc: #2a8fd0;
+}
+
+.root [data-wave="1"] {
+  --wc: #d4702a;
+}
+
+.root [data-wave="2"] {
+  --wc: #9157d8;
+}
+
+.root [data-wave="3"] {
+  --wc: #d64f92;
+}
+
+.root[data-theme="dark"] [data-wave="0"] {
+  --wc: #3399d6;
+}
+
+.root[data-theme="dark"] [data-wave="1"] {
+  --wc: #c96e2e;
+}
+
+.root[data-theme="dark"] [data-wave="2"] {
+  --wc: #a46ee8;
+}
+
+.root[data-theme="dark"] [data-wave="3"] {
+  --wc: #d9528f;
 }
 
 .tabs {
@@ -635,92 +729,302 @@
   text-align: right !important;
 }
 
+/* Steps: one labeled chip per step, in order. */
 .steps {
   display: inline-flex;
-  gap: 3px;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.steps i {
-  width: 14px;
-  height: 6px;
-  border-radius: 2px;
+.steps li {
+  padding: 0 5px;
+  border-radius: 3px;
   background: var(--track);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 18px;
 }
 
-.steps i[data-on] {
-  background: var(--ok);
+.steps li[data-on] {
+  background: color-mix(in srgb, var(--ok) 22%, var(--panel));
+  color: var(--ink);
 }
 
-.steps i[data-tone="run"] {
-  background: var(--run);
+.steps li[data-tone] {
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow: inset 0 -2px 0 var(--run);
 }
 
-.steps i[data-tone="bad"] {
-  background: var(--bad);
+.steps li[data-tone="bad"] {
+  box-shadow: inset 0 -2px 0 var(--bad);
 }
 
+.scrollX {
+  overflow-x: auto;
+}
+
+.table td,
+.table th {
+  white-space: nowrap;
+}
+
+.table td:first-child {
+  white-space: normal;
+  min-width: 200px;
+}
+
+.table tbody[data-wave] td:first-child {
+  box-shadow: inset 3px 0 0 var(--wc);
+}
+
+.waveHead th {
+  padding-top: 14px;
+  border-bottom: 0;
+  color: var(--ink);
+  font: 650 13px/1.2 var(--display);
+}
+
+.waveHead span::before {
+  content: "";
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 6px;
+  border-radius: 2px;
+  background: var(--wc, var(--muted));
+}
+
+.waveHead small {
+  font:
+    400 12px/1 "Instrument Sans",
+    system-ui,
+    sans-serif;
+}
+
+.prog {
+  min-width: 110px;
+}
+
+/* Gantt: labels | plot, clock axis below, legend under it. */
 .gantt {
   display: grid;
-  gap: 5px;
+  gap: 10px;
 }
 
-.gRow {
+.gGrid {
   display: grid;
-  grid-template-columns: 36px 1fr;
-  align-items: center;
+  grid-template-columns: 52px minmax(0, 1fr);
+  row-gap: 4px;
   font-size: 12px;
 }
 
-.gRow > div {
+.gLabels,
+.gPlot {
+  display: grid;
+  grid-auto-rows: 16px;
+  row-gap: 5px;
+}
+
+.gLabels span {
+  align-self: center;
+  color: var(--muted);
+}
+
+.gPlot {
   position: relative;
-  height: 12px;
-  border-radius: 3px;
-  background: var(--track);
 }
 
-.gRow i {
+.gRow {
+  position: relative;
+  border-bottom: 1px solid var(--line);
+}
+
+.gRow > b,
+.gRow > i {
   position: absolute;
-  top: 0;
-  bottom: 0;
   border-radius: 3px;
+}
+
+/* planned = dashed outline, full row height */
+.gRow > b {
+  inset-block: 0;
+  border: 1px dashed var(--muted);
+}
+
+/* executed = solid bar inside the planned outline */
+.gRow > i {
+  inset-block: 4px;
   background: var(--muted);
-  opacity: 0.45;
 }
 
-.gRow i[data-tone] {
-  opacity: 1;
-}
-
-.gRow i[data-tone="ok"] {
+.gRow > i[data-tone="ok"] {
   background: var(--ok);
 }
 
-.gRow i[data-tone="run"] {
+.gRow > i[data-tone="run"] {
   background: var(--run);
 }
 
-.gRow i[data-tone="bad"] {
+.gRow > i[data-tone="bad"] {
   background: var(--bad);
 }
 
+.gRow > i[data-k] {
+  inset-block: 2px;
+}
+
+.gRow > i[data-k="reply"],
+.gKey li[data-k="reply"]::before {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--warn) 0 3px,
+    color-mix(in srgb, var(--warn) 30%, var(--panel)) 3px 6px
+  );
+}
+
+.gRow > i[data-k="limit"],
+.gKey li[data-k="limit"]::before {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--bad) 0 3px,
+    color-mix(in srgb, var(--bad) 30%, var(--panel)) 3px 6px
+  );
+}
+
+/* real idle stretch: full-height band behind the rows */
+.gBand,
+.gKey li[data-k="idle"]::before {
+  background: repeating-linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--muted) 22%, transparent) 0 2px,
+    transparent 2px 6px
+  );
+}
+
+.gBand {
+  position: absolute;
+  inset-block: -2px;
+}
+
+.gNow {
+  position: absolute;
+  inset-block: -4px;
+  width: 0;
+  border-left: 2px solid var(--pick);
+}
+
 .gAxis {
-  display: flex;
-  justify-content: space-between;
-  margin-left: 36px;
+  position: relative;
+  grid-column: 2;
+  height: 14px;
   font-size: 11px;
   color: var(--muted);
 }
 
-.agents li {
+.gAxis span {
+  position: absolute;
+  transform: translateX(-50%);
+}
+
+.gKey {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.gKey li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.gKey li::before {
+  content: "";
+  width: 14px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.gKey li[data-k="run"]::before {
+  background: var(--run);
+}
+
+.gKey li[data-k="plan"]::before {
+  border: 1px dashed var(--muted);
+}
+
+.gKey li[data-k="now"]::before {
+  width: 0;
+  border-left: 2px solid var(--pick);
+}
+
+/* Control room: progress | plan | agents over spend, tasks full width below. */
+.ctl {
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) 80px;
+  grid-template-columns: minmax(240px, 1fr) minmax(0, 1.7fr) minmax(280px, 1fr);
+  grid-template-rows: 1fr 1fr;
+  gap: 14px;
+}
+
+.ctl > .panel {
+  align-content: start;
+}
+
+.ctl > .panel:nth-child(-n + 2) {
+  grid-row: span 2;
+}
+
+.ctl > .panel[data-wide] {
+  grid-row: auto;
+}
+
+@media (width <= 1180px) {
+  .ctl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: none;
+  }
+
+  .ctl > .panel:nth-child(-n + 2) {
+    grid-row: auto;
+  }
+}
+
+.agents details > summary {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 64px;
   align-items: center;
   gap: 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.agents details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.agents li[data-off] .av {
+  background: var(--track);
+  color: var(--muted);
 }
 
 .agents small {
   display: block;
   font-size: 12px;
+}
+
+.agentTasks {
+  margin: 6px 0 4px 42px;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
 }
 
 .av {
@@ -735,21 +1039,44 @@
   font-weight: 700;
 }
 
-.cols7 {
-  display: flex;
-  align-items: flex-end;
-  gap: 4px;
-  height: 48px;
+.spend {
+  display: grid;
+  gap: 6px;
+  margin: 0;
 }
 
-.cols7 i {
+.cols7,
+.cols7Axis {
+  display: flex;
+  gap: 4px;
+}
+
+.cols7 {
+  align-items: flex-end;
+  height: 64px;
+  border-bottom: 1px solid var(--line);
+}
+
+.cols7 > span {
   flex: 1;
-  border-radius: 2px 2px 0 0;
+  border-radius: 4px 4px 0 0;
   background: color-mix(in srgb, var(--run) 35%, transparent);
 }
 
-.cols7 i[data-last] {
+.cols7 > span:hover,
+.cols7 > span:focus-visible {
+  background: color-mix(in srgb, var(--run) 60%, transparent);
+}
+
+.cols7 > span[data-last] {
   background: var(--run);
+}
+
+.cols7Axis span {
+  flex: 1;
+  text-align: center;
+  font-size: 11px;
+  color: var(--muted);
 }
 
 .foot {
@@ -789,7 +1116,13 @@
   }
 
   .panel[data-wide] .cardGrid,
-  .accSum {
+  .accSum,
+  .ctl {
     grid-template-columns: 1fr;
+    grid-template-rows: none;
+  }
+
+  .ctl > .panel:nth-child(-n + 2) {
+    grid-row: auto;
   }
 }

@@ -81,9 +81,12 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `src/drafts/b/b.module.css` — (sem descrição)
 - `src/drafts/b/index.tsx` — (sem descrição)
 - `src/drafts/b/ui.tsx` — (sem descrição)
+- `src/drafts/c/Control.test.tsx` — (sem descrição)
 - `src/drafts/c/Draft.test.tsx` — (sem descrição)
 - `src/drafts/c/c.module.css` — (sem descrição)
 - `src/drafts/c/index.tsx` — (sem descrição)
+- `src/drafts/c/pages.module.css` — Direction C, new screens and the sidebar project accordion. Tokens come from .root in c.module.css.
+- `src/drafts/c/pages.tsx` — (sem descrição)
 - `src/drafts/c/screens.tsx` — (sem descrição)
 - `src/drafts/c/ui.tsx` — (sem descrição)
 - `src/lib/progress.test.ts` — (sem descrição)
