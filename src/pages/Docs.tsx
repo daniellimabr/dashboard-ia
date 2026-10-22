@@ -6,11 +6,8 @@ import { useProject } from "../lib/useProject";
 import { useData } from "../lib/useData";
 
 const groups: [Doc["kind"], string][] = [
-  ["sprint-plan", "Sprint plans"],
-  ["release-report", "Release Reports"],
   ["adr", "ADRs"],
   ["prd", "PRDs"],
-  ["handoff", "Handoffs"],
 ];
 
 export function Docs() {
@@ -59,7 +56,8 @@ export function Docs() {
     );
   }
 
-  if (!docs.length) return <p className="muted">Nenhum documento neste projeto.</p>;
+  if (!docs.some((d) => groups.some(([kind]) => kind === d.kind)))
+    return <p className="muted">Nenhum documento neste projeto.</p>;
 
   return groups.map(([kind, label]) => {
     const items = docs.filter((d) => d.kind === kind);

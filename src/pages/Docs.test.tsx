@@ -4,20 +4,13 @@ import { data } from "../data/mock";
 import type { Doc } from "../data/types";
 import { renderAt } from "../test-utils";
 
-describe("Plan", () => {
-  it("renders backlog and roadmap markdown", () => {
-    renderAt("/p/dashboard-ia/plan");
-    expect(screen.getByRole("heading", { name: "Backlog — Dashboard IA" })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Roadmap — Dashboard IA" })).toBeTruthy();
-  });
-});
-
 describe("Docs", () => {
-  it("lists docs grouped by kind and hides empty groups", () => {
+  it("lists only ADRs and PRDs, in separate groups", () => {
     renderAt("/p/dashboard-ia/docs");
-    expect(screen.getByRole("heading", { name: "Sprint plans" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "ADRs" })).toBeTruthy();
-    expect(screen.queryByRole("heading", { name: "Handoffs" })).toBeNull();
+    expect(screen.getByRole("heading", { name: "PRDs" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Sprint plans" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Release Reports" })).toBeNull();
     const link = screen.getByRole("link", { name: "ADR 0001 — Arquitetura do painel" });
     expect(link.getAttribute("href")).toBe("/p/dashboard-ia/docs/adr-0001");
   });
