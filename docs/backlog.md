@@ -13,7 +13,8 @@ Pedidos do projeto. Um item por linha: `- [prioridade] data [status: SNN] — te
   - **Roadmap:** variante A dentro de uma linha do tempo; cada etapa abre (acordeão) a lista de sprints; clicar na sprint abre o plano se não estiver concluída, ou o Release Report se estiver 100%.
   - **Consumo:** no sentido da variante A, em acordeão: dia › sprints.
 
-- [alta] 2026-10-16 — Redesenho da tela principal: mostrar o máximo de informação de cada projeto; aprofundar o layout (drafts) antes da comunicação com agentes/projetos.
+- [alta] 2026-10-22 [planejado: S08] — Revamp total do frontend: visual, navegação e layout, tela principal e componentes base (drafts de 3 direções na S08, aplicação na S09).
+- [alta] 2026-10-16 [planejado: S08] — Redesenho da tela principal: mostrar o máximo de informação de cada projeto; aprofundar o layout (drafts) antes da comunicação com agentes/projetos.
 - [alta] 2026-10-18 [concluído: S05] — Navegação pelos projetos (candidato à S05): entrar em cada projeto (chats, sprints, backlog/roadmap, documentos, consumo) a partir das telas principais e navegar pelos documentos dos projetos por aqui; hoje há só o menu provisório "Projetos" e os links do Bem-vindo.
 - [alta] 2026-10-16 [concluído: S06] — Investigação: a fonte mais confiável para o % do limite da assinatura (5 h e semanal).
 - [média] 2026-10-16 — Link para abrir no VS Code os documentos lidos dos repos (a leitura saiu na S04).
