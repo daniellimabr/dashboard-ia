@@ -238,8 +238,8 @@ export function Draft({
                 const [label, tone, live] = sprintState(x);
                 return (
                   <li key={x.id}>
-                    <button type="button" title={x.title} onClick={() => open(p.id)}>
-                      <span>
+                    <button type="button" onClick={() => open(p.id)}>
+                      <span title={`${x.id} ${x.title}`}>
                         {x.id} {x.title}
                       </span>
                       <Pill tone={tone} live={live}>
@@ -257,7 +257,7 @@ export function Draft({
                   {loose.map((c) => (
                     <li key={c.id}>
                       <button type="button" onClick={() => openTab(p.id, "chats")}>
-                        <span>{c.title}</span>
+                        <span title={c.title}>{c.title}</span>
                         <Pill tone={c.endedAt ? undefined : "run"} live={!c.endedAt}>
                           {c.endedAt ? "encerrado" : "aberto"}
                         </Pill>
@@ -276,7 +276,7 @@ export function Draft({
 
   return (
     <div className={s.root} data-theme={dark ? "dark" : "light"}>
-      <aside className={s.side}>
+      <aside className={`${s.side} ${pg.side}`}>
         <div className={s.brand}>
           <span>Painel IA</span>
           <button

@@ -29,9 +29,12 @@ export const recentSprints = (data: Data, projectId: string) =>
     .sort((a, b) => b.id.localeCompare(a.id, undefined, { numeric: true }))
     .slice(0, 5);
 
-/** Chats not tied to a sprint; once a chat gets a sprint plan it shows up as that sprint. */
+/** 5 latest chats not tied to a sprint; once a chat gets a sprint plan it shows up as that sprint. */
 export const looseChats = (data: Data, projectId: string) =>
-  data.chats.filter((c) => c.projectId === projectId && !c.sprintId);
+  data.chats
+    .filter((c) => c.projectId === projectId && !c.sprintId)
+    .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
+    .slice(0, 5);
 
 export function IdleList() {
   const { data, refresh } = useData();

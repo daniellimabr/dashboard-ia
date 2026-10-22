@@ -816,7 +816,7 @@
 
 .gGrid {
   display: grid;
-  grid-template-columns: 52px minmax(0, 1fr);
+  grid-template-columns: 68px minmax(0, 1fr);
   row-gap: 4px;
   font-size: 12px;
 }
@@ -830,6 +830,7 @@
 
 .gLabels span {
   align-self: center;
+  white-space: nowrap;
   color: var(--muted);
 }
 
@@ -837,43 +838,70 @@
   position: relative;
 }
 
+.gLabels b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
 .gRow {
   position: relative;
-  border-bottom: 1px solid var(--line);
 }
 
-.gRow > b,
+/* bar = planned slot; color = status, intensity = % (--p); dashed = not started */
 .gRow > i {
-  position: absolute;
-  border-radius: 3px;
-}
+  --c: var(--muted);
 
-/* planned = dashed outline, full row height */
-.gRow > b {
-  inset-block: 0;
+  position: absolute;
+  inset-block: 3px;
+  border-radius: 3px;
   border: 1px dashed var(--muted);
 }
 
-/* executed = solid bar inside the planned outline */
-.gRow > i {
-  inset-block: 4px;
-  background: var(--muted);
+.gRow > i[data-tone] {
+  border: 0;
+  background: color-mix(in srgb, var(--c) var(--p, 100%), var(--track));
 }
 
-.gRow > i[data-tone="ok"] {
-  background: var(--ok);
+.gRow > i[data-tone="ok"],
+.gKey li[data-k="ok"]::before {
+  --c: var(--ok);
 }
 
-.gRow > i[data-tone="run"] {
-  background: var(--run);
+.gRow > i[data-tone="run"],
+.gKey li[data-k="run"]::before {
+  --c: var(--run);
 }
 
-.gRow > i[data-tone="bad"] {
-  background: var(--bad);
+.gRow > i[data-tone="bad"],
+.gKey li[data-k="bad"]::before {
+  --c: var(--bad);
 }
 
+.gKey li:is([data-k="ok"], [data-k="run"], [data-k="bad"])::before {
+  background: var(--c);
+}
+
+.gKey li[data-k="todo"]::before {
+  border: 1px dashed var(--muted);
+}
+
+.gKey li[data-k="pct"]::before {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--run) 30%, var(--track)), var(--run));
+}
+
+/* pause lane */
 .gRow > i[data-k] {
   inset-block: 2px;
+  border: 0;
+}
+
+.gRow > i[data-k="idle"],
+.gKey li[data-k="idle"]::before {
+  background: repeating-linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--muted) 45%, transparent) 0 2px,
+    transparent 2px 5px
+  );
 }
 
 .gRow > i[data-k="reply"],
@@ -892,21 +920,6 @@
     var(--bad) 0 3px,
     color-mix(in srgb, var(--bad) 30%, var(--panel)) 3px 6px
   );
-}
-
-/* real idle stretch: full-height band behind the rows */
-.gBand,
-.gKey li[data-k="idle"]::before {
-  background: repeating-linear-gradient(
-    45deg,
-    color-mix(in srgb, var(--muted) 22%, transparent) 0 2px,
-    transparent 2px 6px
-  );
-}
-
-.gBand {
-  position: absolute;
-  inset-block: -2px;
 }
 
 .gNow {
@@ -953,24 +966,16 @@
   border-radius: 2px;
 }
 
-.gKey li[data-k="run"]::before {
-  background: var(--run);
-}
-
-.gKey li[data-k="plan"]::before {
-  border: 1px dashed var(--muted);
-}
-
 .gKey li[data-k="now"]::before {
   width: 0;
   border-left: 2px solid var(--pick);
 }
 
-/* Control room: progress | plan | agents over spend, tasks full width below. */
+/* Control room: the 4 cards in one row, as tall as the tallest (grows with open accordions);
+   tasks full width below. */
 .ctl {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) minmax(0, 1.7fr) minmax(280px, 1fr);
-  grid-template-rows: 1fr 1fr;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -978,22 +983,9 @@
   align-content: start;
 }
 
-.ctl > .panel:nth-child(-n + 2) {
-  grid-row: span 2;
-}
-
-.ctl > .panel[data-wide] {
-  grid-row: auto;
-}
-
-@media (width <= 1180px) {
+@media (width <= 1280px) {
   .ctl {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: none;
-  }
-
-  .ctl > .panel:nth-child(-n + 2) {
-    grid-row: auto;
   }
 }
 
@@ -1119,10 +1111,5 @@
   .accSum,
   .ctl {
     grid-template-columns: 1fr;
-    grid-template-rows: none;
-  }
-
-  .ctl > .panel:nth-child(-n + 2) {
-    grid-row: auto;
   }
 }

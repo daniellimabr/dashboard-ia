@@ -97,6 +97,32 @@ describe("Draft C", () => {
     expect(items.join()).not.toMatch(/S01|S02/);
   });
 
+  it("accordion shows at most the 5 latest chats without sprint, full text on hover", async () => {
+    const extra = [1, 2, 3, 4, 5, 6].map((i) => ({
+      id: `loose-${i}`,
+      projectId: "dashboard-ia",
+      title: `Conversa ${i} com um título bem comprido que passa da largura do menu`,
+      startedAt: `2099-01-0${i}T10:00:00Z`,
+      endedAt: `2099-01-0${i}T11:00:00Z`,
+      agents: [],
+      tasks: [],
+    }));
+    show("home", vi.fn(), { ...data, chats: [...data.chats, ...extra] });
+    const btn = side().getByRole("button", { name: /Dashboard IA/ });
+    if (btn.getAttribute("aria-expanded") !== "true") await userEvent.click(btn);
+    const items = within(
+      side().getByRole("list", { name: "Chats sem sprint de Dashboard IA" }),
+    ).getAllByRole("listitem");
+    expect(items).toHaveLength(5);
+    expect(items[0]?.textContent).toContain("Conversa 6");
+    expect(side().queryByText("hook lento")).toBeNull();
+    expect(
+      side()
+        .getByText(/Conversa 6/)
+        .getAttribute("title"),
+    ).toMatch(/largura do menu$/);
+  });
+
   it("opens the timeline from the menu", async () => {
     show("home");
     await nav("Linha do tempo");

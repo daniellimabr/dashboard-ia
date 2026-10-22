@@ -47,12 +47,26 @@ describe("ControlRoom (direction C)", () => {
     expect(row("T03")?.textContent).toContain("40%");
   });
 
-  it("gantt legend names executed, planned, idle and the example waits", () => {
+  it("gantt: legend with status, idle and example waits; bars sit on the plan", () => {
     show();
     const key = within(screen.getByRole("list", { name: "Legenda do plano" }));
-    for (const k of ["Executado", "Previsto", "Ocioso", "Aguardando resposta", "Aguardando limite"])
+    for (const k of [
+      "Feita",
+      "Rodando",
+      "Reprovada",
+      "A fazer",
+      "Ocioso",
+      "Aguardando resposta",
+      "Aguardando limite",
+    ])
       expect(key.getByText(k)).toBeTruthy();
     expect(key.getAllByText("exemplo").length).toBe(2);
+    // T05 plan: start 70 of a 120 min plan, 20 min long — independent of real pauses
+    const t05 = screen
+      .getAllByRole("tooltip")
+      .find((t) => t.textContent?.startsWith("T05"))?.parentElement;
+    expect(t05?.style.left).toMatch(/^58\.33/);
+    expect(t05?.style.width).toMatch(/^16\.66/);
   });
 
   it("agents: every agent, status label, cost and task dropdown", () => {

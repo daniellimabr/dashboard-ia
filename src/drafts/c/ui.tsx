@@ -1,7 +1,7 @@
-import { useId, type ReactNode } from "react";
+import { useId, type CSSProperties, type ReactNode } from "react";
 import { STEPS, type Data, type Sprint, type Task, type Tone } from "../../data/types";
-import { taskStatus } from "../../lib/progress";
-import { formatDuration, formatTime } from "../../lib/time";
+import { taskPct, taskStatus } from "../../lib/progress";
+import { durationMs, formatDuration, formatTime } from "../../lib/time";
 import { useNow } from "../../lib/useNow";
 import s from "./c.module.css";
 
@@ -217,7 +217,11 @@ const WAIT = {
   limit: "Aguardando limite",
 } as const;
 
-/** Real vs planned per task, idle bands and example waits, on a clock axis. */
+/**
+ * Mini-gantt (model: src/components/Gantt.tsx): position = sprint plan, color = status,
+ * intensity = %, dashed = not started. The axis is the plan, so long pauses never squash
+ * the tasks; pauses go in their own lane, clipped to the plan window. Real times: tooltip.
+ */
 export function Gantt({
   tasks,
   start,
@@ -234,73 +238,74 @@ export function Gantt({
   const tick = useNow();
   const now = nowProp ?? tick;
   const t0 = start ? Date.parse(start) : now;
-  const rows = tasks.flatMap((t) => {
-    const plan: [number, number] | undefined = t.plan && [
-      t0 + t.plan.start * MIN,
-      t0 + (t.plan.start + t.plan.duration) * MIN,
-    ];
-    const a = t.startedAt ? Date.parse(t.startedAt) : NaN;
-    const run: [number, number] | undefined = Number.isFinite(a)
-      ? [a, t.endedAt ? Date.parse(t.endedAt) : now]
-      : undefined;
-    return plan || run ? [{ t, plan, run }] : [];
-  });
+  const rows = tasks.flatMap((t) => (t.plan ? [{ t, p: t.plan }] : []));
   if (!rows.length)
     return <Empty title="Sem plano de horários">A sprint não tem previsão por tarefa.</Empty>;
-  const pts = rows.flatMap((r) => [...(r.plan ?? []), ...(r.run ?? [])]);
-  const min = Math.min(...pts);
-  const max = Math.max(min + MIN, ...pts);
-  const x = (ms: number) => ((Math.min(max, Math.max(min, ms)) - min) / (max - min)) * 100;
+  const end = Math.max(1, ...rows.map(({ p }) => p.start + p.duration)) * MIN;
+  const x = (ms: number) => (Math.min(end, Math.max(0, ms - t0)) / end) * 100;
   const span = (a: number, b: number) => ({ left: `${x(a)}%`, width: `${x(b) - x(a)}%` });
   const hhmm = (ms: number) => formatTime(new Date(ms).toISOString());
-  const step = [15, 30, 60, 120, 240, 480].find((m) => (max - min) / (m * MIN) <= 5) ?? 1440;
+  const step = [15, 30, 60, 120, 240, 480].find((m) => end / (m * MIN) <= 5) ?? 1440;
   const ticks: number[] = [];
-  for (let t = Math.ceil(min / (step * MIN)) * step * MIN; t <= max; t += step * MIN) ticks.push(t);
-  const kinds = new Set([...waits, ...example].map((w) => w.kind));
+  for (let m = 0; m * MIN <= end; m += step) ticks.push(t0 + m * MIN);
+  const pauses = [...waits, ...example.map((w) => ({ ...w, example: true }))].filter(
+    (w) => x(w.end) > x(w.start),
+  );
+  const kinds = new Set(pauses.map((w) => w.kind));
+  const live = now > t0 && now < t0 + end;
   return (
     <div className={s.gantt}>
       <div className={s.gGrid} role="img" aria-label="Plano das tarefas no tempo">
         <div className={s.gLabels}>
-          {example.length > 0 && <span>Esperas</span>}
+          {pauses.length > 0 && <span>Pausas</span>}
           {rows.map(({ t }) => (
-            <span key={t.id}>{t.id}</span>
+            <span key={t.id}>
+              <b>{t.id}</b> {taskPct(t)}%
+            </span>
           ))}
         </div>
         <div className={s.gPlot}>
-          {waits.map((w) => (
-            <i key={w.start} className={s.gBand} style={span(w.start, w.end)} />
-          ))}
-          {example.length > 0 && (
+          {pauses.length > 0 && (
             <div className={s.gRow}>
-              {example.map((w) => (
-                <i key={w.start} data-k={w.kind} className={s.tipHost} style={span(w.start, w.end)}>
+              {pauses.map((w) => (
+                <i
+                  key={w.kind + w.start}
+                  data-k={w.kind}
+                  className={s.tipHost}
+                  style={span(w.start, w.end)}
+                >
                   <Tip>
-                    {WAIT[w.kind]} (exemplo) · {hhmm(w.start)}–{hhmm(w.end)}
+                    {WAIT[w.kind]}
+                    {"example" in w && " (exemplo)"} · {hhmm(w.start)}–{hhmm(w.end)}
                   </Tip>
                 </i>
               ))}
             </div>
           )}
-          {rows.map(({ t, plan, run }) => (
-            <div key={t.id} className={s.gRow}>
-              {plan && (
-                <b className={s.tipHost} style={span(plan[0], plan[1])}>
+          {rows.map(({ t, p }) => {
+            const pct = taskPct(t);
+            const a = t0 + p.start * MIN;
+            const b = a + p.duration * MIN;
+            return (
+              <div key={t.id} className={s.gRow}>
+                <i
+                  className={s.tipHost}
+                  data-tone={t.startedAt ? taskTone(t) : undefined}
+                  // intensity = progress, as in the main panel's gantt
+                  style={
+                    { ...span(a, b), "--p": `${30 + Math.round(pct * 0.7)}%` } as CSSProperties
+                  }
+                >
                   <Tip>
-                    {t.id} previsto · {hhmm(plan[0])}–{hhmm(plan[1])}
-                  </Tip>
-                </b>
-              )}
-              {run && (
-                <i data-tone={taskTone(t)} className={s.tipHost} style={span(run[0], run[1])}>
-                  <Tip>
-                    {t.id} executado · {hhmm(run[0])}–{t.endedAt ? hhmm(run[1]) : "agora"} ·{" "}
-                    {formatDuration(run[1] - run[0])}
+                    {t.id} · previsto {hhmm(a)}–{hhmm(b)}
+                    {t.startedAt &&
+                      ` · executado ${formatTime(t.startedAt)}–${t.endedAt ? formatTime(t.endedAt) : "agora"} (${formatDuration(durationMs(t.startedAt, t.endedAt, now))})`}
                   </Tip>
                 </i>
-              )}
-            </div>
-          ))}
-          {now > min && now < max && <i className={s.gNow} style={{ left: `${x(now)}%` }} />}
+              </div>
+            );
+          })}
+          {live && <i className={s.gNow} style={{ left: `${x(now)}%` }} />}
         </div>
         <div className={s.gAxis}>
           {ticks.map((t) => (
@@ -311,8 +316,11 @@ export function Gantt({
         </div>
       </div>
       <ul className={s.gKey} aria-label="Legenda do plano">
-        <li data-k="run">Executado</li>
-        <li data-k="plan">Previsto</li>
+        <li data-k="ok">Feita</li>
+        <li data-k="run">Rodando</li>
+        <li data-k="bad">Reprovada</li>
+        <li data-k="todo">A fazer</li>
+        <li data-k="pct">Cor mais forte = mais perto de 100%</li>
         {(["idle", "reply", "limit"] as const)
           .filter((k) => kinds.has(k))
           .map((k) => (
@@ -321,7 +329,7 @@ export function Gantt({
               {example.some((w) => w.kind === k) && <Ex />}
             </li>
           ))}
-        {now > min && now < max && <li data-k="now">Agora</li>}
+        {live && <li data-k="now">Agora</li>}
       </ul>
     </div>
   );
