@@ -274,6 +274,7 @@
 
 .stack {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
 }
 
@@ -287,6 +288,7 @@
 /* Panel */
 .panel {
   display: grid;
+  grid-template-columns: minmax(0, 1fr); /* wide content scrolls inside, never widens the card */
   gap: 12px;
   padding: 14px 16px 16px;
   background: var(--panel);
@@ -596,14 +598,17 @@
   color: var(--panel);
   font-size: 12px;
   font-weight: 500;
-  white-space: nowrap;
+  width: max-content;
+  max-width: 240px;
   pointer-events: none;
-  opacity: 0;
+
+  /* display, not opacity: a hidden tip must not widen the page (abs. boxes count as overflow) */
+  display: none;
 }
 
 .tipHost:hover > .tip,
 .tipHost:focus-visible > .tip {
-  opacity: 1;
+  display: block;
 }
 
 /* Wave colors (order re-stepped from the main app for color-blind separation). */
@@ -701,6 +706,7 @@
 
 .accBody {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
   padding: 0 16px 16px;
 }
@@ -949,6 +955,10 @@
   transform: translateX(-50%);
 }
 
+.gAxis span[data-end] {
+  transform: translateX(-100%); /* last tick sits at 100%: keep it inside the card */
+}
+
 .gKey {
   display: flex;
   flex-wrap: wrap;
@@ -994,6 +1004,23 @@
   .ctl {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+.chev {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--muted) !important;
+}
+
+.chev:hover {
+  color: var(--ink) !important;
+  border-color: var(--muted);
 }
 
 .agents details > summary {

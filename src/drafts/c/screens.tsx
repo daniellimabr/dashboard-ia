@@ -169,6 +169,9 @@ const AGENT_STATE = {
   idle: ["ocioso", undefined],
 } as const;
 
+const RANK = { work: 0, test: 1, idle: 2, off: 3 } as const; // active first
+const MAX_AGENTS = 4;
+
 function agentState(a: Agent, tasks: Task[], sprint?: Sprint): keyof typeof AGENT_STATE {
   if (a.endedAt) return "off";
   if (sprint?.deliveredAt && !sprint.closedAt) return "test";
@@ -202,49 +205,88 @@ function Agents({
   usd: number;
   tokPerUsd: number;
 }) {
+  const [all, setAll] = useState(false);
   if (!agents.length)
     return (
-      <Empty title="Nenhum agente nesta sprint">
-        Os agentes aparecem aqui quando uma tarefa começa.
-      </Empty>
+      <Panel title="Agentes">
+        <Empty title="Nenhum agente nesta sprint">
+          Os agentes aparecem aqui quando uma tarefa começa.
+        </Empty>
+      </Panel>
     );
-  const ms = agents.map((a) => durationMs(a.startedAt, a.endedAt, now));
-  const total = ms.reduce((x, y) => x + y, 0) || 1;
+  const total = agents.reduce((x, a) => x + durationMs(a.startedAt, a.endedAt, now), 0) || 1;
+  const rows = agents
+    .map((a) => ({ a, state: agentState(a, tasks, sprint) }))
+    .sort((x, y) => RANK[x.state] - RANK[y.state]);
+  const shown = all ? rows : rows.slice(0, MAX_AGENTS);
+  const working = rows.filter((r) => r.state === "work").length;
   return (
-    <ul className={s.agents}>
-      {agents.map((a, i) => {
-        const [label, tone] = AGENT_STATE[agentState(a, tasks, sprint)];
-        const cost = (usd * (ms[i] ?? 0)) / total;
-        const mine = agentTasks(a, tasks);
-        return (
-          <li key={a.id} data-off={a.endedAt ? true : undefined}>
-            <details>
-              <summary>
-                <span className={s.av}>{agentLabel(a.kind, a.name)}</span>
-                <span>
-                  {a.name} <Pill tone={tone}>{label}</Pill>
-                  <small className={s.muted}>
-                    {formatUsd(cost)} · {formatTokens(cost * tokPerUsd)} tokens <Ex />
-                  </small>
-                </span>
-                <Meter label={`Contexto de ${a.name}`} pct={a.endedAt ? undefined : a.contextPct} />
-              </summary>
-              {mine.length ? (
-                <ul className={s.agentTasks}>
-                  {mine.map((t) => (
-                    <li key={t.id}>
-                      <b>{t.id}</b> {t.title}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className={s.muted}>{a.doing ?? "Sem tarefa nesta sprint."}</p>
-              )}
-            </details>
-          </li>
-        );
-      })}
-    </ul>
+    <Panel
+      title="Agentes"
+      aside={
+        <span className={s.row}>
+          <span className={s.muted}>
+            {working}/{rows.length} ativos
+          </span>
+          {rows.length > MAX_AGENTS && (
+            <button
+              type="button"
+              className={s.chev}
+              aria-label={all ? "Mostrar menos" : "Mostrar todos os agentes"}
+              aria-expanded={all}
+              onClick={() => setAll(!all)}
+            >
+              <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
+                <path
+                  d={all ? "M2 8l4-4 4 4" : "M2 4l4 4 4-4"}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                />
+              </svg>
+            </button>
+          )}
+        </span>
+      }
+    >
+      <ul className={s.agents}>
+        {shown.map(({ a, state }) => {
+          const [label, tone] = AGENT_STATE[state];
+          const cost = (usd * durationMs(a.startedAt, a.endedAt, now)) / total;
+          const mine = agentTasks(a, tasks);
+          return (
+            <li key={a.id} data-off={a.endedAt ? true : undefined}>
+              <details>
+                <summary>
+                  <span className={s.av}>{agentLabel(a.kind, a.name)}</span>
+                  <span>
+                    {a.name} <Pill tone={tone}>{label}</Pill>
+                    <small className={s.muted}>
+                      {formatUsd(cost)} · {formatTokens(cost * tokPerUsd)} tokens <Ex />
+                    </small>
+                  </span>
+                  <Meter
+                    label={`Contexto de ${a.name}`}
+                    pct={a.endedAt ? undefined : a.contextPct}
+                  />
+                </summary>
+                {mine.length ? (
+                  <ul className={s.agentTasks}>
+                    {mine.map((t) => (
+                      <li key={t.id}>
+                        <b>{t.id}</b> {t.title}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className={s.muted}>{a.doing ?? "Sem tarefa nesta sprint."}</p>
+                )}
+              </details>
+            </li>
+          );
+        })}
+      </ul>
+    </Panel>
   );
 }
 
@@ -343,19 +385,14 @@ export function ControlRoom({ project: p }: { project: Project }) {
         <Panel title="Plano no tempo">
           <Gantt tasks={tasks} start={start} now={now} waits={idle} example={example} />
         </Panel>
-        <Panel
-          title="Agentes"
-          aside={<span className={s.muted}>{agents.filter((a) => !a.endedAt).length} ativos</span>}
-        >
-          <Agents
-            agents={agents}
-            tasks={tasks}
-            sprint={sprint}
-            now={now}
-            usd={sprint?.usd ?? 0}
-            tokPerUsd={tokPerUsd}
-          />
-        </Panel>
+        <Agents
+          agents={agents}
+          tasks={tasks}
+          sprint={sprint}
+          now={now}
+          usd={sprint?.usd ?? 0}
+          tokPerUsd={tokPerUsd}
+        />
         <Panel title="Consumo">
           <div className={s.bigRow}>
             <strong className={s.big}>{formatUsd(today?.usd ?? 0)}</strong>

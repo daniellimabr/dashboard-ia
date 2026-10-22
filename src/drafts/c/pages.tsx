@@ -434,7 +434,7 @@ function DocsTab({ docs }: { docs: Doc[] }) {
           );
         })}
       </nav>
-      <article className={s.panel}>
+      <article className={`${s.panel} ${p.md}`}>
         {open ? (
           <Markdown source={open.markdown} />
         ) : (
@@ -458,7 +458,9 @@ export function ProjectScreen({ project: x, tab }: { project: Project; tab: Tab 
       {tab === "chats" && <ChatsTab chats={data.chats.filter((c) => c.projectId === x.id)} />}
       {(tab === "backlog" || tab === "roadmap") && (
         <Panel title={name} wide>
-          <Markdown source={x[tab]} />
+          <div className={p.md}>
+            <Markdown source={x[tab]} />
+          </div>
         </Panel>
       )}
       {tab === "docs" && <DocsTab docs={data.docs.filter((d) => d.projectId === x.id)} />}

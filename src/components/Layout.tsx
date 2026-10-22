@@ -50,7 +50,7 @@ export function Layout() {
   return (
     <>
       <nav className="nav wrap" aria-label="Telas">
-        <span className="brand">Painel IA</span>
+        <span className="brand">Dashboard IA</span>
         <div className="tabs">
           <NavLink to="/" end>
             Bem-vindo de volta

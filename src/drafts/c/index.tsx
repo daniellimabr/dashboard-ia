@@ -1,4 +1,4 @@
-import { useState, type JSX } from "react";
+import { useEffect, useState, type JSX } from "react";
 import type { Project } from "../../data/types";
 import { STEPS } from "../../data/types";
 import { formatUsd } from "../../lib/format";
@@ -273,13 +273,20 @@ export function Draft({
     );
   };
   const idleCount = splitIdle(data.projects, now, promotedOf(data)).idle.length;
+  const item = view === "project" ? tab : view === "sprints" ? "sprints" : undefined;
+  const pageName = item
+    ? `${project?.name ?? ""} › ${ITEMS.find(([t]) => t === item)?.[1] ?? ""}`
+    : (SCREENS.find(([v]) => v === view)?.[1] ?? "");
+  useEffect(() => {
+    document.title = `Dashboard IA: ${pageName}`;
+  }, [pageName]);
 
   return (
     <div className={s.root} data-theme={dark ? "dark" : "light"}>
       <aside className={`${s.side} ${pg.side}`}>
         <div className={pg.sideNav}>
           <div className={s.brand}>
-            <span>Painel IA</span>
+            <span>Dashboard IA</span>
           </div>
           <nav aria-label="Telas" className={s.screens}>
             {SCREENS.map(([id, label]) => (

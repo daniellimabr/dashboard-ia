@@ -1,4 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { data } from "../../data/mock";
 import { DataProvider } from "../../lib/useData";
@@ -77,6 +78,23 @@ describe("ControlRoom (direction C)", () => {
     expect(r.getAllByText("trabalhando").length).toBeGreaterThan(0);
     expect(r.getAllByText(/US\$/).length).toBeGreaterThan(0);
     expect(r.getAllByRole("group").length).toBe(4); // <details> per agent
+  });
+
+  it("agents: x/y ativos, at most 4 by default, active first, chevron expands", async () => {
+    show("main-harness"); // S05 chat: 4 ended agents + 1 running Tech Lead
+    const r = region(/Agentes/);
+    expect(r.getByText("0/5 ativos")).toBeTruthy();
+    expect(r.getAllByRole("group").length).toBe(4);
+    expect(r.getAllByRole("group")[0]?.textContent).toContain("aguardando teste");
+    const more = r.getByRole("button", { name: "Mostrar todos os agentes" });
+    expect(more.getAttribute("aria-expanded")).toBe("false");
+    await userEvent.click(more);
+    expect(r.getAllByRole("group").length).toBe(5);
+    const less = r.getByRole("button", { name: "Mostrar menos" });
+    expect(less.getAttribute("aria-expanded")).toBe("true");
+    await userEvent.click(less);
+    expect(r.getAllByRole("group").length).toBe(4);
+    expect(r.queryByText(/Ver todos/)).toBeNull();
   });
 
   it("consumo: axis title and tooltip with spend and tokens", () => {

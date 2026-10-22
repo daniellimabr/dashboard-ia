@@ -33,7 +33,7 @@ export function Draft({ screen, onScreen }: { screen: Screen; onScreen: (s: Scre
   return (
     <div className={`${s.root} ${light ? s.light : ""}`}>
       <header className={s.bar}>
-        <span className={s.brand}>Painel IA</span>
+        <span className={s.brand}>Dashboard IA</span>
         <nav className={s.menu} aria-label="Telas">
           {MENU.map(([k, label]) => (
             <button

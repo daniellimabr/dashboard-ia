@@ -123,6 +123,18 @@ describe("Draft C", () => {
     ).toMatch(/largura do menu$/);
   });
 
+  it("browser tab title follows the active screen", async () => {
+    show("home");
+    expect(document.title).toBe("Dashboard IA: Início");
+    await nav("Sala de controle");
+    expect(document.title).toBe("Dashboard IA: Sala de controle");
+    await nav("Linha do tempo");
+    expect(document.title).toBe("Dashboard IA: Linha do tempo");
+    const itens = within(screen.getByRole("navigation", { name: "Itens" }));
+    await userEvent.click(itens.getByRole("button", { name: "Chats" }));
+    expect(document.title).toBe("Dashboard IA: Dashboard IA › Chats");
+  });
+
   it("opens the timeline from the menu", async () => {
     show("home");
     await nav("Linha do tempo");

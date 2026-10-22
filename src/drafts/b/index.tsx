@@ -617,7 +617,7 @@ export function Draft({ screen, onScreen }: { screen: Screen; onScreen: (s: Scre
     <div className={s.root} data-theme={dark ? "dark" : "light"}>
       <header className={s.mast}>
         <div className={`${s.wrap} ${s.mastRow}`}>
-          <span className={s.brand}>Painel IA</span>
+          <span className={s.brand}>Dashboard IA</span>
           <nav className={s.nav} aria-label="Telas">
             {MENU.map(([id, label]) => (
               <button

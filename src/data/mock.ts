@@ -77,7 +77,7 @@ const projects: Project[] = [
       action: "Abrir instruções de teste",
     },
     whereStopped:
-      "O harness passou a gravar eventos em arquivo para o Painel IA. As 5 tarefas estão feitas e revisadas; falta só o seu teste.",
+      "O harness passou a gravar eventos em arquivo para o Dashboard IA. As 5 tarefas estão feitas e revisadas; falta só o seu teste.",
     alerts: [
       { tone: "warn", title: "Testar a entrega da S05", detail: "pronta desde 12:31" },
       { tone: "warn", title: "2 pedidos novos no inbox", detail: "do Dashboard IA" },
@@ -359,7 +359,7 @@ const sprints: Sprint[] = [
     id: "S05",
     projectId: "main-harness",
     title: "Eventos em arquivo",
-    goal: "Gravar todos os eventos do harness em arquivo, para o Painel IA ler.",
+    goal: "Gravar todos os eventos do harness em arquivo, para o Dashboard IA ler.",
     status: "active",
     approvedAt: at(10, 0),
     startedAt: at(10, 5),
@@ -631,7 +631,7 @@ Site local navegável com todas as telas principais e dados de exemplo.
     "sprint-plan",
     "S05 — Eventos em arquivo",
     at(18, 0, 1),
-    "## Objetivo\nGravar todos os eventos do harness em arquivo, para o Painel IA ler.",
+    "## Objetivo\nGravar todos os eventos do harness em arquivo, para o Dashboard IA ler.",
   ),
   doc(
     "S04-report",

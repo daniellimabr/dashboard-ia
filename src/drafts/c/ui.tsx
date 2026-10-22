@@ -309,7 +309,7 @@ export function Gantt({
         </div>
         <div className={s.gAxis}>
           {ticks.map((t) => (
-            <span key={t} style={{ left: `${x(t)}%` }}>
+            <span key={t} data-end={x(t) === 100 || undefined} style={{ left: `${x(t)}%` }}>
               {hhmm(t)}
             </span>
           ))}

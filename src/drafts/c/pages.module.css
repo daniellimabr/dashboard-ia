@@ -58,6 +58,8 @@
 }
 
 .tl {
+  min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
   background: var(--panel);
   border: 1px solid var(--line);
@@ -243,6 +245,9 @@
 
 /* Project tabs */
 .chatSum {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
@@ -264,6 +269,29 @@
 .docList {
   display: grid;
   gap: 14px;
+  min-width: 0;
+}
+
+.docList button {
+  overflow-wrap: anywhere;
+}
+
+/* Markdown (docs, backlog, roadmap): wide tables and code scroll inside the panel, never the page. */
+.md {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.md :global(pre),
+.md :global(table) {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.md :global(img) {
+  max-width: 100%;
 }
 
 .docList > div {
@@ -383,6 +411,12 @@
 
 .limits > button {
   justify-self: start;
+}
+
+/* Safety net: anything wide scrolls in its own panel; the page itself never scrolls sideways. clip keeps sticky working. */
+.main {
+  min-width: 0;
+  overflow-x: clip;
 }
 
 @media (width <= 760px) {
