@@ -67,7 +67,8 @@ function parse(line: string): Event | "skip" {
     session: optStr(e.session, "session"),
     sprint: optStr(e.sprint, "sprint"),
     task: optStr(e.task, "task"),
-    agent: optStr(e.agent, "agent"),
+    // The harness names the Reviewer both ways; one name keeps one agent row and matches the usage agentType.
+    agent: optStr(e.agent, "agent")?.replace(/^reviewer$/, "main-harness:reviewer") ?? null,
     type: e.type,
     data: e.data as Record<string, unknown>,
   };

@@ -326,7 +326,7 @@ export function buildData(db: Db, now = Date.now()): Data {
     "SELECT chat_id id, max(at) last FROM event WHERE chat_id IS NOT NULL GROUP BY 1",
   );
   const agentLast = lastAt(
-    "SELECT chat_id || ':' || json_extract(body, '$.agent') id, max(at) last FROM event WHERE chat_id IS NOT NULL AND json_extract(body, '$.agent') IS NOT NULL GROUP BY 1",
+    "SELECT chat_id || ':' || iif(json_extract(body, '$.agent') = 'reviewer', 'main-harness:reviewer', json_extract(body, '$.agent')) id, max(at) last FROM event WHERE chat_id IS NOT NULL AND json_extract(body, '$.agent') IS NOT NULL GROUP BY 1",
   );
   const ended = (end: unknown, last: string | undefined) =>
     s(end) ?? (last && now - Date.parse(last) >= LIVE_MS ? last : undefined);

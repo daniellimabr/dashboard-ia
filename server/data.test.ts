@@ -272,6 +272,33 @@ describe("real per-agent spend, task agent and waits from the transcripts", () =
     });
   });
 
+  it("'reviewer' and 'main-harness:reviewer' are one agent", () => {
+    ev("review.pass", "2026-10-18T10:45:00Z", {}, env("T01", "reviewer"));
+    const ids = setup()
+      .chats.find((c) => c.id === "c1")
+      ?.agents.map((a) => a.id);
+    expect(ids?.filter((id) => id.endsWith("reviewer"))).toEqual(["c1:main-harness:reviewer"]);
+  });
+
+  it("usage read before the subagent's .meta.json existed gets its type later", () => {
+    const root = mkdtempSync(join(tmpdir(), "tx-"));
+    const sub = join(root, "C--x", "c1", "subagents");
+    mkdirSync(sub, { recursive: true });
+    const line = (id: string) =>
+      `{"type":"assistant","cwd":"C:\\\\x","sessionId":"c1","agentId":"a3","timestamp":"2026-10-18T10:35:00Z","message":{"id":"${id}","model":"claude-haiku-4-5","usage":{"input_tokens":1000000}}}\n`;
+    const file = join(sub, "agent-a3.jsonl");
+    const projects = [{ id: "p1", repoPath: "C:/x" }];
+    writeFileSync(file, line("m1"));
+    importUsage(db, root, projects);
+    writeFileSync(join(sub, "agent-a3.meta.json"), `{"agentType":"main-harness:reviewer"}`);
+    writeFileSync(file, line("m1") + line("m2"));
+    importUsage(db, root, projects);
+    expect(db.prepare("SELECT id, agent_type t FROM usage ORDER BY id").all()).toEqual([
+      { id: "m1", t: "main-harness:reviewer" },
+      { id: "m2", t: "main-harness:reviewer" },
+    ]);
+  });
+
   it("links a task to the last non-reviewer agent that touched it", () => {
     const tasks = setup().sprints.find((s) => s.id === "S01")?.tasks ?? [];
     expect(tasks.map((t) => [t.id, t.agentId])).toEqual([

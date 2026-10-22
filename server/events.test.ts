@@ -99,7 +99,7 @@ describe("importEvents (harness contract v1)", () => {
         ended_at: "2026-10-18T10:14:00Z",
       },
       {
-        id: "s1:reviewer",
+        id: "s1:main-harness:reviewer",
         kind: "reviewer",
         name: "Reviewer",
         context_pct: null,

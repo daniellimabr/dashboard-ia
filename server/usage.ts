@@ -58,6 +58,9 @@ export function importUsage(
      ON CONFLICT(id) DO UPDATE SET tokens_in = excluded.tokens_in, tokens_out = excluded.tokens_out,
        cache_read = excluded.cache_read, cache_write = excluded.cache_write`,
   );
+  const backfill = db.prepare(
+    "UPDATE usage SET agent_type = ? WHERE agent_id = ? AND agent_type IS NULL",
+  );
   const rename = db.prepare("UPDATE chat SET title = ? WHERE id = ?");
   const turn = db.prepare("INSERT OR IGNORE INTO turn VALUES (?, ?, ?)");
   const handle = (raw: string, agentType: string | null) => {
@@ -99,6 +102,9 @@ export function importUsage(
     let type: string | null | undefined; // the subagent's .meta.json, read once and only when the file has new lines
     const agentType = () => (type ??= metaType(file.replace(/\.jsonl$/, ".meta.json")));
     n += importLines(db, file, (raw) => handle(raw, agentType()));
+    // Lines read before the .meta.json existed have no type yet.
+    const agentId = /agent-([^\\/]+)\.jsonl$/.exec(file)?.[1];
+    if (type && agentId) backfill.run(type, agentId);
   }
   return n;
 }
