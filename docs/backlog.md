@@ -4,6 +4,15 @@ Pedidos ainda não planejados. Um item por linha, com prioridade (alta, média, 
 
 ## Itens
 
+- [alta] 2026-10-21 — Implementar as telas escolhidas nos drafts da S06 (`drafts.html`); apagar `drafts.html` e `src/drafts` ao final:
+  - **Sala de controle:** variante B (sprints recentes como abas na janela da sprint, com id + situação).
+  - **Chats:** lista (variante B), mas com acabamento bem melhor que o draft.
+  - **Sprints:** variante B (acordeão; a ativa aberta com as tarefas).
+  - **Documentos:** variante A (ADRs e PRDs agrupados por tipo).
+  - **Backlog:** tabela (A) primeiro e kanban (B) abaixo.
+  - **Roadmap:** variante A dentro de uma linha do tempo; cada etapa abre (acordeão) a lista de sprints; clicar na sprint abre o plano se não estiver concluída, ou o Release Report se estiver 100%.
+  - **Consumo:** no sentido da variante A, em acordeão: dia › sprints.
+
 - [alta] 2026-10-16 — Redesenho da tela principal: mostrar o máximo de informação de cada projeto; aprofundar o layout (drafts) antes da comunicação com agentes/projetos.
 - [alta] 2026-10-18 — Navegação pelos projetos (candidato à S05): entrar em cada projeto (chats, sprints, backlog/roadmap, documentos, consumo) a partir das telas principais e navegar pelos documentos dos projetos por aqui; hoje há só o menu provisório "Projetos" e os links do Bem-vindo.
 - [alta] 2026-10-16 — Investigação: a fonte mais confiável para o % do limite da assinatura (5 h e semanal).
