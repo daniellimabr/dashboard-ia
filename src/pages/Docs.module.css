@@ -1,0 +1,62 @@
+.docs {
+  display: grid;
+  grid-template-columns: minmax(200px, 280px) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.docList {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.docList > div {
+  display: grid;
+  gap: 2px;
+}
+
+/* Draft C used buttons; links keep the same look and give each doc a URL. */
+.docList a {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  padding: 5px 10px;
+  border-radius: var(--r-sm);
+  box-shadow: inset 3px 0 0 transparent;
+}
+
+.docList a:hover {
+  background: var(--track);
+}
+
+.docList a[aria-current] {
+  background: var(--panel);
+  box-shadow: inset 3px 0 0 var(--pick);
+  font-weight: 600;
+}
+
+/* Markdown: wide tables and code scroll inside the panel, never the page. */
+.md {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.md :global(pre),
+.md :global(table) {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.md :global(img) {
+  max-width: 100%;
+}
+
+@media (width <= 760px) {
+  .docs {
+    grid-template-columns: 1fr;
+  }
+}

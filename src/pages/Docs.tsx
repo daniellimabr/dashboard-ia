@@ -1,79 +1,83 @@
 import type { MouseEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { Markdown } from "../components/Markdown";
+import { Empty } from "../components/ui";
+import s from "../components/ui.module.css";
 import type { Doc } from "../data/types";
-import { useProject } from "../lib/useProject";
 import { useData } from "../lib/useData";
+import { useProject } from "../lib/useProject";
+import p from "./Docs.module.css";
 
-const groups: [Doc["kind"], string][] = [
+const DOC_KINDS: [Doc["kind"], string][] = [
+  ["sprint-plan", "Sprint plans"],
+  ["release-report", "Release reports"],
   ["adr", "ADRs"],
   ["prd", "PRDs"],
+  ["handoff", "Handoffs"],
 ];
 
 export function Docs() {
   const { data } = useData();
   const project = useProject();
-  const { docId } = useParams();
+  const { docId: id } = useParams();
   const navigate = useNavigate();
   const base = `/p/${project.id}/docs`;
   const docs = data.docs.filter((d) => d.projectId === project.id);
-
   const docUrl = (id: string) => `${base}/${encodeURIComponent(id)}`;
+  const open = docs.find((d) => d.id === id);
 
-  if (docId) {
-    const doc = docs.find((d) => d.id === docId);
-    // Relative .md links resolve against the doc's repo path (id = "<project>:docs/<path>"); only docs/ targets open.
-    const link = (href: string) => {
-      if (/^([a-z][a-z0-9+.-]*:|\/|#)/i.test(href) || !/\.md(#|$)/i.test(href)) return undefined;
-      const rel = docId.slice(docId.indexOf(":") + 1);
-      let path: string;
-      try {
-        path = decodeURIComponent(new URL(href, `http://x/${rel}`).pathname);
-      } catch {
-        return null; // malformed %-escape
-      }
-      const target = path.startsWith("/docs/") && `${project.id}:${path.slice(1)}`;
-      return target && docs.some((d) => d.id === target) ? docUrl(target) : null;
-    };
-    const follow = (e: MouseEvent<HTMLElement>) => {
-      const href = (e.target as Element).closest("a")?.getAttribute("href");
-      if (href?.startsWith(`${base}/`)) {
-        e.preventDefault();
-        void navigate(href);
-      }
-    };
-    return (
-      <>
-        <Link to={base}>← Voltar aos documentos</Link>
-        {doc ? (
-          <article className="card" onClick={follow}>
-            <Markdown source={doc.markdown} link={link} />
-          </article>
+  // Relative .md links resolve against the doc's repo path (id = "<project>:docs/<path>"); only docs/ targets open.
+  const link = (href: string) => {
+    if (!id || /^([a-z][a-z0-9+.-]*:|\/|#)/i.test(href) || !/\.md(#|$)/i.test(href))
+      return undefined;
+    const rel = id.slice(id.indexOf(":") + 1);
+    let path: string;
+    try {
+      path = decodeURIComponent(new URL(href, `http://x/${rel}`).pathname);
+    } catch {
+      return null; // malformed %-escape
+    }
+    const target = path.startsWith("/docs/") && `${project.id}:${path.slice(1)}`;
+    return target && docs.some((d) => d.id === target) ? docUrl(target) : null;
+  };
+  const follow = (e: MouseEvent<HTMLElement>) => {
+    const href = (e.target as Element).closest("a")?.getAttribute("href");
+    if (href?.startsWith(`${base}/`)) {
+      e.preventDefault();
+      void navigate(href);
+    }
+  };
+
+  if (!docs.length)
+    return <Empty title="Nenhum documento">Sprint plans, ADRs e PRDs aparecem aqui.</Empty>;
+  return (
+    <div className={p.docs}>
+      <nav aria-label="Documentos" className={p.docList}>
+        {DOC_KINDS.map(([kind, name]) => {
+          const items = docs.filter((d) => d.kind === kind);
+          return (
+            items.length > 0 && (
+              <div key={kind}>
+                <span className={s.k}>{name}</span>
+                {items.map((d) => (
+                  <Link key={d.id} to={docUrl(d.id)} aria-current={d.id === id || undefined}>
+                    {d.title}
+                  </Link>
+                ))}
+              </div>
+            )
+          );
+        })}
+      </nav>
+      <article className={`${s.panel} ${p.md}`} onClick={follow}>
+        {open ? (
+          <Markdown source={open.markdown} link={link} />
+        ) : id ? (
+          <Empty title="Documento não encontrado.">Escolha outro na lista ao lado.</Empty>
         ) : (
-          <p className="muted">Documento não encontrado.</p>
+          <Empty title="Escolha um documento">Ele abre aqui, ao lado da lista.</Empty>
         )}
-      </>
-    );
-  }
-
-  if (!docs.some((d) => groups.some(([kind]) => kind === d.kind)))
-    return <p className="muted">Nenhum documento neste projeto.</p>;
-
-  return groups.map(([kind, label]) => {
-    const items = docs.filter((d) => d.kind === kind);
-    return (
-      items.length > 0 && (
-        <section key={kind}>
-          <h2>{label}</h2>
-          <ul>
-            {items.map((d) => (
-              <li key={d.id}>
-                <Link to={docUrl(d.id)}>{d.title}</Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )
-    );
-  });
+      </article>
+    </div>
+  );
 }

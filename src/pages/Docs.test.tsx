@@ -1,31 +1,34 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { data } from "../data/mock";
 import type { Doc } from "../data/types";
 import { renderAt } from "../test-utils";
 
+const list = () => within(screen.getByRole("navigation", { name: "Documentos" }));
+
 describe("Docs", () => {
-  it("lists only ADRs and PRDs, in separate groups", () => {
+  it("lists every doc kind in groups, with nothing open yet", () => {
     renderAt("/p/dashboard-ia/docs");
-    expect(screen.getByRole("heading", { name: "ADRs" })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "PRDs" })).toBeTruthy();
-    expect(screen.queryByRole("heading", { name: "Sprint plans" })).toBeNull();
-    expect(screen.queryByRole("heading", { name: "Release Reports" })).toBeNull();
-    const link = screen.getByRole("link", { name: "ADR 0001 — Arquitetura do painel" });
+    list().getByText("ADRs");
+    list().getByText("PRDs");
+    list().getByText("Sprint plans");
+    const link = list().getByRole("link", { name: "ADR 0001 — Arquitetura do painel" });
     expect(link.getAttribute("href")).toBe("/p/dashboard-ia/docs/adr-0001");
+    screen.getByText("Escolha um documento");
   });
 
-  it("shows a doc rendered with a link back", () => {
+  it("opens the doc in the URL next to the list and marks it", () => {
     renderAt("/p/dashboard-ia/docs/prd-0001");
-    expect(screen.getByRole("heading", { name: "Problema" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: /Voltar/ }).getAttribute("href")).toBe(
-      "/p/dashboard-ia/docs",
-    );
+    screen.getByRole("heading", { name: "Problema" });
+    const current = list()
+      .getAllByRole("link")
+      .filter((a) => a.getAttribute("aria-current"));
+    expect(current.map((a) => a.getAttribute("href"))).toEqual(["/p/dashboard-ia/docs/prd-0001"]);
   });
 
   it("shows a message for an unknown doc", () => {
     renderAt("/p/dashboard-ia/docs/nope");
-    expect(screen.getByText("Documento não encontrado.")).toBeTruthy();
+    screen.getByText("Documento não encontrado.");
   });
 
   const real = (rel: string, markdown: string): Doc => ({
@@ -65,16 +68,16 @@ describe("Docs", () => {
     );
     expect(screen.queryByRole("link", { name: "fora" })).toBeNull();
     expect(screen.queryByRole("link", { name: "sumiu" })).toBeNull();
-    expect(screen.getByText("fora (não encontrado)")).toBeTruthy();
-    expect(screen.getByText("sumiu (não encontrado)")).toBeTruthy();
-    expect(screen.getByText("ruim (não encontrado)")).toBeTruthy();
+    screen.getByText("fora (não encontrado)");
+    screen.getByText("sumiu (não encontrado)");
+    screen.getByText("ruim (não encontrado)");
     expect(screen.getByRole("link", { name: "web" }).getAttribute("href")).toBe("https://x.dev");
     fireEvent.click(adr);
     expect(await screen.findByRole("heading", { name: "ADR um" })).toBeTruthy();
   });
 
-  it("shows a message for a project without docs", () => {
+  it("shows an empty state for a project without docs", () => {
     renderAt("/p/planilha-orcamento/docs");
-    expect(screen.getByText("Nenhum documento neste projeto.")).toBeTruthy();
+    screen.getByText("Nenhum documento");
   });
 });

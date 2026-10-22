@@ -1,105 +1,82 @@
 import { Link, useParams } from "react-router";
-import type { Doc, Sprint } from "../data/types";
-import { ProgressRow } from "../components/ProgressRow";
-import { TaskList } from "../components/TaskList";
-import { durationMs, formatDate, formatDuration } from "../lib/time";
-import { useProject } from "../lib/useProject";
+import { Accordion, Empty, Meter, Pill, TaskTable } from "../components/ui";
+import s from "../components/ui.module.css";
+import type { Doc } from "../data/types";
+import { formatUsd } from "../lib/format";
+import { sprintPct } from "../lib/progress";
+import { formatDate } from "../lib/time";
 import { useData } from "../lib/useData";
+import { useProject } from "../lib/useProject";
 
 const STATUS = {
-  planned: ["planejada", ""],
-  active: ["ativa", "badge-live"],
-  closed: ["fechada", "badge-ok"],
+  active: ["ativa", "run"],
+  planned: ["planejada", undefined],
+  closed: ["fechada", "ok"],
 } as const;
-
-function Meta({ sprint }: { sprint: Sprint }) {
-  const [label, cls] = STATUS[sprint.status];
-  const done = sprint.tasks.filter((t) => t.done).length;
-  const { startedAt, closedAt } = sprint;
-  return (
-    <p className="muted">
-      <span className={`badge ${cls}`}>{label}</span>{" "}
-      <span>{`${done}/${sprint.tasks.length} tarefas`}</span>
-      {" · "}
-      {startedAt
-        ? `${formatDate(startedAt)} – ${closedAt ? formatDate(closedAt) : "hoje"} · ${formatDuration(durationMs(startedAt, closedAt))}`
-        : "não iniciada"}
-    </p>
-  );
-}
 
 export function Sprints() {
   const { data } = useData();
-  const project = useProject();
+  const p = useProject();
   const { sprintId } = useParams();
-  const sprints = data.sprints.filter((s) => s.projectId === project.id);
-
-  if (sprintId) {
-    const sprint = sprints.find((s) => s.id === sprintId);
-    if (!sprint) return <p className="muted">Sprint {sprintId} não encontrada.</p>;
-    return (
-      <section>
-        <h2>
-          {sprint.id} — {sprint.title}
-        </h2>
-        <Meta sprint={sprint} />
-        <TaskList tasks={sprint.tasks} />
-      </section>
-    );
-  }
-
-  if (!sprints.length) return <p className="muted">Nenhuma sprint ainda.</p>;
+  const sprints = data.sprints
+    .filter((x) => x.projectId === p.id)
+    .sort((a, b) => b.id.localeCompare(a.id, undefined, { numeric: true }));
   // Doc ids are "SNN-plan" (mock) or "<project>:docs/sprints/SNN-plan.md" (repo): match on the file name.
-  const docOf = (s: Sprint, kind: Doc["kind"]) =>
-    data.docs.find(
-      (d) =>
-        d.projectId === project.id &&
-        d.kind === kind &&
-        d.id.split("/").pop()?.startsWith(`${s.id}-`),
+  const doc = (id: string, kind: Doc["kind"], name: string) => {
+    const d = data.docs.find(
+      (d) => d.projectId === p.id && d.kind === kind && d.id.split("/").pop()?.startsWith(`${id}-`),
     );
+    return d ? (
+      <Link to={`/p/${p.id}/docs/${encodeURIComponent(d.id)}`}>{name}</Link>
+    ) : (
+      `${name}: ainda não existe`
+    );
+  };
   return (
-    <section>
-      {sprints.reverse().map((s) => {
-        const [label, cls] = STATUS[s.status];
-        const done = s.tasks.filter((t) => t.done).length;
-        const link = (kind: Doc["kind"], text: string) => {
-          const d = docOf(s, kind);
-          return d ? (
-            <Link to={`/p/${project.id}/docs/${encodeURIComponent(d.id)}`}>{text}</Link>
-          ) : (
-            <span className="muted">{text}: ainda não existe</span>
+    <>
+      <p className={s.muted}>{sprints.length} sprints, a mais recente primeiro.</p>
+      <div className={s.stack}>
+        {sprints.length === 0 && (
+          <Empty title="Nenhuma sprint ainda">
+            O primeiro sprint plan aparece aqui depois de aprovado.
+          </Empty>
+        )}
+        {sprints.map((x) => {
+          const [label, tone] = STATUS[x.status];
+          const done = x.tasks.filter((t) => t.done).length;
+          return (
+            <Accordion
+              key={x.id}
+              open={sprintId ? x.id === sprintId : x.status === "active"}
+              summary={
+                <span className={s.accSum}>
+                  <b>{x.id}</b>
+                  <span>{x.title}</span>
+                  <Pill tone={tone}>{label}</Pill>
+                  <span className={s.muted}>
+                    {done}/{x.tasks.length} ·{" "}
+                    {x.startedAt
+                      ? `${formatDate(x.startedAt)} – ${x.closedAt ? formatDate(x.closedAt) : "hoje"}`
+                      : "não iniciada"}
+                  </span>
+                  <Meter
+                    label={`Progresso de ${x.id}`}
+                    pct={sprintPct(x.tasks)}
+                    tone={tone ?? "run"}
+                  />
+                </span>
+              }
+            >
+              {x.goal && <p>{x.goal}</p>}
+              <p className={s.muted}>
+                {doc(x.id, "sprint-plan", "Sprint plan")} ·{" "}
+                {doc(x.id, "release-report", "Release Report")} · gasto {formatUsd(x.usd ?? 0)}
+              </p>
+              <TaskTable tasks={x.tasks} />
+            </Accordion>
           );
-        };
-        return (
-          <ProgressRow
-            key={s.id}
-            title={
-              <>
-                <strong>{s.id}</strong> {s.title}
-              </>
-            }
-            sub={s.goal}
-            right={
-              s.startedAt
-                ? `${formatDate(s.startedAt)} – ${s.closedAt ? formatDate(s.closedAt) : "hoje"}`
-                : "não iniciada"
-            }
-            pct={s.tasks.length ? Math.round((done / s.tasks.length) * 100) : 0}
-            chips={
-              <>
-                <span className={`badge ${cls}`}>{label}</span>{" "}
-                <span className="muted">{`${done}/${s.tasks.length} tarefas`}</span>
-              </>
-            }
-            defaultOpen={s.status === "active"}
-          >
-            <p>
-              {link("sprint-plan", "Sprint plan")} · {link("release-report", "Release Report")}
-            </p>
-            <TaskList tasks={s.tasks} />
-          </ProgressRow>
-        );
-      })}
-    </section>
+        })}
+      </div>
+    </>
   );
 }
