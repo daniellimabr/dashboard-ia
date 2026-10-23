@@ -8,10 +8,7 @@ const side = () => within(screen.getByRole("navigation", { name: "Projetos" }));
 const telas = () => within(screen.getByRole("navigation", { name: "Telas" }));
 const itens = () => within(screen.getByRole("navigation", { name: "Itens do projeto" }));
 
-afterEach(() => {
-  localStorage.clear();
-  delete document.documentElement.dataset.theme;
-});
+afterEach(() => localStorage.clear());
 
 describe("Layout (direction C frame)", () => {
   it("lists the screens, the picked project's items, the projects and both limits", () => {
@@ -36,16 +33,9 @@ describe("Layout (direction C frame)", () => {
     screen.getByRole("meter", { name: "Semanal" });
   });
 
-  it("is dark by default; the theme button switches to light and remembers it", async () => {
-    const view = renderAt("/");
-    expect(document.documentElement.dataset.theme).toBe("dark");
-    await userEvent.click(screen.getByRole("button", { name: "Tema claro" }));
-    expect(document.documentElement.dataset.theme).toBe("light");
-    expect(localStorage.getItem("dash.theme")).toBe("light");
-    view.unmount();
+  it("has no theme switch: the dashboard is dark only", () => {
     renderAt("/");
-    expect(document.documentElement.dataset.theme).toBe("light");
-    screen.getByRole("button", { name: "Tema escuro" });
+    expect(screen.queryByRole("button", { name: /Tema/ })).toBeNull();
   });
 
   it("titles the browser tab after the screen or project item", async () => {
@@ -78,6 +68,42 @@ describe("Layout (direction C frame)", () => {
     expect(loose.queryByText("Executar sprint S05")).toBeNull();
     await userEvent.click(btn);
     expect(btn.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("in the control room a sprint opens the room for that sprint, and is highlighted", async () => {
+    renderAt("/controle?p=main-harness&s=S04");
+    await userEvent.click(side().getByRole("button", { name: /Main Harness/ }));
+    const links = within(
+      side().getByRole("list", { name: "Sprints de Main Harness" }),
+    ).getAllByRole("link");
+    expect(links[0]?.getAttribute("href")).toBe("/controle?p=main-harness&s=S05");
+    const s04 = links.find((a) => a.textContent?.includes("S04"));
+    expect(s04?.getAttribute("aria-current")).toBe("true");
+    expect(links[0]?.getAttribute("aria-current")).toBeNull();
+  });
+
+  it("outside the control room a sprint opens its page, highlighted there", () => {
+    renderAt("/p/main-harness/sprints/S05");
+    const links = within(
+      side().getByRole("list", { name: "Sprints de Main Harness" }),
+    ).getAllByRole("link");
+    expect(links[0]?.getAttribute("href")).toBe("/p/main-harness/sprints/S05");
+    expect(links[0]?.getAttribute("aria-current")).toBe("true");
+  });
+
+  it("both limits show the countdown and the reset time", () => {
+    renderAt("/");
+    const limit = (name: string) =>
+      screen.getByRole("meter", { name }).parentElement?.textContent ?? "";
+    expect(limit("Limite 5 h")).toMatch(/renova em 01:(39|40)\s*às \d\d:\d\d/);
+    expect(limit("Semanal")).toMatch(/renova em 3D-18:(09|10)\s*\S+ \d\d:\d\d/);
+  });
+
+  it("a limit without reset time says 'sem dado'", () => {
+    renderAt("/", { ...data, limits: { ...data.limits, week: { pct: 10 } } });
+    expect(screen.getByRole("meter", { name: "Semanal" }).parentElement?.textContent).toMatch(
+      /sem dado/,
+    );
   });
 
   it("the accordion shows at most the 5 latest sprints", async () => {

@@ -28,6 +28,7 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `docs/sprints/S08-plan.md` — S08 — Drafts do revamp do frontend
 - `docs/sprints/S09-plan.md` — S09 — Revamp do frontend: aplicar a direção C
 - `docs/sprints/S09-release.md` — S09 — Release Report
+- `docs/sprints/S10-plan.md` — S10 — Sala de controle por sprint e mais compacta
 - `eslint.config.mjs` — ESLint flat config installed by the Main Harness (/attach). Zero errors, zero warnings.
 - `index.html` — (sem descrição)
 - `package-lock.json` — (sem descrição)
@@ -41,9 +42,11 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `server/fixtures/harness-events.jsonl` — (sem descrição)
 - `server/fixtures/repo/docs/adr/0001-x.md` — ADR 0001 — Decisão X
 - `server/fixtures/repo/docs/backlog.md` — Backlog
+- `server/fixtures/repo/docs/sprints/S00-plan.md` — S00 — Ondas em lista
 - `server/fixtures/repo/docs/sprints/S01-plan.md` — S01 — Primeira `sprint` de teste
 - `server/fixtures/repo/docs/sprints/S01-release.md` — Release Report S01
 - `server/fixtures/repo/docs/sprints/S02-plan.md` — Plano sem tabela
+- `server/fixtures/repo/docs/sprints/S03-plan.md` — S03 — Ondas em lista
 - `server/fixtures/repo/secret.md` — (sem descrição)
 - `server/fixtures/sprint-chat.jsonl` — (sem descrição)
 - `server/fixtures/transcript.jsonl` — (sem descrição)
@@ -71,6 +74,8 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `src/data/types.ts` — Shapes mirror the future harness events (see docs/adr/0001-arquitetura.md).
 - `src/lib/docsParse.test.ts` — (sem descrição)
 - `src/lib/docsParse.ts` — (sem descrição)
+- `src/lib/limits.test.ts` — (sem descrição)
+- `src/lib/limits.ts` — (sem descrição)
 - `src/lib/progress.test.ts` — (sem descrição)
 - `src/lib/progress.ts` — (sem descrição)
 - `src/lib/useData.tsx` — (sem descrição)

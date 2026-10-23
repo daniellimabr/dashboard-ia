@@ -7,11 +7,13 @@ import {
   useMatch,
   useNavigate,
   useOutletContext,
+  useSearchParams,
 } from "react-router";
 import type { Data, Project, Sprint, Tone } from "../data/types";
 import { splitIdle } from "../lib/idle";
 import { sprintPct } from "../lib/progress";
-import { durationMs, formatDuration, formatTime, formatWeekday } from "../lib/time";
+import { resetLabel } from "../lib/limits";
+import { formatTime } from "../lib/time";
 import type { Board } from "../lib/useBoard";
 import { useData } from "../lib/useData";
 import { useNow } from "../lib/useNow";
@@ -79,8 +81,14 @@ export function Layout() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const inProject = useMatch("/p/:projectId/:item/*");
+  const sprintPage = useMatch("/p/:projectId/sprints/:sprintId");
+  const [query] = useSearchParams();
+  const inControl = pathname === "/controle";
+  // The sprint on screen: ?p=&s= in the control room, else the sprint page's own.
+  const [curProject, curSprint] = inControl
+    ? [query.get("p"), query.get("s")]
+    : [sprintPage?.params.projectId, sprintPage?.params.sprintId];
   const [picked, setPicked] = useState(() => load("dash.project"));
-  const [light, setLight] = useState(() => load("dash.theme") === "light");
   const board = useMemo<Board>(() => {
     const promoted = new Set(data.projects.filter((p) => p.promoted).map((p) => p.id));
     const split = splitIdle(data.projects, now, promoted);
@@ -96,10 +104,6 @@ export function Layout() {
   }, [data, now, refresh, inProject?.params.projectId, picked]);
   const { active, idle, project } = board;
   const [expanded, setExpanded] = useState(project?.id);
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = light ? "light" : "dark";
-  }, [light]);
 
   const item = inProject && ITEMS.find(([path]) => path === inProject.params.item)?.[1];
   const page = item
@@ -144,7 +148,14 @@ export function Layout() {
                 const [label, tone, live] = sprintState(x);
                 return (
                   <li key={x.id}>
-                    <Link to={`/p/${p.id}/sprints/${x.id}`}>
+                    <Link
+                      to={
+                        inControl
+                          ? `/controle?p=${encodeURIComponent(p.id)}&s=${encodeURIComponent(x.id)}`
+                          : `/p/${p.id}/sprints/${x.id}`
+                      }
+                      aria-current={(p.id === curProject && x.id === curSprint) || undefined}
+                    >
                       <span title={`${x.id} ${x.title}`}>
                         {x.id} {x.title}
                       </span>
@@ -180,6 +191,8 @@ export function Layout() {
   };
 
   const { h5, week } = data.limits;
+  const h5Reset = resetLabel(h5.resetsAt, now, false);
+  const weekReset = resetLabel(week?.resetsAt, now, true);
   return (
     <div className={s.root}>
       <aside className={s.side}>
@@ -220,9 +233,7 @@ export function Layout() {
             </span>
             <Meter label="Limite 5 h" pct={h5.pct} />
             <small>
-              {h5.estimated || !h5.resetsAt
-                ? "estimado"
-                : `renova em ${formatDuration(durationMs(new Date(now).toISOString(), h5.resetsAt))}`}
+              {h5.estimated ? "estimado" : h5Reset.countdown} <span>{h5Reset.at}</span>
             </small>
           </div>
           <div>
@@ -231,22 +242,9 @@ export function Layout() {
             </span>
             <Meter label="Semanal" pct={week?.pct} />
             <small>
-              {week?.resetsAt
-                ? `renova ${formatWeekday(week.resetsAt)} ${formatTime(week.resetsAt)}`
-                : ""}
+              {weekReset.countdown} <span>{weekReset.at}</span>
             </small>
           </div>
-          <button
-            type="button"
-            className={s.themeBtn}
-            aria-pressed={!light}
-            onClick={() => {
-              setLight(!light);
-              save("dash.theme", light ? "dark" : "light");
-            }}
-          >
-            {light ? "Tema escuro" : "Tema claro"}
-          </button>
         </div>
       </aside>
       <main className={s.main}>

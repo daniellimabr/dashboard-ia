@@ -34,7 +34,7 @@ describe("routes", () => {
     renderAt("/tempo");
     screen.getByRole("meter", { name: "Limite 5 h" });
     screen.getByRole("meter", { name: "Semanal" });
-    screen.getByText(/^renova em /);
+    expect(screen.getAllByText(/^renova em /)).toHaveLength(2);
   });
 
   it("counts idle projects in the menu", () => {
