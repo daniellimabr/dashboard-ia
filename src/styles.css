@@ -1,4 +1,4 @@
-/* Direction C tokens (S08 "Espaço de trabalho"): dark by default, light on [data-theme="light"]. */
+/* Direction C tokens (S08 "Espaço de trabalho"): dark only. */
 :root {
   --bg: #101a1c;
   --panel: #172427;
@@ -25,28 +25,6 @@
   --display: "Bricolage Grotesque", system-ui, sans-serif;
 
   color-scheme: dark;
-}
-
-:root[data-theme="light"] {
-  --bg: #e9edef;
-  --panel: #fff;
-  --ink: #17242b;
-  --muted: #5e6b72;
-  --line: #d3dadd;
-  --side: #183a37;
-  --ok: #2f8a4e;
-  --warn: #b7791f;
-  --bad: #c23b2e;
-  --run: #2463c9;
-  --track: #dfe5e8;
-  --btn: var(--side);
-  --btn-ink: #fff;
-  --wave0: #2a8fd0;
-  --wave1: #d4702a;
-  --wave2: #9157d8;
-  --wave3: #d64f92;
-
-  color-scheme: light;
 }
 
 * {
