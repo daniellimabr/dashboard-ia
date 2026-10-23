@@ -88,6 +88,19 @@ describe("readPlan", () => {
     ]);
   });
 
+  it("reads waves from a numbered list under a bare **Ondas:** line, ignoring parentheses", () => {
+    const tasks = readPlan(REPO, "docs/sprints/S00-numbered-plan.md")?.tasks ?? [];
+    expect(tasks.map((t) => [t.id, t.wave])).toEqual([
+      ["T01", 1],
+      ["T02", 1],
+      ["T03", 1],
+      ["T04", 2],
+      ["T06", 2],
+      ["T07", 2],
+      ["T08", undefined],
+    ]);
+  });
+
   it("refuses paths outside docs", () => {
     expect(readPlan(REPO, "secret.md")).toBeUndefined();
     expect(readPlan(REPO, "docs/sprints/missing.md")).toBeUndefined();
@@ -118,6 +131,7 @@ describe("listDocs", () => {
     const docs = listDocs(REPO, "p");
     expect(docs.map((d) => [d.id, d.kind, d.title]).sort()).toEqual([
       ["p:docs/adr/0001-x.md", "adr", "ADR 0001 — Decisão X"],
+      ["p:docs/sprints/S00-numbered-plan.md", "sprint-plan", "S00 — Ondas numeradas"],
       ["p:docs/sprints/S00-plan.md", "sprint-plan", "S00 — Ondas em lista"],
       ["p:docs/sprints/S01-plan.md", "sprint-plan", "S01 — Primeira `sprint` de teste"],
       ["p:docs/sprints/S01-release.md", "release-report", "Release Report S01"],

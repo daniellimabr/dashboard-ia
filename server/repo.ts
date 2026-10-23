@@ -82,14 +82,22 @@ export function readPlan(repo: string, rel: string): Plan | undefined {
   for (const m of waveLine.matchAll(/onda\s+(\d+)\s*=(.*?)(?=onda\s+\d+\s*=|revis[aã]o\s*=|$)/gi)) {
     for (const id of taskIds(m[2] ?? "")) waves.set(id, Number(m[1]));
   }
-  // list format (S09): "- **Onda 1:** T01 e T02. Texto livre..."; the line above wins
+  // list formats; the line above wins. S09: "- **Onda 1:** T01 e T02. Texto livre...";
+  // 6thGear: "1. T01, T02 em paralelo." right under a bare **Ondas:** line (only that contiguous list)
   if (!waves.size) {
-    for (const l of lines) {
-      const m = /^\s*-\s*\*\*Onda\s+(\d+):\*\*(.*)/i.exec(l);
-      // only the first sentence, and the first wave wins: later text names other tasks ("depois de T03")
-      for (const id of taskIds(m?.[2]?.split(/\.\s/)[0] ?? "")) {
-        if (!waves.has(id)) waves.set(id, Number(m?.[1]));
-      }
+    const items = lines.map((l) => /^\s*-\s*\*\*Onda\s+(\d+):\*\*(.*)/i.exec(l));
+    const bare = lines.findIndex((l) => /^\*\*(Paralelismo|Ondas):\*\*\s*$/.test(l));
+    for (const l of bare < 0 ? [] : lines.slice(bare + 1)) {
+      if (!l.trim()) continue;
+      const m = /^(\d+)\.\s+(.*)/.exec(l);
+      if (!m) break;
+      items.push(m);
+    }
+    for (const m of items) {
+      // only the first sentence without parentheses, and the first wave wins:
+      // other text names other tasks ("depois de T03", "(T07 só precisa da T02)")
+      const first = m?.[2]?.split(/\.\s/)[0]?.replace(/\([^)]*\)/g, "") ?? "";
+      for (const id of taskIds(first)) if (!waves.has(id)) waves.set(id, Number(m?.[1]));
     }
   }
 

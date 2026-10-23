@@ -156,7 +156,7 @@ describe("derived state from harness events and the repo", () => {
     ]);
     expect(p?.whereStopped).toBe("S01: 2 ajustes pedidos");
     expect(p?.backlog).toContain("Backlog");
-    expect(buildData(db, NOW).docs.filter((d) => d.projectId === "dash")).toHaveLength(5);
+    expect(buildData(db, NOW).docs.filter((d) => d.projectId === "dash")).toHaveLength(6);
   });
 
   it("is waiting for Daniel when every task of sprint.open is done", () => {

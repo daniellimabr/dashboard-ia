@@ -80,6 +80,7 @@ const PHASE_STEPS: Record<string, number> = {
   código: 1,
   codigo: 1,
   lint: 2,
+  fila: 3, // waiting for review: Teste, Código and Lint done
   revisão: 3,
   revisao: 3,
   commit: 4,

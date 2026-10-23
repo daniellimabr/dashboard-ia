@@ -143,6 +143,25 @@ describe("importEvents (harness contract v1)", () => {
     ]);
   });
 
+  it("counts phase fila as Teste, Código and Lint done", () => {
+    const e = {
+      v: 1,
+      id: "f1",
+      ts: "2026-10-18T11:00:00Z",
+      harness: "0.9.0",
+      project: "dash",
+      session: "s9",
+      sprint: "S01",
+      task: "T09",
+      agent: "main-harness:tech-lead",
+      type: "task.phase",
+      data: { phase: "fila" },
+    };
+    writeFileSync(join(dir, "2026-10-18.jsonl"), JSON.stringify(e) + "\n");
+    importEvents(db, dir);
+    expect(one("SELECT steps FROM task WHERE id = 'T09'")).toEqual({ steps: 3 });
+  });
+
   it("keys usage by message_id and never duplicates", () => {
     importEvents(db, dir);
     expect(all("SELECT id, project_id, chat_id, model, tokens_in FROM usage")).toEqual([
