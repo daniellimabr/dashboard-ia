@@ -82,6 +82,12 @@ describe("readPlan", () => {
     });
   });
 
+  it("reads waves from a list; ids only from the first sentence, first wave wins", () => {
+    expect(readPlan(REPO, "docs/sprints/S00-plan.md")?.tasks.map((t) => t.wave)).toEqual([
+      1, 1, 2, 2, 3,
+    ]);
+  });
+
   it("refuses paths outside docs", () => {
     expect(readPlan(REPO, "secret.md")).toBeUndefined();
     expect(readPlan(REPO, "docs/sprints/missing.md")).toBeUndefined();
@@ -101,6 +107,9 @@ describe("readPlan", () => {
       deps: ["T01", "T02", "T03", "T04", "T05"],
       plannedMin: 8,
     });
+    // S09 (closed) lists waves under a bare **Paralelismo:** line
+    const waves = readPlan(ROOT, "docs/sprints/S09-plan.md")?.tasks.map((t) => t.wave);
+    expect(waves).toEqual([1, 1, 2, 2, 2, 2, 2, 3, 3]);
   });
 });
 
@@ -109,6 +118,7 @@ describe("listDocs", () => {
     const docs = listDocs(REPO, "p");
     expect(docs.map((d) => [d.id, d.kind, d.title]).sort()).toEqual([
       ["p:docs/adr/0001-x.md", "adr", "ADR 0001 — Decisão X"],
+      ["p:docs/sprints/S00-plan.md", "sprint-plan", "S00 — Ondas em lista"],
       ["p:docs/sprints/S01-plan.md", "sprint-plan", "S01 — Primeira `sprint` de teste"],
       ["p:docs/sprints/S01-release.md", "release-report", "Release Report S01"],
       ["p:docs/sprints/S02-plan.md", "sprint-plan", "Plano sem tabela"],

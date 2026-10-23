@@ -82,6 +82,16 @@ export function readPlan(repo: string, rel: string): Plan | undefined {
   for (const m of waveLine.matchAll(/onda\s+(\d+)\s*=(.*?)(?=onda\s+\d+\s*=|revis[aã]o\s*=|$)/gi)) {
     for (const id of taskIds(m[2] ?? "")) waves.set(id, Number(m[1]));
   }
+  // list format (S09): "- **Onda 1:** T01 e T02. Texto livre..."; the line above wins
+  if (!waves.size) {
+    for (const l of lines) {
+      const m = /^\s*-\s*\*\*Onda\s+(\d+):\*\*(.*)/i.exec(l);
+      // only the first sentence, and the first wave wins: later text names other tasks ("depois de T03")
+      for (const id of taskIds(m?.[2]?.split(/\.\s/)[0] ?? "")) {
+        if (!waves.has(id)) waves.set(id, Number(m?.[1]));
+      }
+    }
+  }
 
   const rows = section("Tarefas").filter((l) => l.trim().startsWith("|"));
   const head = rows[0] ? cells(rows[0]).map((c) => c.toLowerCase()) : [];
