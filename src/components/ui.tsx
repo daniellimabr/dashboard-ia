@@ -215,6 +215,22 @@ const WAIT = {
   limit: "Aguardando limite",
 } as const;
 
+// Legend item: [key, visible short label, tooltip, full accessible name when the label is cut]
+type KeyItem = [string, string, string, string?];
+const KEY: KeyItem[] = [
+  ["ok", "Feita", "Tarefa concluída"],
+  ["run", "Rodando", "Tarefa em andamento"],
+  ["bad", "Reprovada", "Tarefa reprovada na revisão"],
+  ["todo", "A fazer", "Ainda não começou (contorno tracejado)"],
+  ["pct", "%", "Cor mais forte = mais perto de 100%", "Cor mais forte = mais perto de 100%"],
+];
+const PAUSE_KEY: KeyItem[] = [
+  ["idle", "Ocioso", "Ocioso: nenhuma tarefa rodando"],
+  ["reply", "Resposta", WAIT.reply, WAIT.reply],
+  ["limit", "Limite", WAIT.limit, WAIT.limit],
+];
+const NOW_KEY: KeyItem = ["now", "Agora", "Hora atual"];
+
 /**
  * Mini-gantt: position = sprint plan, color = status,
  * intensity = %, dashed = not started. The axis is the plan, so long pauses never squash
@@ -309,19 +325,22 @@ export function Gantt({
         </div>
       </div>
       <ul className={s.gKey} aria-label="Legenda do plano">
-        <li data-k="ok">Feita</li>
-        <li data-k="run">Rodando</li>
-        <li data-k="bad">Reprovada</li>
-        <li data-k="todo">A fazer</li>
-        <li data-k="pct">Cor mais forte = mais perto de 100%</li>
-        {(["idle", "reply", "limit"] as const)
-          .filter((k) => kinds.has(k))
-          .map((k) => (
-            <li key={k} data-k={k}>
-              {WAIT[k]}
-            </li>
-          ))}
-        {live && <li data-k="now">Agora</li>}
+        {[
+          ...KEY,
+          ...PAUSE_KEY.filter(([k]) => kinds.has(k as Pause["kind"])),
+          ...(live ? [NOW_KEY] : []),
+        ].map(([k, short, title, name]) => (
+          <li key={k} data-k={k} title={title}>
+            {name ? (
+              <>
+                <span className={s.sr}>{name}</span>
+                <span aria-hidden="true">{short}</span>
+              </>
+            ) : (
+              short
+            )}
+          </li>
+        ))}
       </ul>
     </div>
   );
@@ -340,7 +359,34 @@ function useTaskAgent() {
   };
 }
 
-export function TaskTable({ tasks }: { tasks: Task[] }) {
+/** End of a task: real when it ended; else real start (or sprint start + planned start) + planned duration. */
+export function taskEnd(t: Task, start?: string): { ms: number; real: boolean } | undefined {
+  if (t.endedAt) return { ms: Date.parse(t.endedAt), real: true };
+  if (!t.plan) return undefined;
+  const from = t.startedAt
+    ? Date.parse(t.startedAt)
+    : start && Date.parse(start) + t.plan.start * MIN;
+  return from ? { ms: from + t.plan.duration * MIN, real: false } : undefined;
+}
+
+/** Elapsed over planned minutes as a bar; past the plan it turns to alert. */
+function Duration({ t, now }: { t: Task; now: number }) {
+  const plan = t.plan?.duration;
+  const ran = t.startedAt ? durationMs(t.startedAt, t.endedAt, now) : 0;
+  if (!plan) return <>{t.startedAt ? formatDuration(ran) : "—"}</>;
+  const min = Math.round(ran / MIN);
+  return (
+    <Meter
+      label={`Duração de ${t.id}`}
+      pct={Math.round((min / plan) * 100)}
+      tone={min > plan ? "warn" : taskTone(t)}
+      text={`${min}/${plan} min`}
+      showValue
+    />
+  );
+}
+
+export function TaskTable({ tasks, start }: { tasks: Task[]; start?: string }) {
   const now = useNow();
   const agentOf = useTaskAgent();
   if (!tasks.length) return <Empty title="Sem tarefas">Esta sprint ainda não tem tarefas.</Empty>;
@@ -355,7 +401,7 @@ export function TaskTable({ tasks }: { tasks: Task[] }) {
             <th>Estado</th>
             <th>Passos</th>
             <th>Início</th>
-            <th>Fim</th>
+            <th>Fim previsto</th>
             <th>Duração</th>
             <th>Progresso</th>
           </tr>
@@ -376,6 +422,7 @@ export function TaskTable({ tasks }: { tasks: Task[] }) {
               )}
               {group.map((t) => {
                 const ag = agentOf(t);
+                const end = taskEnd(t, start);
                 return (
                   <tr key={t.id}>
                     <td>
@@ -397,9 +444,14 @@ export function TaskTable({ tasks }: { tasks: Task[] }) {
                       <Steps t={t} />
                     </td>
                     <td>{t.startedAt ? formatTime(t.startedAt) : "—"}</td>
-                    <td>{t.endedAt ? formatTime(t.endedAt) : "—"}</td>
-                    <td>
-                      {t.startedAt ? formatDuration(durationMs(t.startedAt, t.endedAt, now)) : "—"}
+                    <td
+                      className={end?.real ? undefined : s.muted}
+                      title={end && (end.real ? "Fim real" : "Previsto pelo plano")}
+                    >
+                      {end ? formatTime(new Date(end.ms).toISOString()) : "—"}
+                    </td>
+                    <td className={s.prog}>
+                      <Duration t={t} now={now} />
                     </td>
                     <td className={s.prog}>
                       <Meter

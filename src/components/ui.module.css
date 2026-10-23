@@ -455,9 +455,16 @@
   border-bottom: 1px solid var(--line);
 }
 
+/* Compact rows: ~10 tasks fit at 1080p before the page scrolls. */
 .table td {
-  padding: 7px 8px;
+  padding: 3px 8px;
   border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.table .meter[data-value] {
+  height: 16px;
 }
 
 .table tr:last-child td {
@@ -483,7 +490,7 @@
   background: var(--track);
   color: var(--muted);
   font-size: 11px;
-  line-height: 18px;
+  line-height: 16px;
 }
 
 .steps li[data-on] {
@@ -519,21 +526,18 @@
   box-shadow: inset 3px 0 0 var(--wc);
 }
 
+/* Wave header: a tinted band in the wave color, so groups read at a glance. */
 .waveHead th {
-  padding-top: 14px;
+  padding: 5px 8px;
   border-bottom: 0;
+  border-left: 3px solid var(--wc, var(--muted));
+  background: color-mix(in srgb, var(--wc, var(--muted)) 14%, var(--panel));
   color: var(--ink);
-  font: 650 13px/1.2 var(--display);
+  font: 650 14px/1.2 var(--display);
 }
 
-.waveHead span::before {
-  content: "";
-  display: inline-block;
-  width: 9px;
-  height: 9px;
-  margin-right: 6px;
-  border-radius: 2px;
-  background: var(--wc, var(--muted));
+.table tbody + tbody .waveHead th {
+  border-top: 6px solid var(--panel);
 }
 
 .waveHead small {
@@ -685,33 +689,48 @@
   transform: translateX(-100%); /* last tick sits at 100%: keep it inside the card */
 }
 
+/* One short line: dot + word, detail in the title tooltip. */
 .gKey {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px 14px;
+  gap: 10px;
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 14px;
+  white-space: nowrap;
+  overflow: hidden;
   color: var(--muted);
 }
 
 .gKey li {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
+  cursor: help;
 }
 
 .gKey li::before {
   content: "";
-  width: 14px;
-  height: 10px;
-  border-radius: 2px;
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
 }
 
 .gKey li[data-k="now"]::before {
   width: 0;
+  border-radius: 0;
   border-left: 2px solid var(--pick);
+}
+
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* Control room: the 4 cards in one row, as tall as the tallest (grows with open accordions);
