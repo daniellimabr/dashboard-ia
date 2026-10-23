@@ -745,6 +745,57 @@
   align-content: start;
 }
 
+/* Agents card: the list takes the row's height (set by the other cards) and never grows it;
+   Control.tsx measures how many rows fit. Expanded (data-all) it grows normally. */
+.ctl > .panel:has(> .agents) {
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: stretch;
+}
+
+.ctl .agents:not([data-all]) {
+  contain: size;
+  overflow: hidden;
+  align-content: start;
+}
+
+/* Usage limits strip: one line per limit, the countdown in fixed-width digits so it doesn't jitter. */
+.limitBar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.limitBar > div {
+  display: grid;
+  grid-template-columns: auto auto minmax(80px, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  font-variant-numeric: tabular-nums;
+}
+
+.limitBar > div > span:first-child {
+  color: var(--muted);
+}
+
+.limitBar > div[data-tone="bad"] {
+  border-color: var(--bad);
+  background: color-mix(in srgb, var(--bad) 12%, var(--panel));
+}
+
+.limitBar > div[data-tone="bad"] b {
+  color: var(--bad);
+}
+
+@media (width <= 900px) {
+  .limitBar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (width <= 1280px) {
   .ctl {
     grid-template-columns: repeat(2, minmax(0, 1fr));

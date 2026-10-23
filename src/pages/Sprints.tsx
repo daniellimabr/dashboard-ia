@@ -72,7 +72,7 @@ export function Sprints() {
                 {doc(x.id, "sprint-plan", "Sprint plan")} ·{" "}
                 {doc(x.id, "release-report", "Release Report")} · gasto {formatUsd(x.usd ?? 0)}
               </p>
-              <TaskTable tasks={x.tasks} />
+              <TaskTable tasks={x.tasks} start={x.startedAt} />
             </Accordion>
           );
         })}

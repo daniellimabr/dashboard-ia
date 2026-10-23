@@ -2,8 +2,27 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 import { data } from "../data/mock";
+import { sprintPct } from "../lib/progress";
 import { formatTime } from "../lib/time";
 import { renderAt } from "../test-utils";
+
+/** Fakes clientHeight/offsetHeight per tag (jsdom has no layout); returns the restore function. */
+function stubHeights(byTag: Record<string, number>) {
+  const props = ["clientHeight", "offsetHeight"] as const;
+  const saved = props.map((p) => Object.getOwnPropertyDescriptor(HTMLElement.prototype, p));
+  for (const p of props)
+    Object.defineProperty(HTMLElement.prototype, p, {
+      configurable: true,
+      get(this: HTMLElement) {
+        return byTag[this.tagName] ?? 0;
+      },
+    });
+  return () =>
+    props.forEach((p, i) => {
+      const d = saved[i];
+      if (d) Object.defineProperty(HTMLElement.prototype, p, d);
+    });
+}
 
 const region = (name: string | RegExp) => within(screen.getByRole("region", { name }));
 const s02 = data.sprints.find((x) => x.projectId === "dashboard-ia" && x.status === "active");
@@ -72,19 +91,74 @@ describe("Control (Sala de controle)", () => {
     expect(r.getByText("Aguardando limite").nextElementSibling?.textContent).toBe("sem dado");
   });
 
-  it("agents: x/y ativos, real cost per agent, at most 4, chevron expands", async () => {
-    renderAt("/controle");
+  it("agents: shows as many as fit the card; chevron only when some are left out", async () => {
+    // jsdom has no layout: list 100px tall, rows 40px → 2 fit (cleaned up below)
+    const restore = stubHeights({ UL: 100, LI: 40 });
+    try {
+      renderAt("/controle");
+      await pick(/Main Harness/);
+      const r = region(/Agentes/);
+      expect(r.getByText("0/5 ativos")).toBeTruthy();
+      expect(r.getAllByRole("group").length).toBe(2);
+      expect(r.getAllByRole("group")[0]?.textContent).toContain("aguardando teste");
+      await userEvent.click(r.getByRole("button", { name: "Mostrar todos os agentes" }));
+      expect(r.getAllByRole("group").length).toBe(5);
+      expect(r.getByText(/1,35/).textContent).toMatch(/tokens/);
+      await userEvent.click(r.getByRole("button", { name: "Mostrar menos" }));
+      expect(r.getAllByRole("group").length).toBe(2);
+      expect(screen.getAllByRole("region", { name: /Andamento/ })[0]?.textContent).toContain("Fim");
+    } finally {
+      restore();
+    }
+  });
+
+  it("agents: no chevron when all fit", async () => {
+    renderAt("/controle"); // no layout = no limit
     await pick(/Main Harness/);
     const r = region(/Agentes/);
-    expect(r.getByText("0/5 ativos")).toBeTruthy();
-    expect(r.getAllByRole("group").length).toBe(4);
-    expect(r.getAllByRole("group")[0]?.textContent).toContain("aguardando teste");
-    expect(r.getByText(/1,35/).textContent).toMatch(/tokens/);
-    await userEvent.click(r.getByRole("button", { name: "Mostrar todos os agentes" }));
     expect(r.getAllByRole("group").length).toBe(5);
-    await userEvent.click(r.getByRole("button", { name: "Mostrar menos" }));
-    expect(r.getAllByRole("group").length).toBe(4);
-    expect(screen.getAllByRole("region", { name: /Andamento/ })[0]?.textContent).toContain("Fim");
+    expect(r.queryByRole("button", { name: /Mostrar/ })).toBeNull();
+  });
+
+  it("shows the sprint picked by ?p=&s=, else the project's main sprint", () => {
+    renderAt("/controle?p=dashboard-ia&s=S01");
+    expect(screen.getByText(/^S01 · Draft do front do painel/)).toBeTruthy();
+    const s01 = data.sprints.find((x) => x.projectId === "dashboard-ia" && x.id === "S01");
+    const n = s01?.tasks.length ?? 0;
+    expect(region(/Tarefas da sprint/).getByText(`${n} / ${n} concluídas`)).toBeTruthy();
+  });
+
+  it("andamento: the bar is the sprint progress, with its value; run over plan as a number", () => {
+    renderAt("/controle");
+    const r = region(/Andamento/);
+    const bar = r.getByRole("meter", { name: "Progresso da sprint" });
+    expect(bar.getAttribute("aria-valuenow")).toBe(String(sprintPct(s02?.tasks ?? [])));
+    expect(bar.textContent).toBe(`${sprintPct(s02?.tasks ?? [])}%`);
+    expect(r.getByText("Corrido/previsto").nextElementSibling?.textContent).toMatch(/^\d+%$/);
+  });
+
+  it("limits: %, ticking countdown and reset time for 5 h and weekly; 100% stands out", () => {
+    renderAt("/controle", {
+      ...data,
+      limits: { ...data.limits, h5: { ...data.limits.h5, pct: 100 } },
+    });
+    const r = region("Limites de uso");
+    const h5 = r.getByText("Limite 5 h").closest("div");
+    expect(h5?.textContent).toMatch(/100%.*renova em 01:(39|40).*às \d\d:\d\d/);
+    expect(h5?.getAttribute("data-tone")).toBe("bad");
+    const week = r.getByText("Semanal").closest("div");
+    expect(week?.textContent).toMatch(/41%.*renova em 3D-18:(09|10)/);
+    expect(week?.getAttribute("data-tone")).toBeNull();
+  });
+
+  it("limits: no reset time = sem dado", () => {
+    renderAt("/controle", {
+      ...data,
+      limits: { ...data.limits, week: { pct: 41 } },
+    });
+    expect(region("Limites de uso").getByText("Semanal").closest("div")?.textContent).toContain(
+      "sem dado",
+    );
   });
 
   it("agents: missing cost reads sem dado", () => {

@@ -378,7 +378,7 @@ function Duration({ t, now }: { t: Task; now: number }) {
   return (
     <Meter
       label={`Duração de ${t.id}`}
-      pct={Math.round((min / plan) * 100)}
+      pct={Math.min(100, Math.round((min / plan) * 100))}
       tone={min > plan ? "warn" : taskTone(t)}
       text={`${min}/${plan} min`}
       showValue

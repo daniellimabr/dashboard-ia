@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { type RefObject, useLayoutEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router";
 import s from "../components/ui.module.css";
 import {
   Empty,
@@ -14,6 +15,7 @@ import {
 } from "../components/ui";
 import type { Agent, Project, Sprint, Task } from "../data/types";
 import { formatTokens, formatUsd } from "../lib/format";
+import { resetLabel } from "../lib/limits";
 import { agentLabel, currentWave, sprintPct, taskStatus } from "../lib/progress";
 import { runningAgents } from "../lib/select";
 import { durationMs, formatDate, formatDuration, formatTime, formatWeekday } from "../lib/time";
@@ -63,7 +65,6 @@ const AGENT_STATE = {
 } as const;
 
 const RANK = { work: 0, test: 1, idle: 2, off: 3 } as const; // active first
-const MAX_AGENTS = 4;
 
 function agentState(a: Agent, tasks: Task[], sprint?: Sprint): keyof typeof AGENT_STATE {
   if (a.endedAt) return "off";
@@ -84,8 +85,31 @@ const agentTasks = (a: Agent, tasks: Task[]) =>
       (a.kind === "reviewer" && t.review),
   );
 
+/** How many list rows fit the list's own (CSS-limited) height; Infinity until measured. */
+function useFit(ref: RefObject<HTMLUListElement | null>, count: number) {
+  const [fit, setFit] = useState(Infinity);
+  useLayoutEffect(() => {
+    const ul = ref.current;
+    if (!ul) return;
+    const measure = () => {
+      const row = (ul.firstElementChild as HTMLElement | null)?.offsetHeight;
+      const gap = parseFloat(getComputedStyle(ul).rowGap) || 0;
+      if (row && ul.clientHeight)
+        setFit(Math.max(1, Math.floor((ul.clientHeight + gap) / (row + gap))));
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(ul);
+    return () => ro.disconnect();
+  }, [ref, count]);
+  return fit;
+}
+
 function Agents({ agents, tasks, sprint }: { agents: Agent[]; tasks: Task[]; sprint?: Sprint }) {
   const [all, setAll] = useState(false);
+  const list = useRef<HTMLUListElement>(null);
+  const fit = useFit(list, agents.length);
   if (!agents.length)
     return (
       <Panel title="Agentes">
@@ -97,7 +121,7 @@ function Agents({ agents, tasks, sprint }: { agents: Agent[]; tasks: Task[]; spr
   const rows = agents
     .map((a) => ({ a, state: agentState(a, tasks, sprint) }))
     .sort((x, y) => RANK[x.state] - RANK[y.state]);
-  const shown = all ? rows : rows.slice(0, MAX_AGENTS);
+  const shown = all ? rows : rows.slice(0, fit);
   const working = rows.filter((r) => r.state === "work").length;
   return (
     <Panel
@@ -107,7 +131,7 @@ function Agents({ agents, tasks, sprint }: { agents: Agent[]; tasks: Task[]; spr
           <span className={s.muted}>
             {working}/{rows.length} ativos
           </span>
-          {rows.length > MAX_AGENTS && (
+          {rows.length > fit && (
             <button
               type="button"
               className={s.chev}
@@ -128,7 +152,7 @@ function Agents({ agents, tasks, sprint }: { agents: Agent[]; tasks: Task[]; spr
         </span>
       }
     >
-      <ul className={s.agents}>
+      <ul className={s.agents} ref={list} data-all={all || undefined}>
         {shown.map(({ a, state }) => {
           const [label, tone] = AGENT_STATE[state];
           const mine = agentTasks(a, tasks);
@@ -171,10 +195,40 @@ function Agents({ agents, tasks, sprint }: { agents: Agent[]; tasks: Task[]; spr
   );
 }
 
+/** 5 h and weekly limits: %, countdown to the reset and its time; 100% stands out. */
+function Limits({ now }: { now: number }) {
+  const { h5, week } = useData().data.limits;
+  const rows = [
+    {
+      name: "Limite 5 h",
+      pct: h5.pct,
+      reset: resetLabel(h5.resetsAt, now, false),
+      est: h5.estimated,
+    },
+    { name: "Semanal", pct: week?.pct, reset: resetLabel(week?.resetsAt, now, true) },
+  ];
+  return (
+    <section className={s.limitBar} aria-label="Limites de uso">
+      {rows.map((l) => (
+        <div key={l.name} data-tone={(l.pct ?? 0) >= 100 ? "bad" : undefined}>
+          <span>{l.name}</span>
+          <b>{l.pct === undefined ? "sem dado" : `${l.pct}%`}</b>
+          <Meter label={l.name} pct={l.pct} />
+          <span>{l.est ? "estimado" : l.reset.countdown}</span>
+          <span className={s.muted}>{l.reset.at}</span>
+        </div>
+      ))}
+    </section>
+  );
+}
+
 function ControlRoom({ project: p }: { project: Project }) {
   const { data } = useData();
   const now = useNow();
-  const sprint = mainSprint(data, p.id);
+  const [params] = useSearchParams();
+  const sprint =
+    data.sprints.find((x) => x.projectId === p.id && x.id === params.get("s")) ??
+    mainSprint(data, p.id);
   const tasks = sprint?.tasks ?? [];
   const chats = data.chats.filter((c) => c.projectId === p.id);
   const agents = [
@@ -212,8 +266,9 @@ function ControlRoom({ project: p }: { project: Project }) {
           {sprint && (wave.total ? ` · onda ${wave.current} de ${wave.total}` : " · onda sem dado")}
         </p>
       </div>
+      <Limits now={now} />
       <div className={s.ctl}>
-        <Panel title="Andamento" aside={<Pill tone="run">{sprintPct(tasks)}%</Pill>}>
+        <Panel title="Andamento">
           <dl className={s.facts}>
             <div>
               <dt>Início</dt>
@@ -238,6 +293,10 @@ function ControlRoom({ project: p }: { project: Project }) {
               <dd>{formatDuration(planMs)}</dd>
             </div>
             <div>
+              <dt>Corrido/previsto</dt>
+              <dd>{planMs ? `${Math.round((runMs / planMs) * 100)}%` : "—"}</dd>
+            </div>
+            <div>
               <dt>Ocioso</dt>
               <dd>{start ? formatDuration(sum(idle)) : "—"}</dd>
             </div>
@@ -251,8 +310,10 @@ function ControlRoom({ project: p }: { project: Project }) {
             </div>
           </dl>
           <Meter
-            label="Tempo corrido sobre o previsto"
-            pct={planMs ? Math.round((runMs / planMs) * 100) : 0}
+            label="Progresso da sprint"
+            pct={sprintPct(tasks)}
+            tone={sprintPct(tasks) === 100 ? "ok" : "run"}
+            showValue
           />
           {p.alerts?.map((a) => (
             <div key={a.title} className={s.alert} data-tone={a.tone}>
@@ -282,7 +343,7 @@ function ControlRoom({ project: p }: { project: Project }) {
             </span>
           }
         >
-          <TaskTable tasks={tasks} />
+          <TaskTable tasks={tasks} start={start} />
         </Panel>
         {adhoc.length > 0 && (
           <Panel title="Fora da sprint" wide>
@@ -295,7 +356,10 @@ function ControlRoom({ project: p }: { project: Project }) {
 }
 
 export function Control() {
-  const { project } = useBoard();
+  const board = useBoard();
+  const { data } = useData();
+  const [params] = useSearchParams();
+  const project = data.projects.find((x) => x.id === params.get("p")) ?? board.project;
   if (!project)
     return (
       <div className={s.pageHead}>
