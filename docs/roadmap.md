@@ -4,10 +4,11 @@ Direção do projeto por horizonte. Atualizado no fechamento de cada sprint.
 
 ## Agora
 
-- S09 — Revamp do frontend: direção C aplicada em todas as telas, tema escuro padrão, dados reais no lugar de "exemplo".
+- S10 — Sala de controle por sprint e mais compacta: limites com contagem até a renovação, ondas em todos os formatos de plano, só tema escuro.
 
 ## Feito
 
+- S09 — Revamp do frontend: direção C aplicada em todas as telas, dados reais no lugar de "exemplo".
 - S01–S02 — Draft e design do painel com dados de exemplo.
 - S03 — Servidor local, SQLite e importador; consumo real dos transcripts.
 - S04 — Painel lendo os eventos reais do harness (contrato v1), planos e documentos dos repos, fase e alertas calculados no servidor.
