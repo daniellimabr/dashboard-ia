@@ -7,6 +7,7 @@ export interface PlanTask {
   id: string;
   title: string;
   agent?: string;
+  plannedModel?: string;
   deps: string[];
   plannedMin?: number;
   wave?: number;
@@ -85,7 +86,11 @@ export function readPlan(repo: string, rel: string): Plan | undefined {
   // list formats; the line above wins. S09: "- **Onda 1:** T01 e T02. Texto livre...";
   // 6thGear: "1. T01, T02 em paralelo." right under a bare **Ondas:** line (only that contiguous list)
   if (!waves.size) {
-    const items = lines.map((l) => /^\s*-\s*\*\*Onda\s+(\d+):\*\*(.*)/i.exec(l));
+    const items: (string[] | null)[] = lines.map((l) =>
+      /^\s*-\s*\*\*Onda\s+(\d+):\*\*(.*)/i.exec(l),
+    );
+    // inline: "**Ondas:** (1) T01; (2) T02 e T03 em paralelo; (3) T04"
+    items.push(...waveLine.matchAll(/\((\d+)\)\s*([^;]*)/g));
     const bare = lines.findIndex((l) => /^\*\*(Paralelismo|Ondas):\*\*\s*$/.test(l));
     for (const l of bare < 0 ? [] : lines.slice(bare + 1)) {
       if (!l.trim()) continue;
@@ -111,7 +116,8 @@ export function readPlan(repo: string, rel: string): Plan | undefined {
     const r = cells(line);
     const id = col(r, "Id") ?? "";
     if (!/^T\d+$/.test(id)) return [];
-    const agent = col(r, "Agente");
+    const [, agent, plannedModel] =
+      /^([^(]*?)\s*(?:\(([^)]*)\))?$/.exec(col(r, "Agente") ?? "") ?? [];
     const planned = minutes(col(r, "Planejado") ?? "");
     const wave = waves.get(id);
     return [
@@ -119,6 +125,7 @@ export function readPlan(repo: string, rel: string): Plan | undefined {
         id,
         title: (col(r, "Tarefa") ?? "").replace(/`/g, ""),
         ...(agent && { agent }),
+        ...(plannedModel && { plannedModel }),
         deps: taskIds(col(r, "Depende de") ?? ""),
         ...(planned !== undefined && { plannedMin: planned }),
         ...(wave !== undefined && { wave }),

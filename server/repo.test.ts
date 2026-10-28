@@ -69,7 +69,13 @@ describe("readPlan", () => {
           plannedMin: 120,
           wave: 2,
         },
-        { id: "T04", title: "Revisão", agent: "reviewer (opus)", deps: ["T01", "T02", "T03"] },
+        {
+          id: "T04",
+          title: "Revisão",
+          agent: "reviewer",
+          plannedModel: "opus",
+          deps: ["T01", "T02", "T03"],
+        },
       ],
     });
   });
@@ -98,6 +104,16 @@ describe("readPlan", () => {
       ["T06", 2],
       ["T07", 2],
       ["T08", undefined],
+    ]);
+  });
+
+  it("reads inline (N) waves and splits the Agente column into role and model", () => {
+    const tasks = readPlan(REPO, "docs/sprints/S00-paren-plan.md")?.tasks ?? [];
+    expect(tasks.map((t) => [t.id, t.wave, t.agent, t.plannedModel])).toEqual([
+      ["T01", 1, "clone", "sonnet"],
+      ["T02", 2, "gemini", undefined],
+      ["T03", 2, "tech-lead", undefined],
+      ["T04", 3, "clone", "opus"],
     ]);
   });
 
@@ -132,6 +148,7 @@ describe("listDocs", () => {
     expect(docs.map((d) => [d.id, d.kind, d.title]).sort()).toEqual([
       ["p:docs/adr/0001-x.md", "adr", "ADR 0001 — Decisão X"],
       ["p:docs/sprints/S00-numbered-plan.md", "sprint-plan", "S00 — Ondas numeradas"],
+      ["p:docs/sprints/S00-paren-plan.md", "sprint-plan", "S00 — Ondas entre parênteses"],
       ["p:docs/sprints/S00-plan.md", "sprint-plan", "S00 — Ondas em lista"],
       ["p:docs/sprints/S01-plan.md", "sprint-plan", "S01 — Primeira `sprint` de teste"],
       ["p:docs/sprints/S01-release.md", "release-report", "Release Report S01"],
