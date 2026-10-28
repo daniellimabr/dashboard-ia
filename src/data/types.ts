@@ -35,6 +35,8 @@ export interface Task {
   plan?: TaskPlan;
   wave?: number; // 1-based
   agentId?: string; // Agent.id that worked on it, when the events say
+  model?: string; // model that ran it, from the task.* / worker.* events
+  plannedModel?: string; // model the sprint plan asked for
 }
 
 /** A pause of the sprint chat: waiting for Daniel's reply, or stopped by a usage limit. */
@@ -55,6 +57,15 @@ export interface Chat {
   tasks: Task[];
 }
 
+export interface ModelUsage {
+  model: string;
+  input: number;
+  output: number;
+  cache: number; // cache read + write
+  usd: number;
+  external?: true; // not Claude (Gemini): usd is 0
+}
+
 export interface Sprint {
   id: string;
   projectId: string;
@@ -67,6 +78,7 @@ export interface Sprint {
   closedAt?: string;
   plannedMin?: number;
   usd?: number;
+  byModel?: ModelUsage[]; // missing = no consumption in the sprint window
   waits?: Wait[]; // missing = "sem dado"; [] = no waits
   tasks: Task[];
 }

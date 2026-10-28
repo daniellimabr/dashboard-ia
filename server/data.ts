@@ -3,6 +3,7 @@ import type {
   Agent,
   Data,
   Limit,
+  ModelUsage,
   Project,
   ProjectEvent,
   Sprint,
@@ -37,6 +38,7 @@ const toTask = (r: Row): Task => ({
   steps: n(r.steps),
   wave: n(r.wave),
   agentId: s(r.agent_id),
+  model: s(r.model),
   plan:
     r.plan_start == null
       ? undefined
@@ -94,6 +96,7 @@ function mergePlan(own: Task[], plan: Plan | undefined): Task[] {
       title: p.title,
       agent: t?.agent ?? (AGENT_KINDS.includes(kind ?? "") ? (kind as Task["agent"]) : undefined),
       wave: p.wave,
+      plannedModel: p.plannedModel,
       plan:
         p.plannedMin === undefined ? undefined : { start, duration: p.plannedMin, deps: p.deps },
     };
@@ -233,6 +236,29 @@ export function buildData(db: Db, now = Date.now()): Data {
   const spend = db.prepare(
     `SELECT coalesce(sum(${USD_SQL}), 0) usd FROM usage u WHERE u.project_id = ? AND julianday(u.at) BETWEEN julianday(?) AND julianday(?)`,
   );
+  const modelsOf = db.prepare(
+    `SELECT u.model, sum(coalesce(u.tokens_in, 0)) input, sum(coalesce(u.tokens_out, 0)) output,
+       sum(coalesce(u.cache_read, 0) + coalesce(u.cache_write, 0)) cache, sum(${USD_SQL}) usd
+     FROM usage u WHERE u.project_id = ? AND julianday(u.at) BETWEEN julianday(?) AND julianday(?)
+     GROUP BY u.model ORDER BY u.model`,
+  );
+  const byModel = (r: Row): ModelUsage[] | undefined => {
+    if (!r.started_at) return undefined;
+    const rows = modelsOf.all(String(r.project_id), String(r.started_at), s(r.closed_at) ?? iso);
+    return rows.length
+      ? (rows as Row[]).map((m) => {
+          const external = /^gemini/i.test(String(m.model));
+          return {
+            model: String(m.model),
+            input: Number(m.input),
+            output: Number(m.output),
+            cache: Number(m.cache),
+            usd: external ? 0 : Number(m.usd),
+            ...(external && { external: true as const }),
+          };
+        })
+      : undefined;
+  };
   const turnsOf = db.prepare(
     "SELECT t.chat_id, t.at, t.kind FROM turn t JOIN chat c ON c.id = t.chat_id WHERE c.project_id = ? AND c.sprint_id = ? ORDER BY t.chat_id, t.at",
   );
@@ -282,6 +308,7 @@ export function buildData(db: Db, now = Date.now()): Data {
               .usd,
           )
         : undefined,
+      byModel: byModel(r),
       waits: sprintWaits(r),
       tasks: list,
       rounds: Object.fromEntries(

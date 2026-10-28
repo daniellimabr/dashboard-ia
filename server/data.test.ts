@@ -93,6 +93,31 @@ describe("buildData", () => {
   });
 });
 
+describe("sprint consumption by model", () => {
+  const row = (id: string, ts: string, model: string, input: number, output: number) =>
+    ev("usage", ts, { model, input, output, cache_read: 5, cache_write: 5, message_id: id });
+  it("sums tokens and US$ per model; Gemini is external with US$ 0; no consumption = no byModel", () => {
+    ev("sprint.open", "2026-10-18T10:00:00Z", { tasks: 1 }, { sprint: "S01" });
+    ev("sprint.open", "2026-10-18T20:00:00Z", { tasks: 1 }, { sprint: "S02" });
+    row("a", "2026-10-18T11:00:00Z", "claude-opus-5-5", 1_000_000, 0);
+    row("b", "2026-10-18T11:10:00Z", "claude-opus-5-5", 0, 100_000);
+    row("c", "2026-10-18T11:20:00Z", "gemini-2.5-pro", 1000, 2000);
+    const { sprints } = buildData(db, Date.parse("2026-10-18T12:00:00Z"));
+    const [s1, s2] = sprints;
+    expect(s1?.byModel).toEqual([
+      {
+        model: "claude-opus-5-5",
+        input: 1_000_000,
+        output: 100_000,
+        cache: 20,
+        usd: expect.closeTo(6, 3),
+      },
+      { model: "gemini-2.5-pro", input: 1000, output: 2000, cache: 10, usd: 0, external: true },
+    ]);
+    expect(s2?.byModel).toBeUndefined();
+  });
+});
+
 describe("derived state from harness events and the repo", () => {
   const NOW = Date.parse("2026-10-18T10:20:00Z");
   const fixture = () => {

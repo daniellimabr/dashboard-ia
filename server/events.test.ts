@@ -162,6 +162,43 @@ describe("importEvents (harness contract v1)", () => {
     expect(one("SELECT steps FROM task WHERE id = 'T09'")).toEqual({ steps: 3 });
   });
 
+  it("takes a clone's task model from its usage (task null) and a worker's from worker.*", () => {
+    const e = (id: string, type: string, agent: string, data: object, task: string | null) =>
+      JSON.stringify({
+        v: 1,
+        id,
+        ts: "2026-10-18T11:00:00Z",
+        harness: "0.10.1",
+        project: "dash",
+        session: "s9",
+        sprint: task ? "S01" : null,
+        task,
+        agent,
+        type,
+        data,
+      });
+    const exec = "main-harness:executor";
+    writeFileSync(
+      join(dir, "2026-10-18.jsonl"),
+      [
+        e("m0", "task.start", "tech-lead", {}, "T09"),
+        e("m1", "agent.start", exec, {}, "T09"),
+        e("m2", "usage", "reviewer", { message_id: "u1", model: "claude-opus-5-5" }, null),
+        e("m3", "usage", "tech-lead", { message_id: "u2", model: "claude-opus-5-5" }, null),
+        e("m4", "usage", exec, { message_id: "u3", model: "claude-sonnet-5-5" }, null),
+        e("m5", "usage", exec, { message_id: "u4", model: "claude-haiku-4-5" }, null),
+        e("m6", "worker.start", "gemini", { model: "gemini-2.5-pro" }, "T10"),
+        e("m7", "worker.end", "gemini", {}, "T10"),
+        "",
+      ].join("\n"),
+    );
+    importEvents(db, dir);
+    expect(all("SELECT id, model FROM task ORDER BY id")).toEqual([
+      { id: "T09", model: "claude-sonnet-5-5" },
+      { id: "T10", model: "gemini-2.5-pro" },
+    ]);
+  });
+
   it("keys usage by message_id and never duplicates", () => {
     importEvents(db, dir);
     expect(all("SELECT id, project_id, chat_id, model, tokens_in FROM usage")).toEqual([

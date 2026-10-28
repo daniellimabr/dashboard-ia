@@ -179,6 +179,9 @@ function apply(db: Db, e: Event) {
     }
     case "task.done":
       return taskRow(db, e, { done: 1, ended_at: ts, steps: 5 });
+    case "worker.start":
+    case "worker.end":
+      return e.task && str(d.model) ? taskRow(db, e, { model: str(d.model) }) : undefined;
     case "review.result": {
       if (d.result !== "pass" && d.result !== "fail") throw new Error("bad result");
       // review_round = how many times the Reviewer rejected the task
@@ -202,6 +205,14 @@ function apply(db: Db, e: Event) {
     case "usage": {
       const id = str(d.message_id);
       if (!id) throw new Error("missing message_id");
+      // The harness has no model on task.*: a clone's usage (task null) tells the model of its open agent row's task.
+      // shortcut: parallel clones of the same type share one agent row; they use the same model, so the first usage wins.
+      if (e.session && e.agent && str(d.model) && agentKind(e.agent) === "clone")
+        db.prepare(
+          `UPDATE task SET model = ? WHERE model IS NULL AND project_id = ?
+             AND id = (SELECT task_id FROM agent WHERE id = ? AND ended_at IS NULL)
+             AND sprint_id = (SELECT sprint_id FROM chat WHERE id = ?)`,
+        ).run(str(d.model) as string, e.project, `${e.session}:${e.agent}`, e.session);
       // Same id as the transcript importer (message.id): whichever comes first wins.
       return upsert(
         db,

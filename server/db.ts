@@ -9,7 +9,7 @@ export type Db = DatabaseSync;
 export const DEFAULT_DB = join(homedir(), ".dashboard-ia", "dashboard.db");
 
 // Bump when the schema or the event format changes: tables are rebuilt and the events imported again.
-const VERSION = 7; // 6: usage.agent_type and the transcripts' turns (waits); 7: one Reviewer agent name
+const VERSION = 8; // 8: task.model; 6: usage.agent_type and the transcripts' turns (waits); 7: one Reviewer agent name
 
 // Spec 0001 §3, fed by the harness events (contract v1).
 const SCHEMA = `
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS task (
   done INTEGER NOT NULL DEFAULT 0, steps INTEGER NOT NULL DEFAULT 0,
   review TEXT, review_round INTEGER NOT NULL DEFAULT 0,
   agent_kind TEXT, wave INTEGER, plan_start INTEGER, plan_duration INTEGER, plan_deps TEXT,
-  started_at TEXT, ended_at TEXT,
+  started_at TEXT, ended_at TEXT, model TEXT,
   PRIMARY KEY (project_id, scope, id)
 );
 CREATE TABLE IF NOT EXISTS chat (
