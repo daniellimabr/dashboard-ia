@@ -156,7 +156,7 @@ describe("derived state from harness events and the repo", () => {
     ]);
     expect(p?.whereStopped).toBe("S01: 2 ajustes pedidos");
     expect(p?.backlog).toContain("Backlog");
-    expect(buildData(db, NOW).docs.filter((d) => d.projectId === "dash")).toHaveLength(6);
+    expect(buildData(db, NOW).docs.filter((d) => d.projectId === "dash")).toHaveLength(7);
   });
 
   it("is waiting for Daniel when every task of sprint.open is done", () => {
@@ -209,6 +209,29 @@ describe("derived state from harness events and the repo", () => {
       "c1:tech-lead": "2026-10-18T09:20:00Z",
       "c1:clone": "2026-10-18T09:10:00Z",
     });
+  });
+
+  it("makes one agent per agent_id of agent.start, with the task of the event", () => {
+    const start = (aid: string, task: string | null, ts: string) =>
+      ev(
+        "agent.start",
+        ts,
+        { agent_id: aid },
+        { session: "c1", sprint: "S01", task, agent: "main-harness:executor" },
+      );
+    start("k1", "T02", "2026-10-18T09:00:00Z");
+    start("k2", null, "2026-10-18T09:00:01Z");
+    ev(
+      "agent.end",
+      "2026-10-18T09:05:00Z",
+      { agent_id: "k1" },
+      { session: "c1", sprint: "S01", agent: "main-harness:executor" },
+    );
+    const agents = buildData(db, Date.parse("2026-10-18T09:06:00Z")).chats[0]?.agents ?? [];
+    expect(agents.map((a) => [a.id, a.name, a.kind, a.task, a.endedAt])).toEqual([
+      ["c1:k1", "Clone 1", "clone", "T02", "2026-10-18T09:05:00Z"],
+      ["c1:k2", "Clone 2", "clone", undefined, undefined],
+    ]);
   });
 
   it("uses the last session.start as the last command", () => {

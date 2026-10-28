@@ -30,6 +30,7 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `docs/sprints/S09-release.md` — S09 — Release Report
 - `docs/sprints/S10-plan.md` — S10 — Sala de controle por sprint e mais compacta
 - `docs/sprints/S10-release.md` — S10 — Release Report
+- `docs/sprints/S11-plan.md` — S11 — Agentes e ondas confiáveis, modelo e tokens por modelo
 - `eslint.config.mjs` — ESLint flat config installed by the Main Harness (/attach). Zero errors, zero warnings.
 - `index.html` — (sem descrição)
 - `package-lock.json` — (sem descrição)
@@ -44,6 +45,7 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `server/fixtures/repo/docs/adr/0001-x.md` — ADR 0001 — Decisão X
 - `server/fixtures/repo/docs/backlog.md` — Backlog
 - `server/fixtures/repo/docs/sprints/S00-numbered-plan.md` — S00 — Ondas numeradas
+- `server/fixtures/repo/docs/sprints/S00-paren-plan.md` — S00 — Ondas entre parênteses
 - `server/fixtures/repo/docs/sprints/S00-plan.md` — S00 — Ondas em lista
 - `server/fixtures/repo/docs/sprints/S01-plan.md` — S01 — Primeira `sprint` de teste
 - `server/fixtures/repo/docs/sprints/S01-release.md` — Release Report S01

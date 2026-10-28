@@ -341,29 +341,81 @@ export function buildData(db: Db, now = Date.now()): Data {
        FROM usage u WHERE u.chat_id IS NOT NULL GROUP BY 1`,
     ).map((r) => [String(r.id), r]),
   );
-  const chats = all("SELECT * FROM chat ORDER BY started_at DESC").map((r) => ({
-    id: String(r.id),
-    projectId: String(r.project_id),
-    title: String(r.title),
-    startedAt: String(r.started_at),
-    endedAt: ended(r.ended_at, chatLast.get(String(r.id))),
-    sprintId: s(r.sprint_id),
-    agents: agents
-      .filter((a) => a.chat_id === r.id)
-      .map((a) => ({
-        id: String(a.id),
-        kind: String(a.kind) as Agent["kind"],
-        name: String(a.name),
-        task: s(a.task_id),
-        doing: s(a.doing),
-        contextPct: n(a.context_pct),
-        startedAt: String(a.started_at),
-        endedAt: ended(a.ended_at, agentLast.get(String(a.id)) ?? chatLast.get(String(r.id))),
-        tokens: n(agentUse.get(String(a.id))?.tokens),
-        usd: n(agentUse.get(String(a.id))?.usd),
-      })),
-    tasks: tasks.filter((t) => t.chat_id === r.id).map(toTask),
-  }));
+  // The harness's agent.start/agent.end carry an agent_id: one agent per id (two clones = two rows).
+  // Rows of the same type made from other events (no agent.start) are replaced by them.
+  const starts = new Map<string, Row>();
+  for (const e of all(
+    `SELECT chat_id, at, json_extract(body, '$.agent') agent, json_extract(body, '$.data.agent_id') aid, json_extract(body, '$.task') task
+     FROM event WHERE type = 'agent.start' AND chat_id IS NOT NULL AND json_extract(body, '$.data.agent_id') IS NOT NULL ORDER BY at, rowid`,
+  ))
+    if (!starts.has(`${e.chat_id}:${e.aid}`)) starts.set(`${e.chat_id}:${e.aid}`, e);
+  const endsAt = lastAt(
+    "SELECT chat_id || ':' || json_extract(body, '$.data.agent_id') id, max(at) last FROM event WHERE type = 'agent.end' AND chat_id IS NOT NULL AND json_extract(body, '$.data.agent_id') IS NOT NULL GROUP BY 1",
+  );
+  const idUse = new Map(
+    all(
+      `SELECT u.chat_id || ':' || u.agent_id id,
+         sum(coalesce(u.tokens_in, 0) + coalesce(u.tokens_out, 0) + coalesce(u.cache_read, 0) + coalesce(u.cache_write, 0)) tokens,
+         sum(${USD_SQL}) usd
+       FROM usage u WHERE u.chat_id IS NOT NULL AND u.agent_id IS NOT NULL GROUP BY 1`,
+    ).map((r) => [String(r.id), r]),
+  );
+  const agentRow = (a: Row, chatId: string): Agent => ({
+    id: String(a.id),
+    kind: String(a.kind) as Agent["kind"],
+    name: String(a.name),
+    task: s(a.task_id),
+    doing: s(a.doing),
+    contextPct: n(a.context_pct),
+    startedAt: String(a.started_at),
+    endedAt: ended(a.ended_at, agentLast.get(String(a.id)) ?? chatLast.get(chatId)),
+    tokens: n(agentUse.get(String(a.id))?.tokens),
+    usd: n(agentUse.get(String(a.id))?.usd),
+  });
+  const chats = all("SELECT * FROM chat ORDER BY started_at DESC").map((r) => {
+    const chatId = String(r.id);
+    const mine = [...starts.entries()].filter(([, e]) => e.chat_id === chatId);
+    const typeOf = (e: Row) => String(e.agent).replace(/^reviewer$/, "main-harness:reviewer");
+    const typeIds = new Set(mine.map(([, e]) => `${chatId}:${typeOf(e)}`));
+    const count = { clone: 0, reviewer: 0 };
+    const fromEvents = mine.map(([id, e]): Agent => {
+      const type = typeOf(e);
+      const row = agents.find((a) => a.id === `${chatId}:${type}`);
+      const kind: Agent["kind"] =
+        type === "tech-lead" ? type : type.split(":").at(-1) === "reviewer" ? "reviewer" : "clone";
+      const nth = kind === "tech-lead" ? 0 : ++count[kind];
+      return {
+        id,
+        kind,
+        name:
+          kind === "tech-lead" ? "Tech Lead" : `${kind === "clone" ? "Clone" : "Reviewer"} ${nth}`,
+        task: s(e.task),
+        contextPct: n(row?.context_pct),
+        startedAt: String(e.at),
+        endedAt: ended(
+          endsAt.get(id) ?? row?.ended_at,
+          agentLast.get(`${chatId}:${type}`) ?? chatLast.get(chatId),
+        ),
+        tokens: n(idUse.get(id)?.tokens),
+        usd: n(idUse.get(id)?.usd),
+      };
+    });
+    return {
+      id: chatId,
+      projectId: String(r.project_id),
+      title: String(r.title),
+      startedAt: String(r.started_at),
+      endedAt: ended(r.ended_at, chatLast.get(chatId)),
+      sprintId: s(r.sprint_id),
+      agents: [
+        ...agents
+          .filter((a) => a.chat_id === r.id && !typeIds.has(String(a.id)))
+          .map((a) => agentRow(a, chatId)),
+        ...fromEvents,
+      ].sort((x, y) => x.startedAt.localeCompare(y.startedAt)),
+      tasks: tasks.filter((t) => t.chat_id === r.id).map(toTask),
+    };
+  });
 
   const cmd = all(
     "SELECT at, chat_id FROM event WHERE type = 'session.start' ORDER BY at DESC, rowid DESC LIMIT 1",

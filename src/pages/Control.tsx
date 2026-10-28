@@ -76,13 +76,20 @@ function agentState(a: Agent, tasks: Task[], sprint?: Sprint): keyof typeof AGEN
 }
 
 /** Tasks an agent touched: tagged with its id, its own task, planned for its kind, reviews for the Reviewer. */
-const agentTasks = (a: Agent, tasks: Task[]) =>
+const agentTasks = (a: Agent, tasks: Task[], agents: Agent[]) =>
   tasks.filter(
     (t) =>
       t.agentId === a.id ||
       t.id === a.task ||
       (a.kind !== "clone" && t.agent === a.kind) ||
-      (a.kind === "reviewer" && t.review),
+      (a.kind === "reviewer" && t.review) ||
+      // A clone the harness gave no task: running tasks planned for clones that no other agent took.
+      (a.kind === "clone" &&
+        !a.task &&
+        !a.endedAt &&
+        t.agent === "clone" &&
+        taskStatus(t) === "running" &&
+        !agents.some((o) => o !== a && (o.task === t.id || o.id === t.agentId))),
   );
 
 /** How many list rows fit the list's own (CSS-limited) height; Infinity until measured. */
@@ -155,7 +162,7 @@ function Agents({ agents, tasks, sprint }: { agents: Agent[]; tasks: Task[]; spr
       <ul className={s.agents} ref={list} data-all={all || undefined}>
         {shown.map(({ a, state }) => {
           const [label, tone] = AGENT_STATE[state];
-          const mine = agentTasks(a, tasks);
+          const mine = agentTasks(a, tasks, agents);
           return (
             <li key={a.id} data-off={a.endedAt ? true : undefined}>
               <details>
@@ -170,10 +177,17 @@ function Agents({ agents, tasks, sprint }: { agents: Agent[]; tasks: Task[]; spr
                         : `${formatTokens(a.tokens)} tokens`}
                     </small>
                   </span>
-                  <Meter
-                    label={`Contexto de ${a.name}`}
-                    pct={a.endedAt ? undefined : a.contextPct}
-                  />
+                  {a.endedAt ? (
+                    <span />
+                  ) : (
+                    <span className={s.tipHost} tabIndex={0}>
+                      <Meter label={`Contexto de ${a.name}`} pct={a.contextPct} />
+                      <small className={s.muted}>
+                        ctx {a.contextPct === undefined ? "sem dado" : `${a.contextPct}%`}
+                      </small>
+                      <Tip>Contexto usado pelo agente</Tip>
+                    </span>
+                  )}
                 </summary>
                 {mine.length ? (
                   <ul className={s.agentTasks}>
@@ -184,7 +198,12 @@ function Agents({ agents, tasks, sprint }: { agents: Agent[]; tasks: Task[]; spr
                     ))}
                   </ul>
                 ) : (
-                  <p className={s.muted}>{a.doing ?? "Sem tarefa nesta sprint."}</p>
+                  <p className={s.muted}>
+                    {a.doing ??
+                      (a.kind === "clone"
+                        ? "Tarefa não informada pelo harness"
+                        : "Sem tarefa nesta sprint.")}
+                  </p>
                 )}
               </details>
             </li>

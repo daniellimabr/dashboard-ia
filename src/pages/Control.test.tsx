@@ -174,6 +174,45 @@ describe("Control (Sala de controle)", () => {
     expect(r.getAllByText("trabalhando").length).toBeGreaterThan(0);
   });
 
+  describe("clone without a task in the event", () => {
+    const withAgents = (keep: string[]) => ({
+      ...data,
+      chats: data.chats.map((c) =>
+        c.id === "c-dash-2"
+          ? {
+              ...c,
+              agents: [
+                ...c.agents.filter((a) => keep.includes(a.id)),
+                { id: "x", kind: "clone" as const, name: "Clone 3", startedAt: c.startedAt },
+              ],
+            }
+          : c,
+      ),
+    });
+    const row = () => screen.getByText("Clone 3").closest("li");
+
+    it("shows the running task planned for clones that no other agent took", () => {
+      renderAt("/controle", withAgents(["a3"])); // T03 is a3's; T04 is free
+      expect(row()?.textContent).toContain("T04");
+      expect(row()?.textContent).not.toContain("T03");
+    });
+
+    it("says the harness did not inform the task when there is no candidate", () => {
+      renderAt("/controle", withAgents(["a3", "a4"]));
+      expect(row()?.textContent).toContain("Tarefa não informada pelo harness");
+      expect(screen.queryByText("Sem tarefa nesta sprint.")).toBeNull();
+    });
+  });
+
+  it("agents: context bar has the number and a tooltip; ended agent has no bar", () => {
+    renderAt("/controle");
+    const r = region(/Agentes/);
+    expect(r.getByText("ctx 38%")).toBeTruthy();
+    expect(r.getAllByText("Contexto usado pelo agente").length).toBeGreaterThan(0);
+    const ended = r.getByText("Reviewer").closest("li");
+    expect(ended?.querySelector("[role=meter]")).toBeNull();
+  });
+
   it("consumo: axis title and tooltip with spend and tokens", () => {
     renderAt("/controle");
     const r = region(/Consumo/);
