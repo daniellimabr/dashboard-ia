@@ -1,8 +1,9 @@
 import { Link, useParams } from "react-router";
 import { Accordion, Empty, Meter, Pill, TaskTable } from "../components/ui";
 import s from "../components/ui.module.css";
-import type { Doc } from "../data/types";
-import { formatUsd } from "../lib/format";
+import u from "./Sprints.module.css";
+import type { Doc, ModelUsage } from "../data/types";
+import { formatTokens, formatUsd } from "../lib/format";
 import { sprintPct } from "../lib/progress";
 import { formatDate } from "../lib/time";
 import { useData } from "../lib/useData";
@@ -13,6 +14,47 @@ const STATUS = {
   planned: ["planejada", undefined],
   closed: ["fechada", "ok"],
 } as const;
+
+function ModelUsageBlock({ rows }: { rows: ModelUsage[] }) {
+  const claude = rows.filter((m) => !m.external);
+  return (
+    <>
+      {claude.length > 0 && (
+        <table className={`${s.table} ${u.usage}`}>
+          <caption>Consumo por modelo</caption>
+          <thead>
+            <tr>
+              <th>Modelo</th>
+              <th className={s.r}>Entrada</th>
+              <th className={s.r}>Saída</th>
+              <th className={s.r}>Cache</th>
+              <th className={s.r}>US$</th>
+            </tr>
+          </thead>
+          <tbody>
+            {claude.map((m) => (
+              <tr key={m.model}>
+                <td>{m.model}</td>
+                <td className={s.r}>{formatTokens(m.input)}</td>
+                <td className={s.r}>{formatTokens(m.output)}</td>
+                <td className={s.r}>{formatTokens(m.cache)}</td>
+                <td className={s.r}>{formatUsd(m.usd)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {rows
+        .filter((m) => m.external)
+        .map((m) => (
+          <p key={m.model} className={`${s.muted} ${u.external}`}>
+            {m.model} · fora do Claude · US$ 0 · {formatTokens(m.input)} entrada,{" "}
+            {formatTokens(m.output)} saída
+          </p>
+        ))}
+    </>
+  );
+}
 
 export function Sprints() {
   const { data } = useData();
@@ -73,6 +115,7 @@ export function Sprints() {
                 {doc(x.id, "release-report", "Release Report")} · gasto {formatUsd(x.usd ?? 0)}
               </p>
               <TaskTable tasks={x.tasks} start={x.startedAt} />
+              {x.byModel && x.byModel.length > 0 && <ModelUsageBlock rows={x.byModel} />}
             </Accordion>
           );
         })}

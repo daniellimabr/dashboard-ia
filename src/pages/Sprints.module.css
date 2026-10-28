@@ -1,0 +1,13 @@
+.usage {
+  margin-block: 12px;
+}
+
+.usage caption {
+  text-align: left;
+  font-weight: 600;
+  padding-bottom: 4px;
+}
+
+.external {
+  margin: 4px 0 0;
+}

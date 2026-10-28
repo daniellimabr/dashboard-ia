@@ -1,5 +1,8 @@
 import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { data } from "../data/mock";
+import type { ModelUsage } from "../data/types";
+import { formatTokens, formatUsd } from "../lib/format";
 import { renderAt } from "../test-utils";
 
 const item = (id: string) => screen.getByText(id, { selector: "b" }).closest("details");
@@ -28,6 +31,35 @@ describe("Sprints", () => {
       .map((a) => a.getAttribute("href"));
     expect(hrefs).toContain("/p/dashboard-ia/docs/S01-plan");
     expect(screen.getAllByText(/Release Report: ainda não existe/).length).toBeGreaterThan(0);
+  });
+
+  describe("consumo por modelo", () => {
+    const withUsage = (byModel?: ModelUsage[]) => ({
+      ...data,
+      sprints: data.sprints.map((x) =>
+        x.id === "S02" && x.projectId === "dashboard-ia" ? { ...x, byModel } : x,
+      ),
+    });
+
+    it("shows one row per Claude model and Gemini apart", () => {
+      renderAt(
+        "/p/dashboard-ia/sprints",
+        withUsage([
+          { model: "opus", input: 1500, output: 2000, cache: 30000, usd: 1.5 },
+          { model: "gemini-2.5", input: 900, output: 100, cache: 0, usd: 0, external: true },
+        ]),
+      );
+      const row = screen.getByRole("row", { name: /opus/ });
+      expect(row.textContent).toContain(formatUsd(1.5));
+      expect(row.textContent).toContain(formatTokens(30000));
+      expect(screen.queryByRole("row", { name: /gemini/ })).toBeNull();
+      expect(screen.getByText(/gemini-2\.5/).textContent).toContain("fora do Claude · US$ 0");
+    });
+
+    it("hides the block when the sprint has no usage", () => {
+      renderAt("/p/dashboard-ia/sprints", withUsage());
+      expect(screen.queryByText("Consumo por modelo")).toBeNull();
+    });
   });
 
   it("shows an empty state when the project has no sprints", () => {
