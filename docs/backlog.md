@@ -27,6 +27,8 @@ Pedidos do projeto. Um item por linha: `- [prioridade] data [status: SNN] — te
 - [média] 2026-10-16 — Guardar o histórico de chats no SQLite (o Claude Code apaga transcripts antigos).
 - [baixa] 2026-10-16 — Ações pelo painel (aprovar sprint, dar retorno, abrir chat).
 - [baixa] 2026-10-16 — Versão online: enviador de eventos + servidor na nuvem + login.
+- [alta] 2026-10-27 [planejado: S11] — (do Main Harness) Modelo por tarefa: mostrar em cada tarefa da sprint o modelo que a executou (Opus, Sonnet, Gemini) e o agente (tech-lead, clone, gemini, reviewer). Fonte: campo `model` nos eventos `task.*` (harness v0.10.0, S11; ver `docs/contracts/events.md` do harness) e `worker.start/end`.
+- [alta] 2026-10-27 [planejado: S11] — (do Main Harness) Tokens por modelo em cada sprint: entrada, saída, cache e US$ estimado por modelo, com o Gemini à parte ("fora do Claude", US$ 0). Fonte: eventos `usage` (já trazem `model`, sprint e tarefa).
 
 ## Pedidos ao harness (inbox do Main Harness)
 
