@@ -83,21 +83,32 @@ CREATE INDEX IF NOT EXISTS task_sprint ON task(project_id, sprint_id);
 export function openDb(file = DEFAULT_DB): Db {
   if (file !== ":memory:") mkdirSync(dirname(file), { recursive: true });
   const db = new DatabaseSync(file);
-  if (
-    (db.prepare("PRAGMA user_version").get() as { user_version: number }).user_version < VERSION
-  ) {
-    // Everything but `promoted` comes back from the event files; promoted projects are kept.
-    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all();
-    const promoted = tables.some((t) => t.name === "project")
-      ? db.prepare("SELECT id FROM project WHERE promoted = 1").all()
-      : [];
-    for (const t of tables) db.exec(`DROP TABLE "${String(t.name)}"`);
-    db.exec(SCHEMA);
-    for (const p of promoted)
-      db.prepare(
-        "INSERT INTO project (id, name, last_activity_at, promoted) VALUES (?, ?, '', 1)",
-      ).run(String(p.id), String(p.id));
-    db.exec(`PRAGMA user_version = ${VERSION}`);
+  const version = () =>
+    (db.prepare("PRAGMA user_version").get() as { user_version: number }).user_version;
+  if (version() < VERSION) {
+    // One transaction: a second process (or a crash) never sees half-dropped tables. IMMEDIATE waits for the other writer, then re-checks.
+    db.exec("PRAGMA busy_timeout = 10000");
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      if (version() < VERSION) {
+        // Everything but `promoted` comes back from the event files; promoted projects are kept.
+        const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all();
+        const promoted = tables.some((t) => t.name === "project")
+          ? db.prepare("SELECT id FROM project WHERE promoted = 1").all()
+          : [];
+        for (const t of tables) db.exec(`DROP TABLE "${String(t.name)}"`);
+        db.exec(SCHEMA);
+        for (const p of promoted)
+          db.prepare(
+            "INSERT INTO project (id, name, last_activity_at, promoted) VALUES (?, ?, '', 1)",
+          ).run(String(p.id), String(p.id));
+        db.exec(`PRAGMA user_version = ${VERSION}`);
+      }
+      db.exec("COMMIT");
+    } catch (e) {
+      db.exec("ROLLBACK");
+      throw e;
+    }
   }
   db.exec(SCHEMA);
   return db;
