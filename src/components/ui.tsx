@@ -359,6 +359,12 @@ function useTaskAgent() {
   };
 }
 
+/** Friendly model name from an id: claude-sonnet-5-5 → Sonnet, gemini-… → Gemini. */
+function modelName(id?: string) {
+  const w = id?.match(/sonnet|opus|haiku|fable|gemini/i)?.[0];
+  return w ? w[0]?.toUpperCase() + w.slice(1).toLowerCase() : id;
+}
+
 /** End of a task: real when it ended; else real start (or sprint start + planned start) + planned duration. */
 export function taskEnd(t: Task, start?: string): { ms: number; real: boolean } | undefined {
   if (t.endedAt) return { ms: Date.parse(t.endedAt), real: true };
@@ -430,9 +436,16 @@ export function TaskTable({ tasks, start }: { tasks: Task[]; start?: string }) {
                     </td>
                     <td>
                       {ag ? (
-                        <span className={s.av} title={ag.name}>
-                          {ag.label}
-                        </span>
+                        <>
+                          <span className={s.av} title={ag.name}>
+                            {ag.label}
+                          </span>{" "}
+                          <small className={t.model ? undefined : s.muted}>
+                            {[t.agent, modelName(t.model ?? t.plannedModel)]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </small>
+                        </>
                       ) : (
                         "—"
                       )}

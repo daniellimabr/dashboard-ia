@@ -115,6 +115,37 @@ describe("ui", () => {
       expect(screen.getByRole("columnheader", { name: "Fim previsto" })).toBeTruthy();
     });
 
+    const agentCell = (t: Task) => {
+      table([{ ...t, agent: "clone" }]);
+      return screen.getByText(/clone/);
+    };
+
+    it("agent column shows role and the real model by friendly name", () => {
+      const c = agentCell({
+        ...(tasks[0] as Task),
+        model: "claude-sonnet-5-5",
+        plannedModel: "opus",
+      });
+      expect(c.textContent).toBe("clone · Sonnet");
+      expect(c.className).not.toContain("muted");
+    });
+
+    it("agent column shows Gemini as Gemini", () => {
+      expect(agentCell({ ...(tasks[0] as Task), model: "gemini-2.5-pro" }).textContent).toBe(
+        "clone · Gemini",
+      );
+    });
+
+    it("agent column falls back to the planned model in gray", () => {
+      const c = agentCell({ ...(tasks[0] as Task), plannedModel: "claude-opus-4-1" });
+      expect(c.textContent).toBe("clone · Opus");
+      expect(c.className).toContain("muted");
+    });
+
+    it("agent column shows only the role without any model", () => {
+      expect(agentCell(tasks[0] as Task).textContent).toBe("clone");
+    });
+
     it("duration bar: elapsed over planned minutes, alert above plan", () => {
       vi.useFakeTimers({ toFake: ["Date"] });
       vi.setSystemTime(T0 + 27 * MIN); // T02: 12 of 10 planned
