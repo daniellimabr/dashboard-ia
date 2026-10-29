@@ -2,7 +2,7 @@ import { useId, type CSSProperties, type ReactNode } from "react";
 import { STEPS, type Data, type Sprint, type Task, type Tone } from "../data/types";
 import { agentLabel, taskPct, taskStatus } from "../lib/progress";
 import { useData } from "../lib/useData";
-import { durationMs, formatDuration, formatTime } from "../lib/time";
+import { durationMs, formatDate, formatDateTime, formatDuration, formatTime } from "../lib/time";
 import { useNow } from "../lib/useNow";
 import s from "./ui.module.css";
 
@@ -276,7 +276,11 @@ export function Gantt({
   );
   const x = (ms: number) => (Math.min(end, Math.max(0, ms - t0)) / end) * 100;
   const span = (a: number, b: number) => ({ left: `${x(a)}%`, width: `${x(b) - x(a)}%` });
-  const hhmm = (ms: number) => formatTime(new Date(ms).toISOString());
+  // day shown only when the axis crosses midnight
+  const multiDay =
+    formatDate(new Date(t0).toISOString()) !== formatDate(new Date(t0 + end).toISOString());
+  const stamp = multiDay ? formatDateTime : formatTime;
+  const hhmm = (ms: number) => stamp(new Date(ms).toISOString());
   const step = [15, 30, 60, 120, 240, 480].find((m) => end / (m * MIN) <= 5) ?? 1440;
   const ticks: number[] = [];
   for (let m = 0; m * MIN <= end; m += step) ticks.push(t0 + m * MIN);
@@ -327,7 +331,7 @@ export function Gantt({
                   <Tip>
                     {t.id} · previsto {hhmm(pa)}–{hhmm(pa + p.duration * MIN)}
                     {t.startedAt &&
-                      ` · executado ${formatTime(t.startedAt)}–${t.endedAt ? formatTime(t.endedAt) : "agora"} (${formatDuration(durationMs(t.startedAt, t.endedAt, now))})`}
+                      ` · executado ${stamp(t.startedAt)}–${t.endedAt ? stamp(t.endedAt) : "agora"} (${formatDuration(durationMs(t.startedAt, t.endedAt, now))})`}
                   </Tip>
                 </i>
               </div>
@@ -335,10 +339,16 @@ export function Gantt({
           })}
           {live && <i className={s.gNow} style={{ left: `${x(now)}%` }} />}
         </div>
-        <div className={s.gAxis}>
+        <div className={s.gAxis} style={multiDay ? { height: 28 } : undefined}>
           {ticks.map((t) => (
             <span key={t} data-end={x(t) === 100 || undefined} style={{ left: `${x(t)}%` }}>
-              {hhmm(t)}
+              {multiDay && (
+                <>
+                  {formatDate(new Date(t).toISOString())}
+                  <br />
+                </>
+              )}
+              {formatTime(new Date(t).toISOString())}
             </span>
           ))}
         </div>
@@ -415,6 +425,9 @@ export function TaskTable({ tasks, start }: { tasks: Task[]; start?: string }) {
   const now = useNow();
   const agentOf = useTaskAgent();
   if (!tasks.length) return <Empty title="Sem tarefas">Esta sprint ainda não tem tarefas.</Empty>;
+  // day shown only when the tasks start on more than one day
+  const days = new Set(tasks.filter((t) => t.startedAt).map((t) => formatDate(t.startedAt ?? "")));
+  const stamp = days.size > 1 ? formatDateTime : formatTime;
   const waves = [...new Set(tasks.map((t) => t.wave))].sort((a, b) => (a ?? 1e9) - (b ?? 1e9));
   return (
     <div className={s.scrollX}>
@@ -473,12 +486,12 @@ export function TaskTable({ tasks, start }: { tasks: Task[]; start?: string }) {
                     <td>
                       <Steps t={t} />
                     </td>
-                    <td>{t.startedAt ? formatTime(t.startedAt) : "—"}</td>
+                    <td>{t.startedAt ? stamp(t.startedAt) : "—"}</td>
                     <td
                       className={end?.real ? undefined : s.muted}
                       title={end && (end.real ? "Fim real" : "Previsto pelo plano")}
                     >
-                      {end ? formatTime(new Date(end.ms).toISOString()) : "—"}
+                      {end ? stamp(new Date(end.ms).toISOString()) : "—"}
                     </td>
                     <td className={s.prog}>
                       <Duration t={t} now={now} />

@@ -103,6 +103,19 @@ describe("ui", () => {
     expect(todo?.dataset.tone).toBeUndefined();
   });
 
+  it("Gantt axis and tips carry the day when the sprint spans more than one day", () => {
+    const iso = (m: number) => new Date(T0 + m * MIN).toISOString();
+    const list: Task[] = [
+      { ...(tasks[0] as Task), startedAt: iso(0), endedAt: iso(10) },
+      { ...(tasks[0] as Task), id: "T02", startedAt: iso(24 * 60), endedAt: iso(24 * 60 + 10) },
+    ];
+    render(<Gantt tasks={list} start={iso(0)} now={T0 + 25 * 60 * MIN} />);
+    // date above, time below
+    const ticks = [...document.querySelectorAll("[class*=gAxis] span")];
+    expect(ticks.map((el) => el.innerHTML)).toContain("22/10<br>12:00");
+    expect(ticks.map((el) => el.innerHTML)).toContain("23/10<br>12:00");
+  });
+
   it("taskEnd: real end when finished, start + plan when started, sprint plan otherwise", () => {
     const start = new Date(T0).toISOString();
     expect(taskEnd(tasks[0] as Task, start)).toEqual({ ms: T0 + 10 * MIN, real: true });

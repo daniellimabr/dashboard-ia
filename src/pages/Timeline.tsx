@@ -5,7 +5,7 @@ import { mainSprint, Pill, Tabs } from "../components/ui";
 import s from "../components/ui.module.css";
 import type { Data, Sprint, Tone } from "../data/types";
 import { formatUsd } from "../lib/format";
-import { formatDate, formatDuration, formatTime } from "../lib/time";
+import { formatDate, formatDateTime, formatDuration, formatTime } from "../lib/time";
 import { useBoard } from "../lib/useBoard";
 import { useData } from "../lib/useData";
 import { useNow } from "../lib/useNow";
@@ -22,8 +22,12 @@ function period(range: Range, now: number, firsts: number[], sprintStarts: numbe
   const hourTicks = (start: number, end: number) => {
     const step = Math.ceil((end - start) / H / 8) * H;
     const ticks = [];
+    const stamp =
+      formatDate(new Date(start).toISOString()) === formatDate(new Date(end).toISOString())
+        ? formatTime
+        : formatDateTime;
     for (let x = Math.ceil(start / H) * H; x <= end; x += step)
-      ticks.push({ at: x, label: formatTime(new Date(x).toISOString()) });
+      ticks.push({ at: x, label: stamp(new Date(x).toISOString()) });
     return ticks;
   };
   if (range === "7 dias") {

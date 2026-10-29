@@ -25,6 +25,9 @@ const dateFmt = new Intl.DateTimeFormat("pt-BR", {
 export const formatTime = (iso: string) => timeFmt.format(Date.parse(iso));
 export const formatDate = (iso: string) => dateFmt.format(Date.parse(iso));
 
+/** "28/10 09:15". */
+export const formatDateTime = (iso: string) => `${formatDate(iso)} ${formatTime(iso)}`;
+
 const weekdayFmt = new Intl.DateTimeFormat("pt-BR", {
   timeZone: "America/Sao_Paulo",
   weekday: "short",

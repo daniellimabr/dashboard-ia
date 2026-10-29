@@ -682,6 +682,8 @@
 
 .gAxis span {
   position: absolute;
+  text-align: center;
+  white-space: nowrap;
   transform: translateX(-50%);
 }
 
