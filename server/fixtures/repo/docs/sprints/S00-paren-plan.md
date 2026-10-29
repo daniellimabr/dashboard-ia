@@ -9,4 +9,4 @@
 | ⬜     | T03 | Terceira | tech-lead      | 5 min     |
 | ⬜     | T04 | Quarta   | clone (opus)   | 5 min     |
 
-**Ondas:** (1) T01; (2) T02 e T03 em paralelo; (3) T04
+**Ondas:** (1) T01; (2) T02 e T03 em paralelo; (3b) T04

@@ -90,7 +90,14 @@ export function readPlan(repo: string, rel: string): Plan | undefined {
       /^\s*-\s*\*\*Onda\s+(\d+):\*\*(.*)/i.exec(l),
     );
     // inline: "**Ondas:** (1) T01; (2) T02 e T03 em paralelo; (3) T04"
-    items.push(...waveLine.matchAll(/\((\d+)\)\s*([^;]*)/g));
+    // letter suffix "(3b)" allowed; waves are numbered by order of appearance
+    items.push(
+      ...[...waveLine.matchAll(/\(\d+[a-z]?\)\s*([^;]*)/g)].map((m, i) => [
+        m[0],
+        String(i + 1),
+        m[1] ?? "",
+      ]),
+    );
     const bare = lines.findIndex((l) => /^\*\*(Paralelismo|Ondas):\*\*\s*$/.test(l));
     for (const l of bare < 0 ? [] : lines.slice(bare + 1)) {
       if (!l.trim()) continue;

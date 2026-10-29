@@ -107,6 +107,35 @@ describe("readPlan", () => {
     ]);
   });
 
+  it("inline waves with a letter suffix are numbered by order of appearance", () => {
+    const tmp = mkdtempSync(join(tmpdir(), "repo-test-"));
+    mkdirSync(join(tmp, "docs", "sprints"), { recursive: true });
+    const plan = (waves: string) =>
+      [
+        "# S00 — x",
+        "",
+        "## Tarefas",
+        "",
+        "| Id | Tarefa | Agente |",
+        "| --- | --- | --- |",
+        ...["T01", "T02", "T03", "T04", "T05"].map((id) => `| ${id} | t | clone |`),
+        "",
+        `**Ondas:** ${waves}`,
+        "",
+      ].join("\n");
+    const waves = (w: string) => {
+      writeFileSync(join(tmp, "docs", "sprints", "S00-plan.md"), plan(w));
+      return readPlan(tmp, "docs/sprints/S00-plan.md")?.tasks.map((t) => t.wave);
+    };
+    try {
+      expect(waves("(1) T01; (2) T02; (3b) T03 e T04; (4) T05")).toEqual([1, 2, 3, 3, 4]);
+      expect(waves("(1) T01; (2) T02; (3) T03; (3b) T04 e T05")).toEqual([1, 2, 3, 4, 4]);
+      expect(waves("(1) T01; (2) T02 e T03; (3) T04 e T05")).toEqual([1, 2, 2, 3, 3]);
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
   it("reads inline (N) waves and splits the Agente column into role and model", () => {
     const tasks = readPlan(REPO, "docs/sprints/S00-paren-plan.md")?.tasks ?? [];
     expect(tasks.map((t) => [t.id, t.wave, t.agent, t.plannedModel])).toEqual([
