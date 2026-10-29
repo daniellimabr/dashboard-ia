@@ -8,8 +8,8 @@ export type Db = DatabaseSync;
 
 export const DEFAULT_DB = join(homedir(), ".dashboard-ia", "dashboard.db");
 
-// Bump when the schema or the event format changes: tables are rebuilt and the events imported again.
-const VERSION = 8; // 8: task.model; 6: usage.agent_type and the transcripts' turns (waits); 7: one Reviewer agent name
+// Bump when the schema changes: tables are rebuilt keeping their rows (see migrate).
+const VERSION = 9; // 9: sprint.started_at from the first sprint.open; 8: task.model; 6: usage.agent_type and the transcripts' turns (waits); 7: one Reviewer agent name
 
 // Spec 0001 §3, fed by the harness events (contract v1).
 const SCHEMA = `
@@ -79,6 +79,55 @@ CREATE INDEX IF NOT EXISTS chat_project ON chat(project_id, started_at);
 CREATE INDEX IF NOT EXISTS task_sprint ON task(project_id, sprint_id);
 `;
 
+/** SQL identifier; names come from the database itself. */
+const q = (name: unknown) => `"${String(name).replaceAll('"', '""')}"`;
+const names = (db: Db, sql: string, ...args: string[]) =>
+  db
+    .prepare(sql)
+    .all(...args)
+    .map((r) => String(r.name));
+const columns = (db: Db, table: string) =>
+  names(db, "SELECT name FROM pragma_table_info(?)", table);
+
+/**
+ * Rebuilds every table from SCHEMA and copies the old rows back (columns in common), since the
+ * transcripts they came from may be gone; tables no longer in SCHEMA are dropped. Caller holds the transaction.
+ */
+function migrate(db: Db) {
+  // Old indexes would block the new ones (same names, IF NOT EXISTS).
+  for (const i of names(
+    db,
+    "SELECT name FROM sqlite_master WHERE type = 'index' AND sql IS NOT NULL",
+  ))
+    db.exec(`DROP INDEX ${q(i)}`);
+  const tables = names(
+    db,
+    "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
+  );
+  for (const t of tables) db.exec(`ALTER TABLE ${q(t)} RENAME TO ${q(`_old_${t}`)}`);
+  db.exec(SCHEMA);
+  const kept = new Set(names(db, "SELECT name FROM sqlite_master WHERE type = 'table'"));
+  for (const t of tables) {
+    const old = `_old_${t}`;
+    if (kept.has(t)) {
+      const now = new Set(columns(db, t));
+      const cols = columns(db, old)
+        .filter((c) => now.has(c))
+        .map(q)
+        .join(", ");
+      if (cols) db.exec(`INSERT INTO ${q(t)} (${cols}) SELECT ${cols} FROM ${q(old)}`);
+    }
+    db.exec(`DROP TABLE ${q(old)}`);
+  }
+  // 9: the sprint start is the FIRST sprint.open; older rows kept the last (reapproved plans)
+  db.exec(`UPDATE sprint SET started_at = (SELECT min(e.at) FROM event e
+    WHERE e.type = 'sprint.open' AND e.project_id = sprint.project_id
+      AND json_extract(e.body, '$.sprint') = sprint.id)
+    WHERE EXISTS (SELECT 1 FROM event e WHERE e.type = 'sprint.open'
+      AND e.project_id = sprint.project_id AND json_extract(e.body, '$.sprint') = sprint.id)`);
+  db.exec(`PRAGMA user_version = ${VERSION}`);
+}
+
 /** Opens (and creates) the database; pass ":memory:" in tests. */
 export function openDb(file = DEFAULT_DB): Db {
   if (file !== ":memory:") mkdirSync(dirname(file), { recursive: true });
@@ -90,20 +139,7 @@ export function openDb(file = DEFAULT_DB): Db {
     db.exec("PRAGMA busy_timeout = 10000");
     db.exec("BEGIN IMMEDIATE");
     try {
-      if (version() < VERSION) {
-        // Everything but `promoted` comes back from the event files; promoted projects are kept.
-        const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all();
-        const promoted = tables.some((t) => t.name === "project")
-          ? db.prepare("SELECT id FROM project WHERE promoted = 1").all()
-          : [];
-        for (const t of tables) db.exec(`DROP TABLE "${String(t.name)}"`);
-        db.exec(SCHEMA);
-        for (const p of promoted)
-          db.prepare(
-            "INSERT INTO project (id, name, last_activity_at, promoted) VALUES (?, ?, '', 1)",
-          ).run(String(p.id), String(p.id));
-        db.exec(`PRAGMA user_version = ${VERSION}`);
-      }
+      if (version() < VERSION) migrate(db);
       db.exec("COMMIT");
     } catch (e) {
       db.exec("ROLLBACK");
