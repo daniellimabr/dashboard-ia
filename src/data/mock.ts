@@ -436,7 +436,6 @@ const chats: Chat[] = [
     agents: [
       agent("a1", "tech-lead", "Tech Lead", at(13, 40), {
         doing: "coordena a onda 2",
-        contextPct: 38,
         usd: 1.42,
         tokens: 2_310_000,
       }),
@@ -450,14 +449,12 @@ const chats: Chat[] = [
       agent("a3", "clone", "Clone 1", at(14, 38), {
         task: "T03",
         doing: "T03 cards",
-        contextPct: 21,
         usd: 0.78,
         tokens: 1_270_000,
       }),
       agent("a4", "clone", "Clone 2", at(14, 41), {
         task: "T04",
         doing: "T04 linha do tempo",
-        contextPct: 15,
         usd: 0.59,
         tokens: 940_000,
       }),
@@ -554,7 +551,6 @@ const chats: Chat[] = [
     agents: [
       agent("a13", "tech-lead", "Tech Lead", at(14, 25), {
         doing: "fora da sprint: limite da assinatura",
-        contextPct: 12,
       }),
     ],
     tasks: [

@@ -821,7 +821,7 @@
 
 .agents details > summary {
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) 64px;
+  grid-template-columns: 32px minmax(0, 1fr);
   align-items: center;
   gap: 10px;
   cursor: pointer;

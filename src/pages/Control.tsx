@@ -177,17 +177,6 @@ function Agents({ agents, tasks, sprint }: { agents: Agent[]; tasks: Task[]; spr
                         : `${formatTokens(a.tokens)} tokens`}
                     </small>
                   </span>
-                  {a.endedAt ? (
-                    <span />
-                  ) : (
-                    <span className={s.tipHost} tabIndex={0}>
-                      <Meter label={`Contexto de ${a.name}`} pct={a.contextPct} />
-                      <small className={s.muted}>
-                        ctx {a.contextPct === undefined ? "sem dado" : `${a.contextPct}%`}
-                      </small>
-                      <Tip>Contexto usado pelo agente</Tip>
-                    </span>
-                  )}
                 </summary>
                 {mine.length ? (
                   <ul className={s.agentTasks}>
@@ -342,7 +331,7 @@ function ControlRoom({ project: p }: { project: Project }) {
           ))}
         </Panel>
         <Panel title="Plano no tempo">
-          <Gantt tasks={tasks} start={start} now={now} waits={[...idle, ...(waits ?? [])]} />
+          <Gantt tasks={tasks} start={start} now={t1} waits={[...idle, ...(waits ?? [])]} />
         </Panel>
         <Agents agents={agents} tasks={tasks} sprint={sprint} />
         <Panel title="Consumo">

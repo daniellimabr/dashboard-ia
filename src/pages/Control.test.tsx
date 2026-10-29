@@ -64,12 +64,13 @@ describe("Control (Sala de controle)", () => {
     for (const k of ["Feita", "Rodando", "A fazer", "Ocioso", "Aguardando resposta"])
       expect(key.getByText(k)).toBeTruthy();
     expect(screen.queryByText(/exemplo/)).toBeNull();
-    // T05 plan: start 70 of a 120 min plan window, 20 min long
+    // T05 is still to do: dashed bar, never before its plan slot (start 70 of 120 min);
+    // it is pushed past "now" when the plan slot already passed, so left depends on the clock
     const t05 = screen
       .getAllByRole("tooltip")
       .find((t) => t.textContent?.startsWith("T05"))?.parentElement;
-    expect(t05?.style.left).toMatch(/^58\.33/);
-    expect(t05?.style.width).toMatch(/^16\.66/);
+    expect(parseFloat(t05?.style.left ?? "")).toBeGreaterThanOrEqual(58.33);
+    expect(parseFloat(t05?.style.width ?? "")).toBeGreaterThan(0);
   });
 
   it("andamento: reply and limit waits summed from sprint.waits", () => {
@@ -204,13 +205,12 @@ describe("Control (Sala de controle)", () => {
     });
   });
 
-  it("agents: context bar has the number and a tooltip; ended agent has no bar", () => {
+  it("agents: no context bar or ctx text", () => {
     renderAt("/controle");
     const r = region(/Agentes/);
-    expect(r.getByText("ctx 38%")).toBeTruthy();
-    expect(r.getAllByText("Contexto usado pelo agente").length).toBeGreaterThan(0);
-    const ended = r.getByText("Reviewer").closest("li");
-    expect(ended?.querySelector("[role=meter]")).toBeNull();
+    expect(r.queryByText(/ctx/)).toBeNull();
+    expect(r.queryByText("Contexto usado pelo agente")).toBeNull();
+    expect(r.queryAllByRole("meter")).toHaveLength(0);
   });
 
   it("consumo: axis title and tooltip with spend and tokens", () => {

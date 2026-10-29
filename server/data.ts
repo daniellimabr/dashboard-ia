@@ -393,7 +393,6 @@ export function buildData(db: Db, now = Date.now()): Data {
     name: String(a.name),
     task: s(a.task_id),
     doing: s(a.doing),
-    contextPct: n(a.context_pct),
     startedAt: String(a.started_at),
     endedAt: ended(a.ended_at, agentLast.get(String(a.id)) ?? chatLast.get(chatId)),
     tokens: n(agentUse.get(String(a.id))?.tokens),
@@ -417,7 +416,6 @@ export function buildData(db: Db, now = Date.now()): Data {
         name:
           kind === "tech-lead" ? "Tech Lead" : `${kind === "clone" ? "Clone" : "Reviewer"} ${nth}`,
         task: s(e.task),
-        contextPct: n(row?.context_pct),
         startedAt: String(e.at),
         endedAt: ended(
           endsAt.get(id) ?? row?.ended_at,

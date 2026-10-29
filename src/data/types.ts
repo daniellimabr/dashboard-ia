@@ -7,7 +7,6 @@ export interface Agent {
   name: string; // "Tech Lead", "Clone 1", "Reviewer"
   task?: string; // task id it works on, e.g. "T03"
   doing?: string; // short text, e.g. "coordena a onda 2"
-  contextPct?: number;
   startedAt: string;
   endedAt?: string; // missing = running now
   usd?: number; // from the transcripts; missing = "sem dado"
