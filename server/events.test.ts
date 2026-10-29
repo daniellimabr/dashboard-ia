@@ -65,6 +65,18 @@ describe("importEvents (harness contract v1)", () => {
     });
   });
 
+  it("a second sprint.open (reopen) keeps the first started_at", () => {
+    appendFileSync(
+      join(dir, "2026-10-18.jsonl"),
+      `${JSON.stringify({ v: 1, id: "01A0000000000000000000099", ts: "2026-10-19T09:00:00Z", harness: "0.5.0", project: "dash", session: "s1", sprint: "S01", task: null, agent: "tech-lead", type: "sprint.open", data: { tasks: 3 } })}\n`,
+    );
+    importEvents(db, dir);
+    expect(one("SELECT started_at, task_count FROM sprint WHERE project_id = 'dash'")).toEqual({
+      started_at: "2026-10-18T10:03:00Z",
+      task_count: 3,
+    });
+  });
+
   it("derives chats and agents from each session", () => {
     importEvents(db, dir);
     expect(

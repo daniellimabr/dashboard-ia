@@ -13,7 +13,8 @@ describe("Sprints", () => {
     screen.getByText("Comando hx run");
     screen.getByText("Registro central de projetos");
     expect(screen.getAllByText("fechada")).toHaveLength(2);
-    screen.getByText(/^3\/3/);
+    // progress in the list plus the "Sem onda" group header of a plan without waves
+    expect(screen.getAllByText(/^3\/3/).length).toBeGreaterThan(0);
   });
 
   it("opens the active sprint by default", () => {

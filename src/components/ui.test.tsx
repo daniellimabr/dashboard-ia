@@ -78,6 +78,31 @@ describe("ui", () => {
     expect(items().every((li) => seen(li).length <= 9)).toBe(true);
   });
 
+  it("Gantt: started task sits at its real time, a late todo is pushed past now and dashed", () => {
+    const iso = (m: number) => new Date(T0 + m * MIN).toISOString();
+    const list: Task[] = [
+      { ...(tasks[0] as Task), startedAt: iso(2), endedAt: iso(8) }, // planned 0-10
+      { id: "T03", title: "c", done: false, plan: { start: 10, duration: 10, deps: [] } },
+    ];
+    render(<Gantt tasks={list} start={iso(0)} now={T0 + 30 * MIN} />);
+    const bar = (id: string) => screen.getByText(new RegExp(`^${id} · previsto`)).closest("i");
+    const pos = (el: HTMLElement | null) => [
+      parseFloat(el?.style.left ?? ""),
+      parseFloat(el?.style.width ?? ""),
+    ];
+    // axis: first real start (2) to the pushed todo's end (30 + 10) = 38 min
+    const [l1, w1] = pos(bar("T01"));
+    expect(l1).toBeCloseTo(0);
+    expect(w1).toBeCloseTo((6 / 38) * 100);
+    const done = bar("T01");
+    const todo = bar("T03");
+    const [l3, w3] = pos(todo);
+    expect(l3).toBeCloseTo((28 / 38) * 100);
+    expect(w3).toBeCloseTo((10 / 38) * 100);
+    expect(done?.dataset.tone).toBe("ok");
+    expect(todo?.dataset.tone).toBeUndefined();
+  });
+
   it("taskEnd: real end when finished, start + plan when started, sprint plan otherwise", () => {
     const start = new Date(T0).toISOString();
     expect(taskEnd(tasks[0] as Task, start)).toEqual({ ms: T0 + 10 * MIN, real: true });
@@ -113,6 +138,17 @@ describe("ui", () => {
       ]);
       expect(groups[1]?.textContent).toContain("T02");
       expect(screen.getByRole("columnheader", { name: "Fim previsto" })).toBeTruthy();
+    });
+
+    it("a task without a wave goes under a 'Sem onda' header, never loose", () => {
+      table([{ ...(tasks[0] as Task), wave: 1 }, tasks[1] as Task]);
+      const groups = screen.getAllByRole("rowgroup").filter((g) => g.querySelector("th[colspan]"));
+      expect(groups.map((g) => g.querySelector("th")?.textContent)).toEqual([
+        expect.stringContaining("Onda 1"),
+        expect.stringContaining("Sem onda"),
+      ]);
+      expect(groups[1]?.textContent).toContain("T02");
+      expect(groups[1]?.getAttribute("data-wave")).toBeNull();
     });
 
     const agentCell = (t: Task) => {

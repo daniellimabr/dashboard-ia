@@ -249,11 +249,31 @@ export function Gantt({
 }) {
   const tick = useNow();
   const now = nowProp ?? tick;
-  const t0 = start ? Date.parse(start) : now;
-  const rows = tasks.flatMap((t) => (t.plan ? [{ t, p: t.plan }] : []));
-  if (!rows.length)
+  const planned = start ? Date.parse(start) : now;
+  const rows0 = tasks.flatMap((t) => (t.plan ? [{ t, p: t.plan }] : []));
+  if (!rows0.length)
     return <Empty title="Sem plano de horários">A sprint não tem previsão por tarefa.</Empty>;
-  const end = Math.max(1, ...rows.map(({ p }) => p.start + p.duration)) * MIN;
+  // Real bar for started tasks; planned slot for the rest, pushed past now once it has gone by.
+  const rows = rows0.map(({ t, p }) => {
+    let a = planned + p.start * MIN;
+    let b = a + p.duration * MIN;
+    if (t.startedAt) {
+      a = Date.parse(t.startedAt);
+      b = t.endedAt ? Date.parse(t.endedAt) : now;
+    } else if (a < now) {
+      a = now;
+      b = now + p.duration * MIN;
+    }
+    return { t, p, a, b };
+  });
+  const starts = rows.flatMap(({ t, a }) => (t.startedAt ? [a] : []));
+  const t0 = starts.length ? Math.min(...starts) : planned;
+  const end = Math.max(
+    MIN,
+    now - t0,
+    ...rows0.map(({ p }) => planned + (p.start + p.duration) * MIN - t0),
+    ...rows.map(({ b }) => b - t0),
+  );
   const x = (ms: number) => (Math.min(end, Math.max(0, ms - t0)) / end) * 100;
   const span = (a: number, b: number) => ({ left: `${x(a)}%`, width: `${x(b) - x(a)}%` });
   const hhmm = (ms: number) => formatTime(new Date(ms).toISOString());
@@ -262,7 +282,7 @@ export function Gantt({
   for (let m = 0; m * MIN <= end; m += step) ticks.push(t0 + m * MIN);
   const pauses = waits.filter((w) => x(w.end) > x(w.start));
   const kinds = new Set(pauses.map((w) => w.kind));
-  const live = now > t0 && now < t0 + end;
+  const live = now > t0 && now <= t0 + end;
   return (
     <div className={s.gantt}>
       <div className={s.gGrid} role="img" aria-label="Plano das tarefas no tempo">
@@ -291,10 +311,9 @@ export function Gantt({
               ))}
             </div>
           )}
-          {rows.map(({ t, p }) => {
+          {rows.map(({ t, p, a, b }) => {
             const pct = taskPct(t);
-            const a = t0 + p.start * MIN;
-            const b = a + p.duration * MIN;
+            const pa = planned + p.start * MIN;
             return (
               <div key={t.id} className={s.gRow}>
                 <i
@@ -306,7 +325,7 @@ export function Gantt({
                   }
                 >
                   <Tip>
-                    {t.id} · previsto {hhmm(a)}–{hhmm(b)}
+                    {t.id} · previsto {hhmm(pa)}–{hhmm(pa + p.duration * MIN)}
                     {t.startedAt &&
                       ` · executado ${formatTime(t.startedAt)}–${t.endedAt ? formatTime(t.endedAt) : "agora"} (${formatDuration(durationMs(t.startedAt, t.endedAt, now))})`}
                   </Tip>
@@ -396,7 +415,7 @@ export function TaskTable({ tasks, start }: { tasks: Task[]; start?: string }) {
   const now = useNow();
   const agentOf = useTaskAgent();
   if (!tasks.length) return <Empty title="Sem tarefas">Esta sprint ainda não tem tarefas.</Empty>;
-  const waves = [...new Set(tasks.map((t) => t.wave))].sort((a, b) => (a ?? 0) - (b ?? 0));
+  const waves = [...new Set(tasks.map((t) => t.wave))].sort((a, b) => (a ?? 1e9) - (b ?? 1e9));
   return (
     <div className={s.scrollX}>
       <table className={s.table}>
@@ -416,16 +435,14 @@ export function TaskTable({ tasks, start }: { tasks: Task[]; start?: string }) {
           const group = tasks.filter((t) => t.wave === w);
           return (
             <tbody key={w ?? 0} data-wave={waveSlot(w)}>
-              {w && (
-                <tr className={s.waveHead}>
-                  <th colSpan={8} scope="rowgroup">
-                    <span>Onda {w}</span>{" "}
-                    <small className={s.muted}>
-                      {group.filter((t) => t.done).length}/{group.length} concluídas
-                    </small>
-                  </th>
-                </tr>
-              )}
+              <tr className={s.waveHead}>
+                <th colSpan={8} scope="rowgroup">
+                  <span>{w ? `Onda ${w}` : "Sem onda"}</span>{" "}
+                  <small className={s.muted}>
+                    {group.filter((t) => t.done).length}/{group.length} concluídas
+                  </small>
+                </th>
+              </tr>
               {group.map((t) => {
                 const ag = agentOf(t);
                 const end = taskEnd(t, start);

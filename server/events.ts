@@ -158,7 +158,10 @@ function apply(db: Db, e: Event) {
         db,
         e,
         { started_at: ts, status: "active", task_count: num(d.tasks) },
-        { status: "CASE status WHEN 'closed' THEN status ELSE 'active' END" },
+        {
+          status: "CASE status WHEN 'closed' THEN status ELSE 'active' END",
+          started_at: "coalesce(started_at, excluded.started_at)", // reopen keeps the first start
+        },
       );
     case "sprint.feedback":
       return sprintRow(db, e, { feedback_rounds: 1 }, { feedback_rounds: "feedback_rounds + 1" });
