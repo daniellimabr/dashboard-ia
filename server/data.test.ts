@@ -46,14 +46,68 @@ const usage = (ts: string, id: string, input: number, output = 0) =>
   });
 
 describe("buildData", () => {
-  it("estimates the 5 h limit from spend and leaves the week empty without limit events", () => {
+  it("without a reading, estimates 5 h from the last 5 h and the week from the last 7 days", () => {
     const now = Date.parse("2026-10-18T12:00:00Z");
-    // 1 Mtok of opus input = US$ 4; h5Usd = 17 → 24%
+    // 1 Mtok of opus input = US$ 4; H5_USD = 30 → 13%; week: (4 + 36) / 227 → 18%
     usage("2026-10-18T11:00:00Z", "u1", 1_000_000);
     usage("2026-10-18T05:00:00Z", "u2", 9_000_000);
     const { limits } = buildData(db, now);
-    expect(limits.h5).toEqual({ pct: 24, estimated: true });
-    expect(limits.week).toBeUndefined();
+    expect(limits.h5).toEqual({ pct: 13, estimated: true });
+    expect(limits.week).toEqual({ pct: 18, estimated: true });
+  });
+
+  it("caps the estimate at 100", () => {
+    usage("2026-10-18T11:00:00Z", "u1", 20_000_000); // US$ 80 > 30
+    expect(buildData(db, Date.parse("2026-10-18T12:00:00Z")).limits.h5.pct).toBe(100);
+  });
+
+  it("adds the spend since the last reading to its pct, marked estimated", () => {
+    const now = Date.parse("2026-10-18T12:00:00Z");
+    db.exec(
+      "INSERT INTO limit_window VALUES ('5h', 40, '2026-10-18T14:00:00Z', '2026-10-18T10:00:00Z')",
+    );
+    usage("2026-10-18T09:00:00Z", "old", 5_000_000); // before the reading: ignored
+    usage("2026-10-18T11:00:00Z", "u1", 1_500_000); // US$ 6 → +20 points
+    expect(buildData(db, now).limits.h5).toEqual({
+      pct: 60,
+      resetsAt: "2026-10-18T14:00:00Z",
+      estimated: true,
+    });
+  });
+
+  it("keeps the pct when nothing was spent since the reading", () => {
+    db.exec(
+      "INSERT INTO limit_window VALUES ('5h', 40, '2026-10-18T14:00:00Z', '2026-10-18T10:00:00Z')",
+    );
+    expect(buildData(db, Date.parse("2026-10-18T12:00:00Z")).limits.h5).toEqual({
+      pct: 40,
+      resetsAt: "2026-10-18T14:00:00Z",
+    });
+  });
+
+  it("after the reset, estimates only from the spend since resets_at, for both windows", () => {
+    const now = Date.parse("2026-10-18T12:00:00Z");
+    db.exec(`INSERT INTO limit_window VALUES ('5h', 90, '2026-10-18T10:00:00Z', '2026-10-18T09:00:00Z');
+      INSERT INTO limit_window VALUES ('week', 50, '2026-10-18T10:00:00Z', '2026-10-17T09:00:00Z')`);
+    usage("2026-10-18T09:30:00Z", "before", 9_000_000); // before the reset: ignored
+    usage("2026-10-18T11:00:00Z", "u1", 1_500_000); // US$ 6 → 20% of 5 h, 3% of the week
+    const { limits } = buildData(db, now);
+    expect(limits.h5).toEqual({ pct: 20, estimated: true });
+    expect(limits.week).toEqual({ pct: 3, estimated: true });
+  });
+
+  it("a limit turn after the reading shows 100% until the reset", () => {
+    db.exec(
+      "INSERT INTO limit_window VALUES ('5h', 40, '2026-10-18T14:00:00Z', '2026-10-18T10:00:00Z')",
+    );
+    db.exec("INSERT INTO turn (chat_id, at, kind) VALUES ('c1', '2026-10-18T09:00:00Z', 'limit')");
+    expect(buildData(db, Date.parse("2026-10-18T12:00:00Z")).limits.h5.pct).toBe(40); // older turn
+    db.exec("INSERT INTO turn (chat_id, at, kind) VALUES ('c1', '2026-10-18T11:00:00Z', 'limit')");
+    expect(buildData(db, Date.parse("2026-10-18T12:00:00Z")).limits.h5).toEqual({
+      pct: 100,
+      resetsAt: "2026-10-18T14:00:00Z",
+      estimated: true,
+    });
   });
 
   it("reports the real limits from usage.limits: newest wins, bad dates and out-of-range pct are handled", () => {
@@ -75,12 +129,12 @@ describe("buildData", () => {
     expect(buildData(db, now).limits.h5.estimated).toBeUndefined();
   });
 
-  it("ignores an expired limit event", () => {
+  it("an expired reading with no spend since the reset starts at 0", () => {
     const now = Date.parse("2026-10-18T12:00:00Z");
     db.exec(
       "INSERT INTO limit_window VALUES ('5h', 90, '2026-10-18T10:00:00Z', '2026-10-18T05:00:00Z')",
     );
-    expect(buildData(db, now).limits.h5.estimated).toBe(true);
+    expect(buildData(db, now).limits.h5).toEqual({ pct: 0, estimated: true });
   });
 
   it("reports promoted projects and sprint spend", () => {

@@ -124,7 +124,7 @@ export interface Project {
 export interface Limit {
   pct: number;
   resetsAt?: string; // missing when estimated
-  estimated?: boolean; // no `limit` event: pct = 5 h spend ÷ h5Usd
+  estimated?: boolean; // pct = last reading + the spend since it (or since the reset); no reading: the window's spend
 }
 
 export interface Data {

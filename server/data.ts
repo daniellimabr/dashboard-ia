@@ -14,9 +14,12 @@ import type { Db } from "./db.ts";
 import { listDocs, readDocsFile, readPlan, type Plan } from "./repo.ts";
 import { USD_SQL, usageByDay } from "./usage.ts";
 
-// shortcut: fixed spend that equals 100% of the 5 h window; make it a setting when a real limit source exists.
-export const H5_USD = 17;
+// API-priced spend that equals 100% of each window, from the regression in docs/adr/0002-calibracao-limites.md.
+// shortcut: fixed constants; refit with more readings when they drift.
+export const H5_USD = 30;
+export const WEEK_USD = 227;
 const H5_MS = 5 * 3600e3;
+const WEEK_MS = 7 * 24 * 3600e3;
 // shortcut: "live" = project activity in the last 30 min, not an open agent; use agent.end once the harness writes it.
 const LIVE_MS = 30 * 60e3;
 
@@ -49,11 +52,37 @@ const toTask = (r: Row): Task => ({
         },
 });
 
-function limit(db: Db, window: string, now: number): Limit | undefined {
-  const r = db.prepare("SELECT pct, resets_at FROM limit_window WHERE window = ?").get(window) as
-    Row | undefined;
-  if (!r || Date.parse(String(r.resets_at)) <= now) return undefined;
-  return { pct: Number(r.pct), resetsAt: String(r.resets_at) };
+/**
+ * A window's limit: the last reading plus the spend since it (the statusline stops near the limit), a
+ * `limit` turn after it = 100% until the reset, past the reset only the spend since resets_at counts.
+ */
+function limit(db: Db, window: "5h" | "week", now: number): Limit {
+  const [usd, ms] = window === "5h" ? [H5_USD, H5_MS] : [WEEK_USD, WEEK_MS];
+  const spent = (since: string) =>
+    Number(
+      (
+        db
+          .prepare(
+            `SELECT coalesce(sum(${USD_SQL}), 0) usd FROM usage u WHERE julianday(u.at) > julianday(?)`,
+          )
+          .get(since) as Row
+      ).usd,
+    );
+  const pctOf = (base: number, since: string) =>
+    Math.min(100, Math.round(base + (100 * spent(since)) / usd));
+  const r = db
+    .prepare("SELECT pct, resets_at, at FROM limit_window WHERE window = ?")
+    .get(window) as Row | undefined;
+  if (!r) return { pct: pctOf(0, new Date(now - ms).toISOString()), estimated: true };
+  const resetsAt = String(r.resets_at);
+  if (Date.parse(resetsAt) <= now) return { pct: pctOf(0, resetsAt), estimated: true };
+  const at = String(r.at);
+  const blocked = db
+    .prepare("SELECT 1 FROM turn WHERE kind = 'limit' AND julianday(at) > julianday(?) LIMIT 1")
+    .get(at);
+  if (blocked) return { pct: 100, resetsAt, estimated: true };
+  const pct = pctOf(Number(r.pct), at);
+  return pct === Number(r.pct) ? { pct, resetsAt } : { pct, resetsAt, estimated: true };
 }
 
 const AGENT_KINDS = ["tech-lead", "clone", "reviewer"];
@@ -445,20 +474,12 @@ export function buildData(db: Db, now = Date.now()): Data {
   const cmd = all(
     "SELECT at, chat_id FROM event WHERE type = 'session.start' ORDER BY at DESC, rowid DESC LIMIT 1",
   )[0];
-  const h5Spend = Number(
-    (
-      db
-        .prepare(`SELECT coalesce(sum(${USD_SQL}), 0) usd FROM usage u WHERE u.at > ?`)
-        .get(new Date(now - H5_MS).toISOString()) as Row
-    ).usd,
-  );
-
   return {
     lastCommand: cmd
       ? { at: String(cmd.at), chatId: s(cmd.chat_id) ?? "" }
       : { at: iso, chatId: "" },
     limits: {
-      h5: limit(db, "5h", now) ?? { pct: Math.round((h5Spend / H5_USD) * 100), estimated: true },
+      h5: limit(db, "5h", now),
       week: limit(db, "week", now),
       h5Usd: H5_USD,
     },
