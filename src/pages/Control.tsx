@@ -140,7 +140,7 @@ function Agents({ agents, tasks, sprint }: { agents: Agent[]; tasks: Task[]; spr
           <span className={s.muted}>
             {working}/{rows.length} ativos
           </span>
-          {rows.length > fit && (
+          {(all || rows.length > fit) && (
             <button
               type="button"
               className={s.chev}

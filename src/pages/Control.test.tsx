@@ -16,6 +16,8 @@ function stubHeights(byTag: Record<string, number>) {
     Object.defineProperty(HTMLElement.prototype, p, {
       configurable: true,
       get(this: HTMLElement) {
+        // an expanded list loses its CSS height cap, so it grows to fit every row
+        if (this.hasAttribute("data-all")) return 1000;
         return byTag[this.tagName] ?? 0;
       },
     });
