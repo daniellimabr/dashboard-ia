@@ -304,15 +304,11 @@ export function buildData(db: Db, now = Date.now()): Data {
     "u.chat_id || ':' || u.agent_id",
     "u.chat_id IS NOT NULL AND u.agent_id IS NOT NULL",
   );
-  /** A task's usage: its agent's, else the project's usage inside its start-end window (open = until now). */
-  const taskUse = (t: Row) => {
-    // The Tech Lead's usage is the whole chat's, not the task's: fall through to the window.
-    if (t.agent_id && !String(t.agent_id).endsWith(":tech-lead"))
-      return consumption(agentUse.get(String(t.agent_id)) ?? idUse.get(String(t.agent_id)));
-    return t.started_at
-      ? consumption(spend(t.project_id, String(t.started_at), s(t.ended_at) ?? iso))
+  /** A task's usage: its own subagent's. The Tech Lead's is the whole chat's and parallel tasks share a window, so no split: undefined. */
+  const taskUse = (t: Row) =>
+    t.agent_id && !String(t.agent_id).endsWith(":tech-lead")
+      ? consumption(agentUse.get(String(t.agent_id)) ?? idUse.get(String(t.agent_id)))
       : undefined;
-  };
   const modelsOf = db.prepare(
     `SELECT u.model, sum(coalesce(u.tokens_in, 0)) input, sum(coalesce(u.tokens_out, 0)) output,
        sum(coalesce(u.cache_read, 0) + coalesce(u.cache_write, 0)) cache, sum(${USD_SQL}) usd

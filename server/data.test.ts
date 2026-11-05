@@ -214,19 +214,13 @@ describe("consumption by kind with % of the windows", () => {
     expect(buildData(db, NOW).sprints[0]?.consumption).toMatchObject({ input: 1_000_000, usd: 0 });
   });
 
-  it("task takes its agent's usage; without agent, the usage inside its start-end window", () => {
-    ev("sprint.open", "2026-10-18T10:00:00Z", { tasks: 3 }, env(null, "tech-lead"));
+  it("task without its own subagent (Tech Lead or none) has no consumption: no shared window split", () => {
+    ev("sprint.open", "2026-10-18T10:00:00Z", { tasks: 2 }, env(null, "tech-lead"));
     ev("task.start", "2026-10-18T10:01:00Z", {}, env("T01", "main-harness:tech-lead"));
     ev("task.start", "2026-10-18T10:20:00Z", {}, { sprint: "S01", task: "T02" });
-    ev("task.done", "2026-10-18T10:40:00Z", {}, { sprint: "S01", task: "T02" });
-    ev("task.start", "2026-10-18T10:50:00Z", {}, { sprint: "S01", task: "T03" }); // open: window runs to now
-    use("in", "2026-10-18T10:30:00Z", "claude-opus-5-5"); // chatless, inside T02
-    use("late", "2026-10-18T11:30:00Z", "claude-haiku-4-5"); // inside T03 only
+    use("in", "2026-10-18T10:30:00Z", "claude-opus-5-5");
     const tasks = buildData(db, NOW).sprints[0]?.tasks ?? [];
-    const by = Object.fromEntries(tasks.map((t) => [t.id, t.consumption]));
-    expect(by.T02?.usd).toBeCloseTo(6, 3);
-    expect(by.T03?.usd).toBeCloseTo(1.5, 2);
-    expect(by.T01?.usd).toBeCloseTo(7.5, 2); // the Tech Lead's usage is the chat's: window instead
+    expect(tasks.map((t) => t.consumption)).toEqual([undefined, undefined]);
   });
 
   it("task without start has no consumption", () => {
@@ -454,8 +448,8 @@ describe("real per-agent spend, task agent and waits from the transcripts", () =
       pctWeek: (1 / 227) * 100,
     });
     expect(agents.find((a) => a.id === "c1:main-harness:reviewer")?.consumption).toBeUndefined();
-    // The Tech Lead agent is the whole chat: its task uses the start-end window (both agents' rows).
-    expect(d.sprints.find((s) => s.id === "S01")?.tasks[0]?.consumption?.usd).toBe(2);
+    // The Tech Lead agent is the whole chat: its task shows no consumption.
+    expect(d.sprints.find((s) => s.id === "S01")?.tasks[0]?.consumption).toBeUndefined();
   });
 
   it("'reviewer' and 'main-harness:reviewer' are one agent", () => {
