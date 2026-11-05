@@ -106,6 +106,13 @@ describe("Layout (direction C frame)", () => {
     );
   });
 
+  it("an estimated limit says 'estimado' instead of the countdown", () => {
+    renderAt("/", { ...data, limits: { ...data.limits, week: { pct: 10, estimated: true } } });
+    expect(screen.getByRole("meter", { name: "Semanal" }).parentElement?.textContent).toMatch(
+      /estimado/,
+    );
+  });
+
   it("the accordion shows at most the 5 latest sprints", async () => {
     const extra = ["S03", "S04", "S05", "S06", "S07"].map((id) => ({
       id,

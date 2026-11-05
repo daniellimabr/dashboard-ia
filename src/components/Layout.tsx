@@ -242,7 +242,7 @@ export function Layout() {
             </span>
             <Meter label="Semanal" pct={week?.pct} />
             <small>
-              {weekReset.countdown} <span>{weekReset.at}</span>
+              {week?.estimated ? "estimado" : weekReset.countdown} <span>{weekReset.at}</span>
             </small>
           </div>
         </div>

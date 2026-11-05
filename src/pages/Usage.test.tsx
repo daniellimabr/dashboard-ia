@@ -3,6 +3,7 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { data } from "../data/mock";
+import type { Chat, Sprint } from "../data/types";
 import { renderAt } from "../test-utils";
 
 const region = (name: RegExp) => screen.getByRole("region", { name });
@@ -51,6 +52,63 @@ describe("Usage page", () => {
       expect.stringMatching(/^S07.*3,00/),
       expect.stringMatching(/^Fora de sprint.*0,50/),
     ]);
+  });
+
+  it("Por sprint lists each sprint with %, US$ and tokens by kind; open it to see tasks and agents; missing = —", async () => {
+    const c = {
+      input: 1000,
+      output: 2000,
+      cacheRead: 3000,
+      cacheWrite: 4000,
+      usd: 2.5,
+      pct5h: 8.3,
+      pctWeek: 120,
+    };
+    const sprint: Sprint = {
+      id: "S99",
+      projectId: "dashboard-ia",
+      title: "Teste",
+      status: "active",
+      consumption: c,
+      tasks: [
+        { id: "T01", title: "Primeira", done: true, consumption: c },
+        { id: "T02", title: "Segunda", done: false },
+      ],
+    };
+    const chat: Chat = {
+      id: "c99",
+      title: "Chat",
+      startedAt: "2026-10-20T10:00:00Z",
+      tasks: [],
+      projectId: "dashboard-ia",
+      sprintId: "S99",
+      agents: [
+        {
+          id: "a1",
+          kind: "clone" as const,
+          name: "Clone 9",
+          startedAt: "2026-10-20T10:00:00Z",
+          consumption: c,
+        },
+      ],
+    };
+    renderAt("/p/dashboard-ia/usage", { ...data, sprints: [sprint], chats: [chat] });
+    const acc = region(/Por sprint/).querySelectorAll("details");
+    expect(acc).toHaveLength(1);
+    const det = acc[0] as HTMLElement;
+    const sum = det.querySelector("summary")?.textContent ?? "";
+    expect(sum).toContain("S99");
+    expect(sum).toContain(formatUsd(2.5));
+    expect(sum).toContain("8,3%");
+    expect(sum).toContain("120,0%");
+    await userEvent.click(within(det).getByText("S99"));
+    const rows = within(det).getAllByRole("row");
+    expect(rows[0]?.textContent).toMatch(/Entrada.*Saída.*Cache lido.*Cache escrito/);
+    const text = (name: RegExp) =>
+      rows.find((r) => name.test(r.textContent ?? ""))?.textContent ?? "";
+    expect(text(/T01/)).toContain(formatTokens(3000));
+    expect(text(/Clone 9/)).toContain(formatUsd(2.5));
+    expect(text(/T02/)).toContain("—");
   });
 
   it("shows sem dado when the project has no usage", () => {
