@@ -1,6 +1,7 @@
 // Builds the front's `Data` (src/data/types.ts) from the database and the repos' docs (spec 0001 §4.1).
 import type {
   Agent,
+  Consumption,
   Data,
   Limit,
   ModelUsage,
@@ -30,7 +31,26 @@ const n = (v: unknown) => (v == null ? undefined : Number(v));
 const parse = <T>(v: unknown): T | undefined =>
   v == null ? undefined : (JSON.parse(String(v)) as T);
 
-const toTask = (r: Row): Task => ({
+/** Sums of a `usage` selection (alias u): row count, the four token kinds and US$. */
+const KINDS_SQL = `count(*) n, sum(coalesce(u.tokens_in, 0)) input, sum(coalesce(u.tokens_out, 0)) output,
+  sum(coalesce(u.cache_read, 0)) cacheRead, sum(coalesce(u.cache_write, 0)) cacheWrite, sum(${USD_SQL}) usd`;
+
+/** A KINDS_SQL row as Consumption; no usage row = undefined, not zeros. */
+const consumption = (r?: Row): Consumption | undefined =>
+  r && Number(r.n)
+    ? {
+        input: Number(r.input),
+        output: Number(r.output),
+        cacheRead: Number(r.cacheRead),
+        cacheWrite: Number(r.cacheWrite),
+        usd: Number(r.usd),
+        pct5h: (Number(r.usd) / H5_USD) * 100,
+        pctWeek: (Number(r.usd) / WEEK_USD) * 100,
+      }
+    : undefined;
+
+const toTask = (r: Row, consumed: (r: Row) => Consumption | undefined): Task => ({
+  consumption: consumed(r),
   id: String(r.id),
   title: String(r.title),
   done: !!r.done,
@@ -262,9 +282,36 @@ export function buildData(db: Db, now = Date.now()): Data {
   ))
     taskAgent.set(`${e.p}/${e.scope}/${e.task}`, String(e.agent));
   for (const t of tasks) t.agent_id = taskAgent.get(`${t.project_id}/${t.scope}/${t.id}`) ?? null;
-  const spend = db.prepare(
-    `SELECT coalesce(sum(${USD_SQL}), 0) usd FROM usage u WHERE u.project_id = ? AND julianday(u.at) BETWEEN julianday(?) AND julianday(?)`,
+  const windowUse = db.prepare(
+    `SELECT ${KINDS_SQL} FROM usage u WHERE u.project_id = ? AND julianday(u.at) BETWEEN julianday(?) AND julianday(?)`,
   );
+  const spend = (project: unknown, from: string, to: string) =>
+    windowUse.get(String(project), from, to) as Row;
+  // Agent row id = "<chat>:<harness agent>": main-session lines are the Tech Lead's, a subagent's carry its agentType.
+  const kindsBy = (idSql: string, where: string) =>
+    new Map(
+      all(
+        `SELECT ${idSql} id, ${KINDS_SQL},
+           sum(coalesce(u.tokens_in, 0) + coalesce(u.tokens_out, 0) + coalesce(u.cache_read, 0) + coalesce(u.cache_write, 0)) tokens
+         FROM usage u WHERE ${where} GROUP BY 1`,
+      ).map((r) => [String(r.id), r]),
+    );
+  const agentUse = kindsBy(
+    "u.chat_id || ':' || coalesce(u.agent_type, u.agent_id, 'tech-lead')",
+    "u.chat_id IS NOT NULL",
+  );
+  const idUse = kindsBy(
+    "u.chat_id || ':' || u.agent_id",
+    "u.chat_id IS NOT NULL AND u.agent_id IS NOT NULL",
+  );
+  /** A task's usage: its agent's, else the project's usage inside its start-end window (open = until now). */
+  const taskUse = (t: Row) => {
+    if (t.agent_id)
+      return consumption(agentUse.get(String(t.agent_id)) ?? idUse.get(String(t.agent_id)));
+    return t.started_at
+      ? consumption(spend(t.project_id, String(t.started_at), s(t.ended_at) ?? iso))
+      : undefined;
+  };
   const modelsOf = db.prepare(
     `SELECT u.model, sum(coalesce(u.tokens_in, 0)) input, sum(coalesce(u.tokens_out, 0)) output,
        sum(coalesce(u.cache_read, 0) + coalesce(u.cache_write, 0)) cache, sum(${USD_SQL}) usd
@@ -308,7 +355,10 @@ export function buildData(db: Db, now = Date.now()): Data {
     const plan = repo && r.plan_path ? readPlan(repo, String(r.plan_path)) : undefined;
     const own = tasks
       .filter((t) => t.project_id === r.project_id && t.sprint_id === r.id)
-      .map(toTask);
+      .map((t) => toTask(t, taskUse));
+    const used = r.started_at
+      ? spend(r.project_id, String(r.started_at), s(r.closed_at) ?? iso)
+      : undefined;
     const list = mergePlan(own, plan);
     const doneTasks = own.filter((t) => t.done);
     const delivered =
@@ -331,12 +381,8 @@ export function buildData(db: Db, now = Date.now()): Data {
       plannedMin:
         Math.max(0, ...list.map((t) => (t.plan ? t.plan.start + t.plan.duration : 0))) ||
         n(r.planned_min),
-      usd: r.started_at
-        ? Number(
-            (spend.get(String(r.project_id), String(r.started_at), s(r.closed_at) ?? iso) as Row)
-              .usd,
-          )
-        : undefined,
+      usd: used ? Number(used.usd) : undefined,
+      consumption: consumption(used),
       byModel: byModel(r),
       waits: sprintWaits(r),
       tasks: list,
@@ -388,15 +434,6 @@ export function buildData(db: Db, now = Date.now()): Data {
     s(end) ?? (last && now - Date.parse(last) >= LIVE_MS ? last : undefined);
 
   const agents = all("SELECT * FROM agent ORDER BY started_at");
-  // Agent row id = "<chat>:<harness agent>": main-session lines are the Tech Lead's, a subagent's carry its agentType.
-  const agentUse = new Map(
-    all(
-      `SELECT u.chat_id || ':' || coalesce(u.agent_type, u.agent_id, 'tech-lead') id,
-         sum(coalesce(u.tokens_in, 0) + coalesce(u.tokens_out, 0) + coalesce(u.cache_read, 0) + coalesce(u.cache_write, 0)) tokens,
-         sum(${USD_SQL}) usd
-       FROM usage u WHERE u.chat_id IS NOT NULL GROUP BY 1`,
-    ).map((r) => [String(r.id), r]),
-  );
   // The harness's agent.start/agent.end carry an agent_id: one agent per id (two clones = two rows).
   // Rows of the same type made from other events (no agent.start) are replaced by them.
   const starts = new Map<string, Row>();
@@ -408,14 +445,6 @@ export function buildData(db: Db, now = Date.now()): Data {
   const endsAt = lastAt(
     "SELECT chat_id || ':' || json_extract(body, '$.data.agent_id') id, max(at) last FROM event WHERE type = 'agent.end' AND chat_id IS NOT NULL AND json_extract(body, '$.data.agent_id') IS NOT NULL GROUP BY 1",
   );
-  const idUse = new Map(
-    all(
-      `SELECT u.chat_id || ':' || u.agent_id id,
-         sum(coalesce(u.tokens_in, 0) + coalesce(u.tokens_out, 0) + coalesce(u.cache_read, 0) + coalesce(u.cache_write, 0)) tokens,
-         sum(${USD_SQL}) usd
-       FROM usage u WHERE u.chat_id IS NOT NULL AND u.agent_id IS NOT NULL GROUP BY 1`,
-    ).map((r) => [String(r.id), r]),
-  );
   const agentRow = (a: Row, chatId: string): Agent => ({
     id: String(a.id),
     kind: String(a.kind) as Agent["kind"],
@@ -426,6 +455,7 @@ export function buildData(db: Db, now = Date.now()): Data {
     endedAt: ended(a.ended_at, agentLast.get(String(a.id)) ?? chatLast.get(chatId)),
     tokens: n(agentUse.get(String(a.id))?.tokens),
     usd: n(agentUse.get(String(a.id))?.usd),
+    consumption: consumption(agentUse.get(String(a.id))),
   });
   const chats = all("SELECT * FROM chat ORDER BY started_at DESC").map((r) => {
     const chatId = String(r.id);
@@ -452,6 +482,7 @@ export function buildData(db: Db, now = Date.now()): Data {
         ),
         tokens: n(idUse.get(id)?.tokens),
         usd: n(idUse.get(id)?.usd),
+        consumption: consumption(idUse.get(id)),
       };
     });
     return {
@@ -467,7 +498,7 @@ export function buildData(db: Db, now = Date.now()): Data {
           .map((a) => agentRow(a, chatId)),
         ...fromEvents,
       ].sort((x, y) => x.startedAt.localeCompare(y.startedAt)),
-      tasks: tasks.filter((t) => t.chat_id === r.id).map(toTask),
+      tasks: tasks.filter((t) => t.chat_id === r.id).map((t) => toTask(t, taskUse)),
     };
   });
 

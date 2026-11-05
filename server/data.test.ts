@@ -172,6 +172,72 @@ describe("sprint consumption by model", () => {
   });
 });
 
+describe("consumption by kind with % of the windows", () => {
+  const NOW = Date.parse("2026-10-18T12:00:00Z");
+  const env = (task: string | null, agent: string | null) => ({
+    session: "c1",
+    sprint: "S01",
+    task,
+    agent,
+  });
+  const use = (id: string, ts: string, model: string, aid?: string) =>
+    ev("usage", ts, {
+      model,
+      input: 1_000_000,
+      output: 100_000,
+      cache_read: 10,
+      cache_write: 20,
+      message_id: id,
+      ...(aid && { agent_id: aid }),
+    });
+  const pcts = (usd: number) => ({ pct5h: (usd / 30) * 100, pctWeek: (usd / 227) * 100 });
+
+  it("sprint: four kinds sum to the tokens by model, with US$ and % from the constants", () => {
+    ev("sprint.open", "2026-10-18T10:00:00Z", { tasks: 1 }, env(null, "tech-lead"));
+    use("a", "2026-10-18T11:00:00Z", "claude-opus-5-5");
+    const sp = buildData(db, NOW).sprints[0];
+    const m = sp?.byModel?.[0];
+    const c = sp?.consumption;
+    expect(c).toMatchObject({ input: 1_000_000, output: 100_000, cacheRead: 10, cacheWrite: 20 });
+    expect((c?.input ?? 0) + (c?.output ?? 0) + (c?.cacheRead ?? 0) + (c?.cacheWrite ?? 0)).toBe(
+      (m?.input ?? 0) + (m?.output ?? 0) + (m?.cache ?? 0),
+    );
+    expect(c?.usd).toBeCloseTo(6, 3);
+    expect(c?.pct5h).toBeCloseTo(pcts(c?.usd ?? 0).pct5h, 9);
+    expect(c?.pctWeek).toBeCloseTo(pcts(c?.usd ?? 0).pctWeek, 9);
+  });
+
+  it("sprint without usage has no consumption; a model without price costs 0 without breaking", () => {
+    ev("sprint.open", "2026-10-18T10:00:00Z", { tasks: 1 }, env(null, "tech-lead"));
+    expect(buildData(db, NOW).sprints[0]?.consumption).toBeUndefined();
+    use("x", "2026-10-18T11:00:00Z", "mystery-model");
+    expect(buildData(db, NOW).sprints[0]?.consumption).toMatchObject({ input: 1_000_000, usd: 0 });
+  });
+
+  it("task takes its agent's usage; without agent, the usage inside its start-end window", () => {
+    ev("sprint.open", "2026-10-18T10:00:00Z", { tasks: 3 }, env(null, "tech-lead"));
+    ev("task.start", "2026-10-18T10:01:00Z", {}, env("T01", "main-harness:tech-lead"));
+    ev("task.start", "2026-10-18T10:20:00Z", {}, { sprint: "S01", task: "T02" });
+    ev("task.done", "2026-10-18T10:40:00Z", {}, { sprint: "S01", task: "T02" });
+    ev("task.start", "2026-10-18T10:50:00Z", {}, { sprint: "S01", task: "T03" }); // open: window runs to now
+    use("in", "2026-10-18T10:30:00Z", "claude-opus-5-5"); // chatless, inside T02
+    use("late", "2026-10-18T11:30:00Z", "claude-haiku-4-5"); // inside T03 only
+    const tasks = buildData(db, NOW).sprints[0]?.tasks ?? [];
+    const by = Object.fromEntries(tasks.map((t) => [t.id, t.consumption]));
+    expect(by.T02?.usd).toBeCloseTo(6, 3);
+    expect(by.T03?.usd).toBeCloseTo(1.5, 2);
+    expect(by.T01).toBeUndefined(); // agent has no usage rows
+  });
+
+  it("task without start has no consumption", () => {
+    ev("sprint.open", "2026-10-18T10:00:00Z", { tasks: 1 }, env(null, "tech-lead"));
+    use("a", "2026-10-18T11:00:00Z", "claude-opus-5-5");
+    ev("task.start", "2026-10-18T10:01:00Z", {}, { sprint: "S01", task: "T01" });
+    db.exec("UPDATE task SET started_at = NULL");
+    expect(buildData(db, NOW).sprints[0]?.tasks[0]?.consumption).toBeUndefined();
+  });
+});
+
 describe("derived state from harness events and the repo", () => {
   const NOW = Date.parse("2026-10-18T10:20:00Z");
   const fixture = () => {
@@ -372,6 +438,23 @@ describe("real per-agent spend, task agent and waits from the transcripts", () =
       "c1:main-harness:tech-lead": [1_000_000, 1],
       "c1:main-harness:reviewer": [undefined, undefined],
     });
+  });
+
+  it("agent consumption by kind; the task takes its agent's", () => {
+    const d = setup();
+    const agents = d.chats.find((c) => c.id === "c1")?.agents ?? [];
+    const lead = agents.find((a) => a.id === "c1:main-harness:tech-lead");
+    expect(lead?.consumption).toEqual({
+      input: 1_000_000,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+      usd: 1,
+      pct5h: (1 / 30) * 100,
+      pctWeek: (1 / 227) * 100,
+    });
+    expect(agents.find((a) => a.id === "c1:main-harness:reviewer")?.consumption).toBeUndefined();
+    expect(d.sprints.find((s) => s.id === "S01")?.tasks[0]?.consumption).toEqual(lead?.consumption);
   });
 
   it("'reviewer' and 'main-harness:reviewer' are one agent", () => {

@@ -1,7 +1,23 @@
 // Shapes mirror the future harness events (see docs/adr/0001-arquitetura.md).
 export type AgentKind = "tech-lead" | "clone" | "reviewer";
 
+/** Tokens by kind; their sum is the total of tokens. */
+export interface TokenKinds {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+}
+
+/** Consumption of a sprint, task or agent: tokens by kind, US$ and share of the 5 h window and of the week (0–100+, uncapped). */
+export interface Consumption extends TokenKinds {
+  usd: number;
+  pct5h: number; // usd / Data.limits.h5Usd * 100
+  pctWeek: number;
+}
+
 export interface Agent {
+  consumption?: Consumption; // missing = no usage read
   id: string;
   kind: AgentKind;
   name: string; // "Tech Lead", "Clone 1", "Reviewer"
@@ -23,6 +39,7 @@ export interface TaskPlan {
 }
 
 export interface Task {
+  consumption?: Consumption; // its agent's usage, or the usage in its start-end window
   id: string;
   title: string;
   done: boolean;
@@ -77,6 +94,7 @@ export interface Sprint {
   closedAt?: string;
   plannedMin?: number;
   usd?: number;
+  consumption?: Consumption; // usage in the sprint window; missing = none
   byModel?: ModelUsage[]; // missing = no consumption in the sprint window
   waits?: Wait[]; // missing = "sem dado"; [] = no waits
   tasks: Task[];

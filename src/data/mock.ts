@@ -1,4 +1,20 @@
-import type { Agent, Chat, Data, Doc, Project, Sprint, Task, UsageDay } from "./types";
+import type { Agent, Chat, Consumption, Data, Doc, Project, Sprint, Task, UsageDay } from "./types";
+
+const cons = (
+  input: number,
+  output: number,
+  cacheRead: number,
+  cacheWrite: number,
+  usd: number,
+): Consumption => ({
+  input,
+  output,
+  cacheRead,
+  cacheWrite,
+  usd,
+  pct5h: (usd / 30) * 100,
+  pctWeek: (usd / 227) * 100,
+});
 
 // Times are relative to load time so "running now" always looks live.
 // The draft's clock reads 14:50; `at(h, m)` is that time of day, `days` back.
@@ -345,6 +361,7 @@ const sprints: Sprint[] = [
     startedAt: at(13, 40),
     plannedMin: 220,
     usd: 3.1,
+    consumption: cons(24_000, 150_000, 4_300_000, 545_000, 3.1),
     waits: [
       { kind: "reply", start: at(13, 58), end: at(14, 6) },
       { kind: "limit", start: at(14, 22), end: at(14, 37) },
@@ -438,6 +455,7 @@ const chats: Chat[] = [
         doing: "coordena a onda 2",
         usd: 1.42,
         tokens: 2_310_000,
+        consumption: cons(10_000, 60_000, 2_000_000, 240_000, 1.42),
       }),
       agent("a2", "reviewer", "Reviewer", at(14, 10), {
         task: "T02",
@@ -445,18 +463,21 @@ const chats: Chat[] = [
         endedAt: at(14, 22),
         usd: 0.31,
         tokens: 498_000,
+        consumption: cons(2_000, 12_000, 450_000, 34_000, 0.31),
       }),
       agent("a3", "clone", "Clone 1", at(14, 38), {
         task: "T03",
         doing: "T03 cards",
         usd: 0.78,
         tokens: 1_270_000,
+        consumption: cons(7_000, 50_000, 1_100_000, 113_000, 0.78),
       }),
       agent("a4", "clone", "Clone 2", at(14, 41), {
         task: "T04",
         doing: "T04 linha do tempo",
         usd: 0.59,
         tokens: 940_000,
+        consumption: cons(5_000, 28_000, 850_000, 57_000, 0.59),
       }),
     ],
   },
@@ -733,7 +754,7 @@ export const data: Data = {
   limits: {
     h5: { pct: 62, resetsAt: ago(-100) },
     week: { pct: 41, resetsAt: ago(-(3 * 1440 + 18 * 60 + 10)) },
-    h5Usd: 17,
+    h5Usd: 30,
   },
   projects,
   chats,
