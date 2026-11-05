@@ -306,7 +306,8 @@ export function buildData(db: Db, now = Date.now()): Data {
   );
   /** A task's usage: its agent's, else the project's usage inside its start-end window (open = until now). */
   const taskUse = (t: Row) => {
-    if (t.agent_id)
+    // The Tech Lead's usage is the whole chat's, not the task's: fall through to the window.
+    if (t.agent_id && !String(t.agent_id).endsWith(":tech-lead"))
       return consumption(agentUse.get(String(t.agent_id)) ?? idUse.get(String(t.agent_id)));
     return t.started_at
       ? consumption(spend(t.project_id, String(t.started_at), s(t.ended_at) ?? iso))

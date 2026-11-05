@@ -226,7 +226,7 @@ describe("consumption by kind with % of the windows", () => {
     const by = Object.fromEntries(tasks.map((t) => [t.id, t.consumption]));
     expect(by.T02?.usd).toBeCloseTo(6, 3);
     expect(by.T03?.usd).toBeCloseTo(1.5, 2);
-    expect(by.T01).toBeUndefined(); // agent has no usage rows
+    expect(by.T01?.usd).toBeCloseTo(7.5, 2); // the Tech Lead's usage is the chat's: window instead
   });
 
   it("task without start has no consumption", () => {
@@ -454,7 +454,8 @@ describe("real per-agent spend, task agent and waits from the transcripts", () =
       pctWeek: (1 / 227) * 100,
     });
     expect(agents.find((a) => a.id === "c1:main-harness:reviewer")?.consumption).toBeUndefined();
-    expect(d.sprints.find((s) => s.id === "S01")?.tasks[0]?.consumption).toEqual(lead?.consumption);
+    // The Tech Lead agent is the whole chat: its task uses the start-end window (both agents' rows).
+    expect(d.sprints.find((s) => s.id === "S01")?.tasks[0]?.consumption?.usd).toBe(2);
   });
 
   it("'reviewer' and 'main-harness:reviewer' are one agent", () => {
