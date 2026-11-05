@@ -13,8 +13,10 @@ import {
   Tip,
   type Pause,
 } from "../components/ui";
+import { Kinds } from "../components/Consumption";
 import type { Agent, Project, Sprint, Task } from "../data/types";
 import { formatTokens, formatUsd } from "../lib/format";
+import { costLine } from "../lib/pct";
 import { resetLabel } from "../lib/limits";
 import { agentLabel, currentWave, sprintPct, taskStatus } from "../lib/progress";
 import { runningAgents } from "../lib/select";
@@ -176,6 +178,8 @@ function Agents({ agents, tasks, sprint }: { agents: Agent[]; tasks: Task[]; spr
                         ? "tokens sem dado"
                         : `${formatTokens(a.tokens)} tokens`}
                     </small>
+                    <small className={s.muted}>{costLine(a.consumption)}</small>
+                    <Kinds c={a.consumption} />
                   </span>
                 </summary>
                 {mine.length ? (
@@ -340,7 +344,8 @@ function ControlRoom({ project: p }: { project: Project }) {
             <span className={s.muted}>hoje · {formatTokens(today?.tokens ?? 0)} tokens</span>
           </div>
           <Spend days={days} />
-          <span className={s.muted}>Gasto da sprint: {formatUsd(sprint?.usd ?? 0)}</span>
+          <span className={s.muted}>Sprint: {costLine(sprint?.consumption)}</span>
+          <Kinds c={sprint?.consumption} />
         </Panel>
         <Panel
           title="Tarefas da sprint"

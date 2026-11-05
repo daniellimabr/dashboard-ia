@@ -1,7 +1,9 @@
-import { screen, within } from "@testing-library/react";
+import { cleanup, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 import { data } from "../data/mock";
+import { formatTokens, formatUsd } from "../lib/format";
+import { formatPct } from "../lib/pct";
 import { sprintPct } from "../lib/progress";
 import { formatTime } from "../lib/time";
 import { renderAt } from "../test-utils";
@@ -211,6 +213,88 @@ describe("Control (Sala de controle)", () => {
     expect(r.queryByText(/ctx/)).toBeNull();
     expect(r.queryByText("Contexto usado pelo agente")).toBeNull();
     expect(r.queryAllByRole("meter")).toHaveLength(0);
+  });
+
+  it("consumo: sprint US$, % of 5 h and week, and tokens by kind", () => {
+    renderAt("/controle");
+    const r = region(/Consumo/);
+    const c = s02?.consumption;
+    expect(c).toBeTruthy();
+    const line = r.getByText(/Sprint/).textContent ?? "";
+    expect(line).toContain(formatUsd(c?.usd ?? 0));
+    expect(line).toContain(`${formatPct(c?.pct5h ?? 0)} das 5 h`);
+    expect(line).toContain(`${formatPct(c?.pctWeek ?? 0)} da semana`);
+    const dd = (dt: string) => r.getByText(dt).nextElementSibling?.textContent;
+    expect(dd("Entrada")).toBe(formatTokens(c?.input ?? 0));
+    expect(dd("Saída")).toBe(formatTokens(c?.output ?? 0));
+    expect(dd("Cache lido")).toBe(formatTokens(c?.cacheRead ?? 0));
+    expect(dd("Cache escrito")).toBe(formatTokens(c?.cacheWrite ?? 0));
+  });
+
+  it("consumo: sprint without consumption reads — and not zero", () => {
+    renderAt("/controle", {
+      ...data,
+      sprints: data.sprints.map((x) => (x.id === s02?.id ? { ...x, consumption: undefined } : x)),
+    });
+    const r = region(/Consumo/);
+    expect(r.getByText("Entrada").nextElementSibling?.textContent).toBe("—");
+    expect(r.getByText(/Sprint/).textContent).toContain("—");
+  });
+
+  it("agents: US$, % and tokens by kind per agent; none = —", () => {
+    renderAt("/controle");
+    const a3 = data.chats.flatMap((c) => c.agents).find((a) => a.id === "a3")?.consumption;
+    const li = region(/Agentes/)
+      .getByText("Clone 1")
+      .closest("li");
+    expect(li?.textContent).toContain(formatPct(a3?.pct5h ?? 0));
+    expect(li?.textContent).toContain(formatPct(a3?.pctWeek ?? 0));
+    expect(within(li as HTMLElement).getByText("Cache lido").nextElementSibling?.textContent).toBe(
+      formatTokens(a3?.cacheRead ?? 0),
+    );
+    cleanup();
+    renderAt("/controle", {
+      ...data,
+      chats: data.chats.map((c) => ({
+        ...c,
+        agents: c.agents.map((a) => ({ ...a, consumption: undefined })),
+      })),
+    });
+    const none = region(/Agentes/).getAllByText("Entrada")[0];
+    expect(none?.nextElementSibling?.textContent).toBe("—");
+  });
+
+  it("task list: Consumo column with US$, % and kinds; none = —", () => {
+    const c = {
+      input: 1_000,
+      output: 2_000,
+      cacheRead: 3_000,
+      cacheWrite: 4_000,
+      usd: 1.5,
+      pct5h: 5,
+      pctWeek: 0.7,
+    };
+    renderAt("/controle", {
+      ...data,
+      sprints: data.sprints.map((x) =>
+        x.id === s02?.id
+          ? {
+              ...x,
+              tasks: x.tasks.map((t) => ({ ...t, consumption: t.id === "T01" ? c : undefined })),
+            }
+          : x,
+      ),
+    });
+    const r = region(/Tarefas da sprint/);
+    expect(r.getByRole("columnheader", { name: "Consumo" })).toBeTruthy();
+    const row = (id: string) =>
+      r.getAllByRole("row").find((x) => x.querySelector("b")?.textContent === id);
+    expect(row("T01")?.textContent).toContain(`${formatUsd(1.5)} · 5% das 5 h · 0,7% da semana`);
+    const cell = (id: string) => within(row(id) as HTMLElement);
+    expect(cell("T01").getByText("Cache escrito").nextElementSibling?.textContent).toBe(
+      formatTokens(4_000),
+    );
+    expect(cell("T02").getByText("Entrada").nextElementSibling?.textContent).toBe("—");
   });
 
   it("consumo: axis title and tooltip with spend and tokens", () => {

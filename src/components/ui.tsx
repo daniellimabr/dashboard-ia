@@ -1,6 +1,8 @@
 import { useId, type CSSProperties, type ReactNode } from "react";
 import { STEPS, type Data, type Sprint, type Task, type Tone } from "../data/types";
+import { costLine } from "../lib/pct";
 import { agentLabel, taskPct, taskStatus } from "../lib/progress";
+import { Kinds } from "./Consumption";
 import { useData } from "../lib/useData";
 import { durationMs, formatDate, formatDateTime, formatDuration, formatTime } from "../lib/time";
 import { useNow } from "../lib/useNow";
@@ -442,6 +444,7 @@ export function TaskTable({ tasks, start }: { tasks: Task[]; start?: string }) {
             <th>Fim previsto</th>
             <th>Duração</th>
             <th>Progresso</th>
+            <th>Consumo</th>
           </tr>
         </thead>
         {waves.map((w) => {
@@ -449,7 +452,7 @@ export function TaskTable({ tasks, start }: { tasks: Task[]; start?: string }) {
           return (
             <tbody key={w ?? 0} data-wave={waveSlot(w)}>
               <tr className={s.waveHead}>
-                <th colSpan={8} scope="rowgroup">
+                <th colSpan={9} scope="rowgroup">
                   <span>{w ? `Onda ${w}` : "Sem onda"}</span>{" "}
                   <small className={s.muted}>
                     {group.filter((t) => t.done).length}/{group.length} concluídas
@@ -503,6 +506,12 @@ export function TaskTable({ tasks, start }: { tasks: Task[]; start?: string }) {
                         tone={taskTone(t)}
                         showValue
                       />
+                    </td>
+                    <td>
+                      <small className={t.consumption ? undefined : s.muted}>
+                        {costLine(t.consumption)}
+                      </small>
+                      <Kinds c={t.consumption} />
                     </td>
                   </tr>
                 );
