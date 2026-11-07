@@ -4,6 +4,7 @@ Pedidos do projeto. Um item por linha: `- [prioridade] data [status: SNN] — te
 
 ## Itens
 
+- [alta] 2026-11-07 — Repensar como o painel exibe o consumo (por agente, não por tarefa; tarefa sem clone próprio nos eventos fica sem consumo). Pauta da S15, com Daniel.
 - [alta] 2026-11-07 [S14] — Tabela "Tarefas da sprint": com descrições longas (caso do financeiro) a coluna Consumo fica espremida e os rótulos (Entrada/Saída/Cache lido/Cache escrito) se sobrepõem. Dar espaço à coluna (limitar/truncar a descrição, ou rótulos em coluna).
 - [alta] 2026-10-21 [concluído: S07] — Implementar as telas escolhidas nos drafts da S06 (`drafts.html`); apagar `drafts.html` e `src/drafts` ao final:
   - **Sala de controle:** variante B (sprints recentes como abas na janela da sprint, com id + situação).
