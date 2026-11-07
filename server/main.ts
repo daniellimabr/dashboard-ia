@@ -21,6 +21,6 @@ function importRound() {
 
 importRound();
 setInterval(importRound, 2000);
-createServer(handler(db)).listen(PORT, "127.0.0.1", () => {
+createServer(handler(db, Date.now())).listen(PORT, "127.0.0.1", () => {
   console.log(`API em http://127.0.0.1:${PORT}/api/data · eventos de ${eventsDir}`);
 });

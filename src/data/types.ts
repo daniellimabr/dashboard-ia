@@ -146,6 +146,7 @@ export interface Limit {
 }
 
 export interface Data {
+  server?: { startedAt: number; commitAt?: number }; // epoch ms; commitAt missing = git unavailable
   lastCommand: { at: string; chatId: string };
   limits: { h5: Limit; week?: Limit; h5Usd: number }; // h5Usd: spend that equals 100% of the 5 h window; week missing = "sem dado"
   projects: Project[];

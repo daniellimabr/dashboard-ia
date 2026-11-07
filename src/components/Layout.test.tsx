@@ -33,6 +33,23 @@ describe("Layout (direction C frame)", () => {
     screen.getByRole("meter", { name: "Semanal" });
   });
 
+  it("warns to restart only when the last commit is newer than the server start", () => {
+    const warn = /Servidor desatualizado: reinicie/;
+    const { unmount } = renderAt("/", { ...data, server: { startedAt: 1000, commitAt: 2000 } });
+    expect(screen.getByRole("status").textContent).toMatch(warn);
+    unmount();
+    for (const server of [
+      { startedAt: 2000, commitAt: 2000 },
+      { startedAt: 2000, commitAt: 1000 },
+      { startedAt: 2000 },
+      undefined,
+    ]) {
+      const r = renderAt("/", { ...data, server });
+      expect(screen.queryByText(warn)).toBeNull();
+      r.unmount();
+    }
+  });
+
   it("has no theme switch: the dashboard is dark only", () => {
     renderAt("/");
     expect(screen.queryByRole("button", { name: /Tema/ })).toBeNull();

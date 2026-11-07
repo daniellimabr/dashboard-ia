@@ -190,6 +190,7 @@ export function Layout() {
     );
   };
 
+  const stale = !!data.server?.commitAt && data.server.commitAt > data.server.startedAt;
   const { h5, week } = data.limits;
   const h5Reset = resetLabel(h5.resetsAt, now, false);
   const weekReset = resetLabel(week?.resetsAt, now, true);
@@ -226,6 +227,21 @@ export function Layout() {
             )}
           </nav>
         </div>
+        {stale && (
+          <div
+            role="status"
+            style={{
+              margin: "0 22px 12px",
+              padding: "8px 10px",
+              borderRadius: "var(--r-sm)",
+              border: "1px solid color-mix(in srgb, var(--warn) 45%, transparent)",
+              background: "color-mix(in srgb, var(--warn) 16%, transparent)",
+              fontSize: 12,
+            }}
+          >
+            Servidor desatualizado: reinicie
+          </div>
+        )}
         <div className={s.limits}>
           <div>
             <span>

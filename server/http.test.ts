@@ -28,6 +28,17 @@ describe("http handler", () => {
     expect((await res.json()).projects[0].name).toBe("P");
   });
 
+  it("reports when the server started and when the repo's last commit happened", async () => {
+    await new Promise((r) => server.close(r));
+    server = createServer(handler(db, 1000, () => 2000));
+    await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+    base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    expect((await (await fetch(`${base}/api/data`)).json()).server).toEqual({
+      startedAt: 1000,
+      commitAt: 2000,
+    });
+  });
+
   it("promotes a project and 404s an unknown one", async () => {
     expect((await fetch(`${base}/api/projects/p1/promote`, { method: "POST" })).status).toBe(204);
     expect(db.prepare("SELECT promoted FROM project").get()).toEqual({ promoted: 1 });
