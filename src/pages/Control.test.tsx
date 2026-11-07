@@ -30,6 +30,9 @@ function stubHeights(byTag: Record<string, number>) {
 
 const region = (name: string | RegExp) => within(screen.getByRole("region", { name }));
 const s02 = data.sprints.find((x) => x.projectId === "dashboard-ia" && x.status === "active");
+/** Agent rows: the list items that are not task chips. */
+const agentRows = (r: ReturnType<typeof region>) =>
+  r.getAllByRole("listitem").filter((li) => !li.parentElement?.closest("li"));
 const pick = (name: RegExp) =>
   userEvent.click(
     within(screen.getByRole("navigation", { name: "Projetos" })).getByRole("button", { name }),
@@ -104,13 +107,13 @@ describe("Control (Sala de controle)", () => {
       await pick(/Main Harness/);
       const r = region(/Agentes/);
       expect(r.getByText("0/5 ativos")).toBeTruthy();
-      expect(r.getAllByRole("group").length).toBe(2);
-      expect(r.getAllByRole("group")[0]?.textContent).toContain("aguardando teste");
+      expect(agentRows(r).length).toBe(2);
+      expect(agentRows(r)[0]?.textContent).toContain("aguardando teste");
       await userEvent.click(r.getByRole("button", { name: "Mostrar todos os agentes" }));
-      expect(r.getAllByRole("group").length).toBe(5);
+      expect(agentRows(r).length).toBe(5);
       expect(r.getByText(/1,35/).textContent).toMatch(/tokens/);
       await userEvent.click(r.getByRole("button", { name: "Mostrar menos" }));
-      expect(r.getAllByRole("group").length).toBe(2);
+      expect(agentRows(r).length).toBe(2);
       expect(screen.getAllByRole("region", { name: /Andamento/ })[0]?.textContent).toContain("Fim");
     } finally {
       restore();
@@ -121,7 +124,7 @@ describe("Control (Sala de controle)", () => {
     renderAt("/controle"); // no layout = no limit
     await pick(/Main Harness/);
     const r = region(/Agentes/);
-    expect(r.getAllByRole("group").length).toBe(5);
+    expect(agentRows(r).length).toBe(5);
     expect(r.queryByRole("button", { name: /Mostrar/ })).toBeNull();
   });
 
@@ -175,7 +178,7 @@ describe("Control (Sala de controle)", () => {
       })),
     });
     const r = region(/Agentes/);
-    expect(r.getAllByText(/custo sem dado · tokens sem dado/).length).toBeGreaterThan(0);
+    expect(r.getAllByText(/tokens sem dado · custo sem dado/).length).toBeGreaterThan(0);
     expect(r.getAllByText("trabalhando").length).toBeGreaterThan(0);
   });
 
@@ -214,7 +217,90 @@ describe("Control (Sala de controle)", () => {
     const r = region(/Agentes/);
     expect(r.queryByText(/ctx/)).toBeNull();
     expect(r.queryByText("Contexto usado pelo agente")).toBeNull();
-    expect(r.queryAllByRole("meter")).toHaveLength(0);
+  });
+
+  const clone1 = () =>
+    within(
+      region(/Agentes/)
+        .getByText("Clone 1")
+        .closest("li") as HTMLElement,
+    );
+  const a3 = data.chats.flatMap((c) => c.agents).find((a) => a.id === "a3");
+
+  it("agents: share bar of the sprint spend, by the agent's tokens, with its %", () => {
+    renderAt("/controle");
+    const all = data.chats
+      .flatMap((c) => c.agents)
+      .filter((a) => ["a1", "a2", "a3", "a4"].includes(a.id));
+    const total = all.reduce((n, a) => n + (a.tokens ?? 0), 0);
+    const share = ((a3?.tokens ?? 0) / total) * 100;
+    const bar = clone1().getByRole("meter", { name: "Parte do gasto da sprint" });
+    expect(bar.getAttribute("aria-valuenow")).toBe(String(Math.round(share)));
+    expect(clone1().getByText(formatPct(share))).toBeTruthy();
+  });
+
+  it("agents: the 4 kinds sit in one row; the cost goes on the line below the volume", () => {
+    renderAt("/controle");
+    const dls = clone1()
+      .getAllByText("Entrada")
+      .map((e) => e.closest("dl"));
+    const dl = dls[0] as HTMLElement;
+    expect(
+      within(dl)
+        .getAllByRole("term")
+        .map((t) => t.textContent),
+    ).toEqual(["Entrada", "Saída", "Cache lido", "Cache escrito"]);
+    const dd = within(dl).getByText("Cache lido").nextElementSibling as HTMLElement;
+    expect(dd.firstChild?.textContent).toBe(formatTokens(a3?.consumption?.cacheRead ?? 0));
+    expect(dd.querySelector("small")?.textContent).toBe(
+      `(${formatUsd(a3?.costByKind?.cacheRead ?? 0)})`,
+    );
+  });
+
+  it("agents: cost under US$ 0,01 reads <0,01; kind without cost reads (—)", () => {
+    renderAt("/controle", {
+      ...data,
+      chats: data.chats.map((c) => ({
+        ...c,
+        agents: c.agents.map((a) =>
+          a.id === "a3"
+            ? { ...a, costByKind: { input: 0.004, output: 0.3, cacheRead: 0.22, cacheWrite: 0.24 } }
+            : { ...a, costByKind: undefined },
+        ),
+      })),
+    });
+    expect(
+      clone1().getByText("Entrada").nextElementSibling?.querySelector("small")?.textContent,
+    ).toBe("(US$ <0,01)");
+    const other = within(
+      region(/Agentes/)
+        .getByText("Clone 2")
+        .closest("li") as HTMLElement,
+    );
+    expect(other.getByText("Saída").nextElementSibling?.querySelector("small")?.textContent).toBe(
+      "(—)",
+    );
+  });
+
+  it("agents: task chips with ×N only above 1, in the wave color of the task", () => {
+    renderAt("/controle");
+    const t02 = clone1().getByText("T02 ×2");
+    expect(t02.closest("[data-wave]")?.getAttribute("data-wave")).toBe("1"); // wave 2 = slot 1
+    const t03 = clone1().getByText("T03");
+    expect(t03.textContent).toBe("T03");
+    expect(t03.closest("[data-wave]")?.getAttribute("data-wave")).toBe("1");
+  });
+
+  it("agents: a task without wave has no color", () => {
+    renderAt("/controle", {
+      ...data,
+      sprints: data.sprints.map((x) =>
+        x.id === s02?.id
+          ? { ...x, tasks: x.tasks.map((t) => (t.id === "T03" ? { ...t, wave: undefined } : t)) }
+          : x,
+      ),
+    });
+    expect(clone1().getByText("T03").closest("[data-wave]")).toBeNull();
   });
 
   it("consumo: sprint US$, % of 5 h and week, and tokens by kind", () => {
@@ -251,9 +337,9 @@ describe("Control (Sala de controle)", () => {
       .closest("li");
     expect(li?.textContent).toContain(formatPct(a3?.pct5h ?? 0));
     expect(li?.textContent).toContain(formatPct(a3?.pctWeek ?? 0));
-    expect(within(li as HTMLElement).getByText("Cache lido").nextElementSibling?.textContent).toBe(
-      formatTokens(a3?.cacheRead ?? 0),
-    );
+    expect(
+      within(li as HTMLElement).getByText("Cache lido").nextElementSibling?.firstChild?.textContent,
+    ).toBe(formatTokens(a3?.cacheRead ?? 0));
     cleanup();
     renderAt("/controle", {
       ...data,

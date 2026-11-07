@@ -826,17 +826,25 @@
   border-color: var(--muted);
 }
 
-.agents details > summary {
+.agents > li {
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr);
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  list-style: none;
+  gap: 6px;
 }
 
-.agents details > summary::-webkit-details-marker {
-  display: none;
+.agHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Share of the sprint spend: the meter takes the row, the % sits at its end. */
+.agShare {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 .agents li[data-off] .av {
@@ -849,11 +857,23 @@
   font-size: 12px;
 }
 
+/* Task chips: tinted with the task's wave color; no wave = neutral. */
 .agentTasks {
-  margin: 6px 0 4px 42px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 13px;
+  font-size: 12px;
+}
+
+.agentTasks li {
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--wc, var(--line));
+  background: color-mix(in srgb, var(--wc, var(--muted)) 16%, transparent);
+  font-variant-numeric: tabular-nums;
 }
 
 .av {

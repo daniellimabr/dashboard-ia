@@ -12,11 +12,12 @@ import {
   TaskTable,
   Tip,
   type Pause,
+  waveSlot,
 } from "../components/ui";
 import { Kinds } from "../components/Consumption";
 import type { Agent, Project, Sprint, Task } from "../data/types";
 import { formatTokens, formatUsd } from "../lib/format";
-import { costLine } from "../lib/pct";
+import { costLine, formatPct } from "../lib/pct";
 import { resetLabel } from "../lib/limits";
 import { agentLabel, currentWave, sprintPct, taskStatus } from "../lib/progress";
 import { runningAgents } from "../lib/select";
@@ -131,6 +132,7 @@ function Agents({ agents, tasks, sprint }: { agents: Agent[]; tasks: Task[]; spr
     .map((a) => ({ a, state: agentState(a, tasks, sprint) }))
     .sort((x, y) => RANK[x.state] - RANK[y.state]);
   const shown = all ? rows : rows.slice(0, fit);
+  const total = agents.reduce((n, x) => n + (x.tokens ?? 0), 0);
   const working = rows.filter((r) => r.state === "work").length;
   return (
     <Panel
@@ -165,40 +167,54 @@ function Agents({ agents, tasks, sprint }: { agents: Agent[]; tasks: Task[]; spr
         {shown.map(({ a, state }) => {
           const [label, tone] = AGENT_STATE[state];
           const mine = agentTasks(a, tasks, agents);
+          const chips = tasks.flatMap((t) => {
+            const p = t.participants?.find((x) => x.agent === a.kind);
+            if (!t.participants) return mine.includes(t) ? [{ t, n: 1 }] : [];
+            return p && (a.kind !== "clone" || !t.agentId || t.agentId === a.id)
+              ? [{ t, n: p.passes }]
+              : [];
+          });
+          const c = a.consumption;
+          const share = a.tokens === undefined || !total ? undefined : (a.tokens / total) * 100;
           return (
             <li key={a.id} data-off={a.endedAt ? true : undefined}>
-              <details>
-                <summary>
-                  <span className={s.av}>{agentLabel(a.kind, a.name)}</span>
-                  <span>
-                    {a.name} <Pill tone={tone}>{label}</Pill>
-                    <small className={s.muted}>
-                      {a.usd === undefined ? "custo sem dado" : formatUsd(a.usd)} ·{" "}
-                      {a.tokens === undefined
-                        ? "tokens sem dado"
-                        : `${formatTokens(a.tokens)} tokens`}
-                    </small>
-                    <small className={s.muted}>{costLine(a.consumption)}</small>
-                    <Kinds c={a.consumption} />
-                  </span>
-                </summary>
-                {mine.length ? (
-                  <ul className={s.agentTasks}>
-                    {mine.map((t) => (
-                      <li key={t.id}>
-                        <b>{t.id}</b> {t.title}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className={s.muted}>
-                    {a.doing ??
-                      (a.kind === "clone"
-                        ? "Tarefa não informada pelo harness"
-                        : "Sem tarefa nesta sprint.")}
-                  </p>
-                )}
-              </details>
+              <div className={s.agHead}>
+                <span className={s.av}>{agentLabel(a.kind, a.name)}</span>
+                <b>{a.name}</b> <Pill tone={tone}>{label}</Pill>
+              </div>
+              <div className={s.agShare}>
+                <Meter
+                  label="Parte do gasto da sprint"
+                  pct={share === undefined ? undefined : Math.round(share)}
+                />
+                <span>{share === undefined ? "—" : formatPct(share)}</span>
+              </div>
+              <Kinds c={c} usd={a.costByKind} costs />
+              <small className={s.muted}>
+                Σ {a.tokens === undefined ? "tokens sem dado" : `${formatTokens(a.tokens)} tokens`}
+                {" · "}
+                {a.usd === undefined ? "custo sem dado" : formatUsd(a.usd)} ·{" "}
+                {c
+                  ? `${formatPct(c.pct5h)} das 5 h · ${formatPct(c.pctWeek)} da semana`
+                  : "5 h e semana —"}
+              </small>
+              {chips.length > 0 && (
+                <ul className={s.agentTasks}>
+                  {chips.map(({ t, n }) => (
+                    <li key={t.id} data-wave={waveSlot(t.wave)} title={t.title}>
+                      {n > 1 ? `${t.id} ×${n}` : t.id}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {!mine.length && (
+                <p className={s.muted}>
+                  {a.doing ??
+                    (a.kind === "clone"
+                      ? "Tarefa não informada pelo harness"
+                      : "Sem tarefa nesta sprint.")}
+                </p>
+              )}
             </li>
           );
         })}
