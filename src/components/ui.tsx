@@ -1,8 +1,6 @@
 import { useId, type CSSProperties, type ReactNode } from "react";
 import { STEPS, type Data, type Sprint, type Task, type Tone } from "../data/types";
-import { costLine } from "../lib/pct";
 import { agentLabel, taskPct, taskStatus } from "../lib/progress";
-import { Kinds } from "./Consumption";
 import { useData } from "../lib/useData";
 import { durationMs, formatDate, formatDateTime, formatDuration, formatTime } from "../lib/time";
 import { useNow } from "../lib/useNow";
@@ -423,6 +421,8 @@ function Duration({ t, now }: { t: Task; now: number }) {
   );
 }
 
+const KIND_NAME = { "tech-lead": "Tech Lead", clone: "Clone", reviewer: "Reviewer" } as const;
+
 export function TaskTable({ tasks, start }: { tasks: Task[]; start?: string }) {
   const now = useNow();
   const agentOf = useTaskAgent();
@@ -444,7 +444,7 @@ export function TaskTable({ tasks, start }: { tasks: Task[]; start?: string }) {
             <th>Fim previsto</th>
             <th>Duração</th>
             <th>Progresso</th>
-            <th>Consumo</th>
+            <th>Participaram</th>
           </tr>
         </thead>
         {waves.map((w) => {
@@ -507,11 +507,15 @@ export function TaskTable({ tasks, start }: { tasks: Task[]; start?: string }) {
                         showValue
                       />
                     </td>
-                    <td className={s.cons}>
-                      <small className={t.consumption ? undefined : s.muted}>
-                        {costLine(t.consumption)}
-                      </small>
-                      <Kinds c={t.consumption} />
+                    <td>
+                      {t.participants?.length
+                        ? t.participants.map((p) => (
+                            <span key={p.agent} className={s.part} title={KIND_NAME[p.agent]}>
+                              <span className={s.av}>{agentLabel(p.agent)}</span>
+                              {p.passes > 1 && <small>×{p.passes}</small>}
+                            </span>
+                          ))
+                        : "—"}
                     </td>
                   </tr>
                 );

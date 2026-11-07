@@ -352,7 +352,7 @@ describe("Control (Sala de controle)", () => {
     expect(none?.nextElementSibling?.textContent).toBe("—");
   });
 
-  it("task list: Consumo column with US$, % and kinds; none = —", () => {
+  it("task list: Participaram column with agent icons and ×N; none = —; no spend", () => {
     const c = {
       input: 1_000,
       output: 2_000,
@@ -368,21 +368,32 @@ describe("Control (Sala de controle)", () => {
         x.id === s02?.id
           ? {
               ...x,
-              tasks: x.tasks.map((t) => ({ ...t, consumption: t.id === "T01" ? c : undefined })),
+              tasks: x.tasks.map((t) => ({
+                ...t,
+                consumption: c,
+                participants:
+                  t.id === "T01"
+                    ? [
+                        { agent: "clone" as const, passes: 2 },
+                        { agent: "reviewer" as const, passes: 1 },
+                      ]
+                    : undefined,
+              })),
             }
           : x,
       ),
     });
     const r = region(/Tarefas da sprint/);
-    expect(r.getByRole("columnheader", { name: "Consumo" })).toBeTruthy();
+    expect(r.queryByRole("columnheader", { name: "Consumo" })).toBeNull();
+    expect(r.getByRole("columnheader", { name: "Participaram" })).toBeTruthy();
     const row = (id: string) =>
-      r.getAllByRole("row").find((x) => x.querySelector("b")?.textContent === id);
-    expect(row("T01")?.textContent).toContain(`${formatUsd(1.5)} · 5% das 5 h · 0,7% da semana`);
-    const cell = (id: string) => within(row(id) as HTMLElement);
-    expect(cell("T01").getByText("Cache escrito").nextElementSibling?.textContent).toBe(
-      formatTokens(4_000),
-    );
-    expect(cell("T02").getByText("Entrada").nextElementSibling?.textContent).toBe("—");
+      r.getAllByRole("row").find((x) => x.querySelector("b")?.textContent === id) as HTMLElement;
+    const t01 = within(row("T01"));
+    expect(t01.getByTitle("Clone").textContent).toContain("×2");
+    expect(t01.getByTitle("Reviewer").textContent).toBe("RV");
+    expect(within(row("T02")).queryByTitle("Reviewer")).toBeNull();
+    expect(row("T02").lastElementChild?.textContent).toBe("—");
+    expect(r.queryByText(/US\$|das 5 h|Cache escrito/)).toBeNull();
   });
 
   it("consumo: axis title and tooltip with spend and tokens", () => {

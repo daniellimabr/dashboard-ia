@@ -520,11 +520,14 @@
 .table td:first-child {
   white-space: normal;
   min-width: 200px;
-  max-width: 440px; /* long titles wrap instead of squeezing the Consumo column */
+  max-width: 440px; /* long titles wrap instead of squeezing the other columns */
 }
 
-.cons {
-  min-width: 270px;
+.part {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-right: 8px;
 }
 
 .table tbody[data-wave] td:first-child {
