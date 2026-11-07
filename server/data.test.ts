@@ -607,5 +607,11 @@ describe("cost by token kind and task participants", () => {
       (k?.input ?? 0) + (k?.output ?? 0) + (k?.cacheRead ?? 0) + (k?.cacheWrite ?? 0),
     ).toBeCloseTo(a?.usd ?? -1, 9);
     expect(tasks()[0]?.participants).toEqual([{ agent: "tech-lead", passes: 1 }]);
+    const sp = buildData(db, NOW).sprints[0];
+    const sk = sp?.costByKind;
+    expect(sk?.input).toBeCloseTo(6, 6);
+    expect(
+      (sk?.input ?? 0) + (sk?.output ?? 0) + (sk?.cacheRead ?? 0) + (sk?.cacheWrite ?? 0),
+    ).toBeCloseTo(sp?.consumption?.usd ?? -1, 9);
   });
 });

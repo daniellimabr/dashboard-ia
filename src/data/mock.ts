@@ -367,6 +367,7 @@ const sprints: Sprint[] = [
     plannedMin: 220,
     usd: 3.1,
     consumption: cons(24_000, 150_000, 4_300_000, 545_000, 3.1),
+    costByKind: { input: 0.1, output: 1.4, cacheRead: 0.9, cacheWrite: 0.7 },
     waits: [
       { kind: "reply", start: at(13, 58), end: at(14, 6) },
       { kind: "limit", start: at(14, 22), end: at(14, 37) },

@@ -116,10 +116,50 @@ function useFit(ref: RefObject<HTMLUListElement | null>, count: number) {
   return fit;
 }
 
+const KIND_NAME = { "tech-lead": "Tech Lead", clone: "Clone", reviewer: "Reviewer" } as const;
+
+/** Sum of the defined values only; none defined = undefined (no data, never zero). */
+function sumDefined<T extends object>(xs: (T | undefined)[]): T | undefined {
+  const d = xs.filter((x): x is T => x !== undefined);
+  return d.reduce<T | undefined>((a, b) => {
+    if (!a) return { ...b };
+    const o = { ...a } as Record<string, number>;
+    for (const [k, v] of Object.entries(b)) o[k] = (o[k] ?? 0) + (v as number);
+    return o as T;
+  }, undefined);
+}
+
+/** One row per role: the members' numbers summed; active if any member works, else the latest member's state. */
+function groupAgents(agents: Agent[], tasks: Task[], sprint?: Sprint) {
+  return (["tech-lead", "clone", "reviewer"] as const).flatMap((kind) => {
+    const members = agents.filter((a) => a.kind === kind);
+    const first = members[0];
+    if (!first) return [];
+    const states = members.map((m) => ({ m, st: agentState(m, tasks, sprint) }));
+    const latest = states.reduce((x, y) => (y.m.startedAt > x.m.startedAt ? y : x));
+    const state = states.some((x) => x.st === "work") ? "work" : latest.st;
+    const num = (f: (a: Agent) => number | undefined) => {
+      const d = members.map(f).filter((v): v is number => v !== undefined);
+      return d.length ? d.reduce((x, y) => x + y) : undefined;
+    };
+    const a: Agent = {
+      ...latest.m,
+      name: members.length > 1 ? `${KIND_NAME[kind]} ×${members.length}` : first.name,
+      tokens: num((x) => x.tokens),
+      usd: num((x) => x.usd),
+      consumption: sumDefined(members.map((x) => x.consumption)),
+      costByKind: sumDefined(members.map((x) => x.costByKind)),
+      endedAt: state === "off" ? latest.m.endedAt : undefined,
+    };
+    return [{ a, state, members, working: states.filter((x) => x.st === "work").length }];
+  });
+}
+
 function Agents({ agents, tasks, sprint }: { agents: Agent[]; tasks: Task[]; sprint?: Sprint }) {
   const [all, setAll] = useState(false);
   const list = useRef<HTMLUListElement>(null);
-  const fit = useFit(list, agents.length);
+  const groups = groupAgents(agents, tasks, sprint);
+  const fit = useFit(list, groups.length);
   if (!agents.length)
     return (
       <Panel title="Agentes">
@@ -128,19 +168,17 @@ function Agents({ agents, tasks, sprint }: { agents: Agent[]; tasks: Task[]; spr
         </Empty>
       </Panel>
     );
-  const rows = agents
-    .map((a) => ({ a, state: agentState(a, tasks, sprint) }))
-    .sort((x, y) => RANK[x.state] - RANK[y.state]);
+  const rows = groups.sort((x, y) => RANK[x.state] - RANK[y.state]);
   const shown = all ? rows : rows.slice(0, fit);
   const total = agents.reduce((n, x) => n + (x.tokens ?? 0), 0);
-  const working = rows.filter((r) => r.state === "work").length;
+  const working = rows.reduce((n, r) => n + r.working, 0); // real instances, not rows
   return (
     <Panel
       title="Agentes"
       aside={
         <span className={s.row}>
           <span className={s.muted}>
-            {working}/{rows.length} ativos
+            {working}/{agents.length} ativos
           </span>
           {(all || rows.length > fit) && (
             <button
@@ -164,15 +202,13 @@ function Agents({ agents, tasks, sprint }: { agents: Agent[]; tasks: Task[]; spr
       }
     >
       <ul className={s.agents} ref={list} data-all={all || undefined}>
-        {shown.map(({ a, state }) => {
+        {shown.map(({ a, state, members }) => {
           const [label, tone] = AGENT_STATE[state];
-          const mine = agentTasks(a, tasks, agents);
+          const mine = [...new Set(members.flatMap((m) => agentTasks(m, tasks, agents)))];
           const chips = tasks.flatMap((t) => {
             const p = t.participants?.find((x) => x.agent === a.kind);
             if (!t.participants) return mine.includes(t) ? [{ t, n: 1 }] : [];
-            return p && (a.kind !== "clone" || !t.agentId || t.agentId === a.id)
-              ? [{ t, n: p.passes }]
-              : [];
+            return p ? [{ t, n: p.passes }] : [];
           });
           const c = a.consumption;
           const share = a.tokens === undefined || !total ? undefined : (a.tokens / total) * 100;
@@ -361,7 +397,7 @@ function ControlRoom({ project: p }: { project: Project }) {
           </div>
           <Spend days={days} />
           <span className={s.muted}>Sprint: {costLine(sprint?.consumption)}</span>
-          <Kinds c={sprint?.consumption} />
+          <Kinds c={sprint?.consumption} usd={sprint?.costByKind} costs />
         </Panel>
         <Panel
           title="Tarefas da sprint"

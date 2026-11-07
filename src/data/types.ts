@@ -98,6 +98,7 @@ export interface Sprint {
   plannedMin?: number;
   usd?: number;
   consumption?: Consumption; // usage in the sprint window; missing = none
+  costByKind?: TokenKinds; // US$ by token kind in the window; sums to consumption.usd
   byModel?: ModelUsage[]; // missing = no consumption in the sprint window
   waits?: Wait[]; // missing = "sem dado"; [] = no waits
   tasks: Task[];

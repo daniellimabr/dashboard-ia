@@ -444,6 +444,7 @@ export function buildData(db: Db, now = Date.now()): Data {
         n(r.planned_min),
       usd: used ? Number(used.usd) : undefined,
       consumption: consumption(used),
+      costByKind: costByKind(used),
       byModel: byModel(r),
       waits: sprintWaits(r),
       tasks: list,

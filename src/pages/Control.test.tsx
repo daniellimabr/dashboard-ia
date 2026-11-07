@@ -110,8 +110,8 @@ describe("Control (Sala de controle)", () => {
       expect(agentRows(r).length).toBe(2);
       expect(agentRows(r)[0]?.textContent).toContain("aguardando teste");
       await userEvent.click(r.getByRole("button", { name: "Mostrar todos os agentes" }));
-      expect(agentRows(r).length).toBe(5);
-      expect(r.getByText(/1,35/).textContent).toMatch(/tokens/);
+      expect(agentRows(r).length).toBe(3); // one row per role
+      expect(r.getByText(/2,75/).textContent).toMatch(/tokens/); // Clone ×2 = 1,35 + 1,40
       await userEvent.click(r.getByRole("button", { name: "Mostrar menos" }));
       expect(agentRows(r).length).toBe(2);
       expect(screen.getAllByRole("region", { name: /Andamento/ })[0]?.textContent).toContain("Fim");
@@ -124,7 +124,7 @@ describe("Control (Sala de controle)", () => {
     renderAt("/controle"); // no layout = no limit
     await pick(/Main Harness/);
     const r = region(/Agentes/);
-    expect(agentRows(r).length).toBe(5);
+    expect(agentRows(r).length).toBe(3);
     expect(r.queryByRole("button", { name: /Mostrar/ })).toBeNull();
   });
 
@@ -197,18 +197,19 @@ describe("Control (Sala de controle)", () => {
           : c,
       ),
     });
-    const row = () => screen.getByText("Clone 3").closest("li");
+    const row = () => screen.getByText("Clone ×2").closest("li");
 
     it("shows the running task planned for clones that no other agent took", () => {
-      renderAt("/controle", withAgents(["a3"])); // T03 is a3's; T04 is free
+      renderAt("/controle", withAgents(["a3"])); // T03 is a3's; T04 is free for the task-less clone
+      expect(row()?.textContent).toContain("T03");
       expect(row()?.textContent).toContain("T04");
-      expect(row()?.textContent).not.toContain("T03");
     });
 
-    it("says the harness did not inform the task when there is no candidate", () => {
+    it("the role row has no 'task not informed' text when its other clone has tasks", () => {
       renderAt("/controle", withAgents(["a3", "a4"]));
-      expect(row()?.textContent).toContain("Tarefa não informada pelo harness");
-      expect(screen.queryByText("Sem tarefa nesta sprint.")).toBeNull();
+      expect(screen.getByText("Clone ×3").closest("li")?.textContent).not.toContain(
+        "Tarefa não informada pelo harness",
+      );
     });
   });
 
@@ -222,18 +223,19 @@ describe("Control (Sala de controle)", () => {
   const clone1 = () =>
     within(
       region(/Agentes/)
-        .getByText("Clone 1")
+        .getByText("Clone ×2")
         .closest("li") as HTMLElement,
     );
   const a3 = data.chats.flatMap((c) => c.agents).find((a) => a.id === "a3");
+  const a4 = data.chats.flatMap((c) => c.agents).find((a) => a.id === "a4");
 
-  it("agents: share bar of the sprint spend, by the agent's tokens, with its %", () => {
+  it("agents: share bar of the sprint spend, by the role group's tokens, with its %", () => {
     renderAt("/controle");
     const all = data.chats
       .flatMap((c) => c.agents)
       .filter((a) => ["a1", "a2", "a3", "a4"].includes(a.id));
     const total = all.reduce((n, a) => n + (a.tokens ?? 0), 0);
-    const share = ((a3?.tokens ?? 0) / total) * 100;
+    const share = (((a3?.tokens ?? 0) + (a4?.tokens ?? 0)) / total) * 100;
     const bar = clone1().getByRole("meter", { name: "Parte do gasto da sprint" });
     expect(bar.getAttribute("aria-valuenow")).toBe(String(Math.round(share)));
     expect(clone1().getByText(formatPct(share))).toBeTruthy();
@@ -251,9 +253,11 @@ describe("Control (Sala de controle)", () => {
         .map((t) => t.textContent),
     ).toEqual(["Entrada", "Saída", "Cache lido", "Cache escrito"]);
     const dd = within(dl).getByText("Cache lido").nextElementSibling as HTMLElement;
-    expect(dd.firstChild?.textContent).toBe(formatTokens(a3?.consumption?.cacheRead ?? 0));
+    expect(dd.firstChild?.textContent).toBe(
+      formatTokens((a3?.consumption?.cacheRead ?? 0) + (a4?.consumption?.cacheRead ?? 0)),
+    );
     expect(dd.querySelector("small")?.textContent).toBe(
-      `(${formatUsd(a3?.costByKind?.cacheRead ?? 0)})`,
+      `(${formatUsd((a3?.costByKind?.cacheRead ?? 0) + (a4?.costByKind?.cacheRead ?? 0))})`,
     );
   });
 
@@ -274,12 +278,64 @@ describe("Control (Sala de controle)", () => {
     ).toBe("(US$ <0,01)");
     const other = within(
       region(/Agentes/)
-        .getByText("Clone 2")
+        .getByText("Tech Lead")
         .closest("li") as HTMLElement,
     );
     expect(other.getByText("Saída").nextElementSibling?.querySelector("small")?.textContent).toBe(
       "(—)",
     );
+  });
+
+  it("consumption card: the sprint's 4 kinds show their US$, summing to the sprint cost", () => {
+    renderAt("/controle");
+    const card = region(/Consumo/);
+    const costs = card.getAllByText(/^\(US\$/).map((e) => e.textContent);
+    expect(costs).toEqual([0.1, 1.4, 0.9, 0.7].map((v) => `(${formatUsd(v)})`));
+  });
+
+  it("agents: 3 clones + 3 reviewers become 2 rows with ×3 and summed numbers; one instance has no ×", () => {
+    const c = (i: number) => ({
+      input: i,
+      output: i,
+      cacheRead: i,
+      cacheWrite: i,
+      usd: i,
+      pct5h: i,
+      pctWeek: i,
+    });
+    const mk = (kind: "clone" | "reviewer", i: number) => ({
+      id: `${kind}${i}`,
+      kind,
+      name: `${kind} ${i}`,
+      startedAt: "2026-10-15T10:00:00Z",
+      endedAt: "2026-10-15T10:30:00Z",
+      tokens: i * 1000,
+      usd: i,
+      consumption: c(i),
+      costByKind: { input: i, output: i, cacheRead: i, cacheWrite: i },
+    });
+    renderAt("/controle", {
+      ...data,
+      chats: data.chats.map((x) =>
+        x.id === "c-dash-2"
+          ? {
+              ...x,
+              agents: [1, 2, 3].flatMap((i) => [mk("clone", i), mk("reviewer", i)]),
+            }
+          : x,
+      ),
+    });
+    const r = region(/Agentes/);
+    const rows = agentRows(r);
+    expect(rows.length).toBe(2);
+    expect(rows[0]?.textContent).toContain("Clone ×3");
+    expect(rows[1]?.textContent).toContain("Reviewer ×3");
+    expect(rows[0]?.textContent).toContain(`${formatTokens(6000)} tokens · ${formatUsd(6)}`);
+    expect(r.getByText("0/6 ativos")).toBeTruthy();
+    cleanup();
+    renderAt("/controle");
+    expect(region(/Agentes/).getByText("Tech Lead")).toBeTruthy(); // single instance: no ×
+    expect(region(/Agentes/).queryByText(/Tech Lead ×/)).toBeNull();
   });
 
   it("agents: task chips with ×N only above 1, in the wave color of the task", () => {
@@ -312,7 +368,7 @@ describe("Control (Sala de controle)", () => {
     expect(line).toContain(formatUsd(c?.usd ?? 0));
     expect(line).toContain(`${formatPct(c?.pct5h ?? 0)} das 5 h`);
     expect(line).toContain(`${formatPct(c?.pctWeek ?? 0)} da semana`);
-    const dd = (dt: string) => r.getByText(dt).nextElementSibling?.textContent;
+    const dd = (dt: string) => r.getByText(dt).nextElementSibling?.firstChild?.textContent;
     expect(dd("Entrada")).toBe(formatTokens(c?.input ?? 0));
     expect(dd("Saída")).toBe(formatTokens(c?.output ?? 0));
     expect(dd("Cache lido")).toBe(formatTokens(c?.cacheRead ?? 0));
@@ -331,15 +387,16 @@ describe("Control (Sala de controle)", () => {
 
   it("agents: US$, % and tokens by kind per agent; none = —", () => {
     renderAt("/controle");
-    const a3 = data.chats.flatMap((c) => c.agents).find((a) => a.id === "a3")?.consumption;
+    const c3 = a3?.consumption;
+    const c4 = a4?.consumption;
     const li = region(/Agentes/)
-      .getByText("Clone 1")
+      .getByText("Clone ×2")
       .closest("li");
-    expect(li?.textContent).toContain(formatPct(a3?.pct5h ?? 0));
-    expect(li?.textContent).toContain(formatPct(a3?.pctWeek ?? 0));
+    expect(li?.textContent).toContain(formatPct((c3?.pct5h ?? 0) + (c4?.pct5h ?? 0)));
+    expect(li?.textContent).toContain(formatPct((c3?.pctWeek ?? 0) + (c4?.pctWeek ?? 0)));
     expect(
       within(li as HTMLElement).getByText("Cache lido").nextElementSibling?.firstChild?.textContent,
-    ).toBe(formatTokens(a3?.cacheRead ?? 0));
+    ).toBe(formatTokens((c3?.cacheRead ?? 0) + (c4?.cacheRead ?? 0)));
     cleanup();
     renderAt("/controle", {
       ...data,

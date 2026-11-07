@@ -34,8 +34,13 @@
   white-space: nowrap;
 }
 
+.kinds > div {
+  min-width: 0;
+}
+
 .kinds dd small {
-  display: inline;
+  display: block;
+  overflow-wrap: anywhere;
   font-size: 10px;
   color: var(--muted);
 }
