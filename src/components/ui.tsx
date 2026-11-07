@@ -507,7 +507,7 @@ export function TaskTable({ tasks, start }: { tasks: Task[]; start?: string }) {
                         showValue
                       />
                     </td>
-                    <td>
+                    <td className={s.cons}>
                       <small className={t.consumption ? undefined : s.muted}>
                         {costLine(t.consumption)}
                       </small>

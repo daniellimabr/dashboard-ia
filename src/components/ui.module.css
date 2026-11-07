@@ -520,6 +520,11 @@
 .table td:first-child {
   white-space: normal;
   min-width: 200px;
+  max-width: 440px; /* long titles wrap instead of squeezing the Consumo column */
+}
+
+.cons {
+  min-width: 270px;
 }
 
 .table tbody[data-wave] td:first-child {

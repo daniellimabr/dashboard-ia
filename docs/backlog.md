@@ -4,6 +4,7 @@ Pedidos do projeto. Um item por linha: `- [prioridade] data [status: SNN] — te
 
 ## Itens
 
+- [alta] 2026-11-07 [S14] — Tabela "Tarefas da sprint": com descrições longas (caso do financeiro) a coluna Consumo fica espremida e os rótulos (Entrada/Saída/Cache lido/Cache escrito) se sobrepõem. Dar espaço à coluna (limitar/truncar a descrição, ou rótulos em coluna).
 - [alta] 2026-10-21 [concluído: S07] — Implementar as telas escolhidas nos drafts da S06 (`drafts.html`); apagar `drafts.html` e `src/drafts` ao final:
   - **Sala de controle:** variante B (sprints recentes como abas na janela da sprint, com id + situação).
   - **Chats:** lista (variante B), mas com acabamento bem melhor que o draft.
@@ -23,12 +24,18 @@ Pedidos do projeto. Um item por linha: `- [prioridade] data [status: SNN] — te
 - [alta] 2026-10-16 [concluído: S09] — Redesenho da tela principal: mostrar o máximo de informação de cada projeto; aprofundar o layout (drafts) antes da comunicação com agentes/projetos.
 - [alta] 2026-10-18 [concluído: S05] — Navegação pelos projetos (candidato à S05): entrar em cada projeto (chats, sprints, backlog/roadmap, documentos, consumo) a partir das telas principais e navegar pelos documentos dos projetos por aqui; hoje há só o menu provisório "Projetos" e os links do Bem-vindo.
 - [alta] 2026-10-16 [concluído: S06] — Investigação: a fonte mais confiável para o % do limite da assinatura (5 h e semanal).
-- [média] 2026-10-16 — Link para abrir no VS Code os documentos lidos dos repos (a leitura saiu na S04).
-- [média] 2026-10-16 — Guardar o histórico de chats no SQLite (o Claude Code apaga transcripts antigos).
+- [média] 2026-10-16 [descartado: 2026-10-28] — Link para abrir no VS Code os documentos lidos dos repos (a leitura saiu na S04). Ler no painel basta.
+- [média] 2026-10-16 [planejado: S12] — Guardar o histórico de chats no SQLite (o Claude Code apaga transcripts antigos).
 - [baixa] 2026-10-16 — Ações pelo painel (aprovar sprint, dar retorno, abrir chat).
+- [baixa] 2026-10-28 — Otimizar a estrutura dos documentos (planos, ADRs, PRDs, Release Reports) para leitura na web, no painel.
 - [baixa] 2026-10-16 — Versão online: enviador de eventos + servidor na nuvem + login.
 - [alta] 2026-10-27 [planejado: S11] — (do Main Harness) Modelo por tarefa: mostrar em cada tarefa da sprint o modelo que a executou (Opus, Sonnet, Gemini) e o agente (tech-lead, clone, gemini, reviewer). Fonte: campo `model` nos eventos `task.*` (harness v0.10.0, S11; ver `docs/contracts/events.md` do harness) e `worker.start/end`.
 - [alta] 2026-10-27 [planejado: S11] — (do Main Harness) Tokens por modelo em cada sprint: entrada, saída, cache e US$ estimado por modelo, com o Gemini à parte ("fora do Claude", US$ 0). Fonte: eventos `usage` (já trazem `model`, sprint e tarefa).
+
+- [alta] 2026-11-04 [planejado: S13] — Bug: perto do limite semanal o painel trava antes de 100%; depois que o limite volta mostra ~150%. Estimar pelo gasto desde o último valor e desde o reset; recalibrar (5 h ≈ US$ 30, semana ≈ US$ 227).
+- [alta] 2026-11-04 [planejado: S13] — Consumo em %, US$ e tokens por tipo (entrada, saída, cache lido, cache escrito) por sprint, tarefa e agente, na Sala de controle e na tela Consumo, com acordeão "Por sprint".
+- [alta] 2026-11-07 [planejado: S14] — Projeto financeiro no painel: tarefas só aparecem quando começam, consumo não contabilizado, "Plano no tempo" vazio e "Andamento" sem informação (leitor de plano não entende o formato do financeiro; tarefas do Tech Lead sem consumo).
+- [média] 2026-11-05 [planejado: S14] — Aviso no painel quando o servidor em execução é mais velho que o último commit (retro S13).
 
 ## Pedidos ao harness (inbox do Main Harness)
 
