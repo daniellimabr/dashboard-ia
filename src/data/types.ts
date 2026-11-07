@@ -18,6 +18,7 @@ export interface Consumption extends TokenKinds {
 
 export interface Agent {
   consumption?: Consumption; // missing = no usage read
+  costByKind?: TokenKinds; // US$ of each token kind (volume x model price); the four sum to usd
   id: string;
   kind: AgentKind;
   name: string; // "Tech Lead", "Clone 1", "Reviewer"
@@ -51,6 +52,8 @@ export interface Task {
   plan?: TaskPlan;
   wave?: number; // 1-based
   agentId?: string; // Agent.id that worked on it, when the events say
+  /** Who took part and how many passes each made (task.start or reopening; a Reviewer's review). [] = no agent event. */
+  participants?: { agent: AgentKind; passes: number }[];
   model?: string; // model that ran it, from the task.* / worker.* events
   plannedModel?: string; // model the sprint plan asked for
 }

@@ -32,9 +32,27 @@ const n = (v: unknown) => (v == null ? undefined : Number(v));
 const parse = <T>(v: unknown): T | undefined =>
   v == null ? undefined : (JSON.parse(String(v)) as T);
 
+/** SQL: US$ of one token column of usage row `u` at the model's price column (longest-prefix price; none = 0). */
+const kindUsd = (tokens: string, price: string) =>
+  `coalesce((SELECT coalesce(u.${tokens}, 0) * p.${price} / 1e6 FROM price p
+    WHERE substr(u.model, 1, length(p.model)) = p.model ORDER BY length(p.model) DESC LIMIT 1), 0)`;
+
 /** Sums of a `usage` selection (alias u): row count, the four token kinds and US$. */
 const KINDS_SQL = `count(*) n, sum(coalesce(u.tokens_in, 0)) input, sum(coalesce(u.tokens_out, 0)) output,
-  sum(coalesce(u.cache_read, 0)) cacheRead, sum(coalesce(u.cache_write, 0)) cacheWrite, sum(${USD_SQL}) usd`;
+  sum(coalesce(u.cache_read, 0)) cacheRead, sum(coalesce(u.cache_write, 0)) cacheWrite, sum(${USD_SQL}) usd,
+  sum(${kindUsd("tokens_in", "in_per_mtok")}) usdIn, sum(${kindUsd("tokens_out", "out_per_mtok")}) usdOut,
+  sum(${kindUsd("cache_read", "cache_read_per_mtok")}) usdCacheRead, sum(${kindUsd("cache_write", "cache_write_per_mtok")}) usdCacheWrite`;
+
+/** A KINDS_SQL row's US$ by token kind; same price lookup as USD_SQL, so the four sum to usd. */
+const costByKind = (r?: Row): Agent["costByKind"] =>
+  r && Number(r.n)
+    ? {
+        input: Number(r.usdIn),
+        output: Number(r.usdOut),
+        cacheRead: Number(r.usdCacheRead),
+        cacheWrite: Number(r.usdCacheWrite),
+      }
+    : undefined;
 
 /** A KINDS_SQL row as Consumption; no usage row = undefined, not zeros. */
 const consumption = (r?: Row): Consumption | undefined =>
@@ -62,6 +80,7 @@ const toTask = (r: Row, consumed: (r: Row) => Consumption | undefined): Task => 
   steps: n(r.steps),
   wave: n(r.wave),
   agentId: s(r.agent_id),
+  participants: parse<NonNullable<Task["participants"]>>(r.participants) ?? [],
   model: s(r.model),
   plan:
     r.plan_start == null
@@ -289,6 +308,33 @@ export function buildData(db: Db, now = Date.now()): Data {
   ))
     taskAgent.set(`${e.p}/${e.scope}/${e.task}`, String(e.agent));
   for (const t of tasks) t.agent_id = taskAgent.get(`${t.project_id}/${t.scope}/${t.id}`) ?? null;
+  // Passes per task and agent kind: a task.start, the first task.phase after a failed review (reopening), or a review.result (Reviewer).
+  const passes = new Map<string, Map<string, number>>();
+  const failed = new Set<string>();
+  for (const e of all(
+    `SELECT project_id p, coalesce(json_extract(body, '$.sprint'), 'chat:' || chat_id) scope, json_extract(body, '$.task') task,
+       json_extract(body, '$.agent') agent, type, json_extract(body, '$.data.result') result
+     FROM event WHERE type IN ('task.start', 'task.phase', 'review.result') AND json_extract(body, '$.task') IS NOT NULL
+       AND json_extract(body, '$.agent') IS NOT NULL ORDER BY at, rowid`,
+  )) {
+    const key = `${e.p}/${e.scope}/${e.task}`;
+    const a = String(e.agent);
+    const kind = a === "tech-lead" ? a : a.split(":").at(-1) === "reviewer" ? "reviewer" : "clone";
+    const reopen = e.type === "task.phase" && failed.delete(key);
+    if (e.type === "review.result" && e.result === "fail") failed.add(key);
+    if (e.type === "task.start") failed.delete(key);
+    if (e.type === "task.phase" && !reopen) continue;
+    const m = passes.get(key) ?? new Map<string, number>();
+    m.set(kind, (m.get(kind) ?? 0) + 1);
+    passes.set(key, m);
+  }
+  for (const t of tasks)
+    t.participants = JSON.stringify(
+      [...(passes.get(`${t.project_id}/${t.scope}/${t.id}`) ?? [])].map(([agent, n]) => ({
+        agent,
+        passes: n,
+      })),
+    );
   const windowUse = db.prepare(
     `SELECT ${KINDS_SQL} FROM usage u WHERE u.project_id = ? AND julianday(u.at) BETWEEN julianday(?) AND julianday(?)`,
   );
@@ -471,6 +517,7 @@ export function buildData(db: Db, now = Date.now()): Data {
     endedAt: ended(a.ended_at, agentLast.get(String(a.id)) ?? chatLast.get(chatId)),
     tokens: n(agentUse.get(String(a.id))?.tokens),
     usd: n(agentUse.get(String(a.id))?.usd),
+    costByKind: costByKind(agentUse.get(String(a.id))),
     consumption: consumption(agentUse.get(String(a.id))),
   });
   const chats = all("SELECT * FROM chat ORDER BY started_at DESC").map((r) => {
@@ -498,6 +545,7 @@ export function buildData(db: Db, now = Date.now()): Data {
         ),
         tokens: n(idUse.get(id)?.tokens),
         usd: n(idUse.get(id)?.usd),
+        costByKind: costByKind(idUse.get(id)),
         consumption: consumption(idUse.get(id)),
       };
     });

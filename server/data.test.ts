@@ -542,3 +542,70 @@ describe("real per-agent spend, task agent and waits from the transcripts", () =
     expect(d.sprints.find((s) => s.id === "S02")?.waits).toBeUndefined();
   });
 });
+
+describe("cost by token kind and task participants", () => {
+  const NOW = Date.parse("2026-10-18T12:00:00Z");
+  const env = (task: string | null, agent: string | null) => ({
+    session: "c1",
+    sprint: "S01",
+    task,
+    agent,
+  });
+  const open = () =>
+    ev("sprint.open", "2026-10-18T10:00:00Z", { tasks: 2 }, env(null, "tech-lead"));
+  const tasks = () => buildData(db, NOW).sprints[0]?.tasks ?? [];
+
+  it("a reopened clone and a Reviewer with two reviews count one pass per start/reopen/review", () => {
+    open();
+    ev("task.start", "2026-10-18T10:01:00Z", {}, env("T01", "main-harness:executor"));
+    ev("review.result", "2026-10-18T10:10:00Z", { result: "fail" }, env("T01", "reviewer"));
+    ev(
+      "task.phase",
+      "2026-10-18T10:11:00Z",
+      { phase: "código" },
+      env("T01", "main-harness:executor"),
+    );
+    ev(
+      "task.phase",
+      "2026-10-18T10:12:00Z",
+      { phase: "lint" },
+      env("T01", "main-harness:executor"),
+    );
+    ev("review.result", "2026-10-18T10:20:00Z", { result: "pass" }, env("T01", "reviewer"));
+    expect(tasks()[0]?.participants).toEqual([
+      { agent: "clone", passes: 2 },
+      { agent: "reviewer", passes: 2 },
+    ]);
+  });
+
+  it("two task.start of the same clone are two passes; no agent on the event = no participants", () => {
+    open();
+    ev("task.start", "2026-10-18T10:01:00Z", {}, env("T01", "main-harness:executor"));
+    ev("task.start", "2026-10-18T10:30:00Z", {}, env("T01", "main-harness:executor"));
+    ev("task.start", "2026-10-18T10:02:00Z", {}, env("T02", null));
+    expect(tasks().map((t) => t.participants)).toEqual([[{ agent: "clone", passes: 2 }], []]);
+  });
+
+  it("per-kind US$ sums, model by model, to the agent's total; all-tech-lead stays one agent", () => {
+    open();
+    ev("task.start", "2026-10-18T10:01:00Z", {}, env("T01", "tech-lead"));
+    const use = (id: string, model: string) =>
+      db
+        .prepare(
+          "INSERT INTO usage VALUES (?, 'p1', 'c1', NULL, '2026-10-18T11:00:00Z', ?, 1000000, 100000, 3000000, 200000, NULL)",
+        )
+        .run(id, model);
+    use("a", "claude-opus-5-5");
+    use("b", "claude-sonnet-5-5");
+    const agents = buildData(db, NOW).chats[0]?.agents ?? [];
+    expect(agents.map((a) => a.id)).toEqual(["c1:tech-lead"]);
+    const a = agents[0];
+    const k = a?.costByKind;
+    expect(k?.input).toBeCloseTo(6, 6); // 4 + 2
+    expect(k?.cacheRead).toBeCloseTo(1.2, 6); // 0.6 + 0.6
+    expect(
+      (k?.input ?? 0) + (k?.output ?? 0) + (k?.cacheRead ?? 0) + (k?.cacheWrite ?? 0),
+    ).toBeCloseTo(a?.usd ?? -1, 9);
+    expect(tasks()[0]?.participants).toEqual([{ agent: "tech-lead", passes: 1 }]);
+  });
+});

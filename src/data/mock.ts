@@ -206,6 +206,10 @@ const s02Tasks: Task[] = [
     review: "fail",
     agent: "clone",
     steps: 3,
+    participants: [
+      { agent: "clone", passes: 2 },
+      { agent: "reviewer", passes: 1 },
+    ],
     plan: plan(30, 40, ["T01"]),
     wave: 2,
   },
@@ -216,6 +220,7 @@ const s02Tasks: Task[] = [
     startedAt: at(14, 38),
     agent: "clone",
     agentId: "a3",
+    participants: [{ agent: "clone", passes: 1 }],
     steps: 2,
     plan: plan(30, 40, ["T01"]),
     wave: 2,
@@ -456,6 +461,7 @@ const chats: Chat[] = [
         usd: 1.42,
         tokens: 2_310_000,
         consumption: cons(10_000, 60_000, 2_000_000, 240_000, 1.42),
+        costByKind: { input: 0.04, output: 0.6, cacheRead: 0.4, cacheWrite: 0.38 },
       }),
       agent("a2", "reviewer", "Reviewer", at(14, 10), {
         task: "T02",
@@ -464,6 +470,7 @@ const chats: Chat[] = [
         usd: 0.31,
         tokens: 498_000,
         consumption: cons(2_000, 12_000, 450_000, 34_000, 0.31),
+        costByKind: { input: 0.01, output: 0.12, cacheRead: 0.09, cacheWrite: 0.09 },
       }),
       agent("a3", "clone", "Clone 1", at(14, 38), {
         task: "T03",
@@ -471,6 +478,7 @@ const chats: Chat[] = [
         usd: 0.78,
         tokens: 1_270_000,
         consumption: cons(7_000, 50_000, 1_100_000, 113_000, 0.78),
+        costByKind: { input: 0.02, output: 0.3, cacheRead: 0.22, cacheWrite: 0.24 },
       }),
       agent("a4", "clone", "Clone 2", at(14, 41), {
         task: "T04",
@@ -478,6 +486,7 @@ const chats: Chat[] = [
         usd: 0.59,
         tokens: 940_000,
         consumption: cons(5_000, 28_000, 850_000, 57_000, 0.59),
+        costByKind: { input: 0.02, output: 0.2, cacheRead: 0.18, cacheWrite: 0.19 },
       }),
     ],
   },
