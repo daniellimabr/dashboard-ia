@@ -176,6 +176,7 @@ describe("listDocs", () => {
     const docs = listDocs(REPO, "p");
     expect(docs.map((d) => [d.id, d.kind, d.title]).sort()).toEqual([
       ["p:docs/adr/0001-x.md", "adr", "ADR 0001 — Decisão X"],
+      ["p:docs/sprints/S00-hash-plan.md", "sprint-plan", "S00 — Plano em prosa"],
       ["p:docs/sprints/S00-numbered-plan.md", "sprint-plan", "S00 — Ondas numeradas"],
       ["p:docs/sprints/S00-paren-plan.md", "sprint-plan", "S00 — Ondas entre parênteses"],
       ["p:docs/sprints/S00-plan.md", "sprint-plan", "S00 — Ondas em lista"],

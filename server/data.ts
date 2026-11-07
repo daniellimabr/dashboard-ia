@@ -11,6 +11,7 @@ import type {
   Task,
   Wait,
 } from "../src/data/types.ts";
+import { basename } from "node:path";
 import type { Db } from "./db.ts";
 import { listDocs, readDocsFile, readPlan, type Plan } from "./repo.ts";
 import { USD_SQL, usageByDay } from "./usage.ts";
@@ -193,7 +194,7 @@ function eventTexts(rows: Row[]): ProjectEvent[] {
 }
 
 /** phase, alerts and nextStep of a project from its latest sprint and the plans not yet approved (spec 0001 §4.1). */
-type WithRounds = Sprint & { rounds: Record<string, number> };
+type WithRounds = Sprint & { rounds: Record<string, number>; planIssue?: string };
 
 function status(
   sprints: WithRounds[],
@@ -248,6 +249,12 @@ function status(
           };
     }
   }
+  if (last?.planIssue)
+    alerts.push({
+      tone: "warn",
+      title: "Plano fora do padrão do harness",
+      detail: last.planIssue,
+    });
   if (waiting) {
     alerts.push({
       tone: "warn",
@@ -356,6 +363,17 @@ export function buildData(db: Db, now = Date.now()): Data {
     const used = r.started_at
       ? spend(r.project_id, String(r.started_at), s(r.closed_at) ?? iso)
       : undefined;
+    // the reviewer's task has no planned minutes by design
+    const unplanned = plan?.tasks.filter(
+      (t) => t.plannedMin === undefined && !/^reviewer/i.test(t.agent ?? ""),
+    );
+    const planIssue = !plan
+      ? undefined
+      : !plan.tasks.length
+        ? `0 tarefas lidas em ${basename(String(r.plan_path))}`
+        : unplanned?.length
+          ? `${unplanned.length} tarefas sem minutos planejados`
+          : undefined;
     const list = mergePlan(own, plan);
     const doneTasks = own.filter((t) => t.done);
     const delivered =
@@ -383,6 +401,7 @@ export function buildData(db: Db, now = Date.now()): Data {
       byModel: byModel(r),
       waits: sprintWaits(r),
       tasks: list,
+      planIssue,
       rounds: Object.fromEntries(
         tasks
           .filter((t) => t.project_id === r.project_id && t.sprint_id === r.id)
@@ -513,7 +532,7 @@ export function buildData(db: Db, now = Date.now()): Data {
     },
     projects,
     chats,
-    sprints: sprints.map(({ rounds: _, ...x }) => x),
+    sprints: sprints.map(({ rounds: _, planIssue: __, ...x }) => x),
     usage: usageByDay(db, undefined, now),
     docs,
   };

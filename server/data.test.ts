@@ -295,7 +295,51 @@ describe("derived state from harness events and the repo", () => {
     ]);
     expect(p?.whereStopped).toBe("S01: 2 ajustes pedidos");
     expect(p?.backlog).toContain("Backlog");
-    expect(buildData(db, NOW).docs.filter((d) => d.projectId === "dash")).toHaveLength(7);
+    expect(buildData(db, NOW).docs.filter((d) => d.projectId === "dash")).toHaveLength(8);
+  });
+
+  describe("plan outside the harness pattern", () => {
+    const planAlert = () =>
+      dash()?.alerts?.find((a) => a.title === "Plano fora do padrão do harness");
+    const withPlan = (name: string, md?: string) => {
+      fixture();
+      if (md === undefined)
+        return db.exec(`UPDATE sprint SET plan_path = 'docs/sprints/${name}' WHERE id = 'S01'`);
+      const repo = mkdtempSync(join(tmpdir(), "repo-"));
+      mkdirSync(join(repo, "docs", "sprints"), { recursive: true });
+      writeFileSync(join(repo, "docs", "sprints", name), md);
+      db.prepare("UPDATE project SET repo_path = ? WHERE id = 'dash'").run(repo);
+      db.exec(`UPDATE sprint SET plan_path = 'docs/sprints/${name}' WHERE id = 'S01'`);
+    };
+
+    it("warns when the plan has no task table", () => {
+      withPlan("S00-hash-plan.md");
+      expect(planAlert()).toEqual({
+        tone: "warn",
+        title: "Plano fora do padrão do harness",
+        detail: "0 tarefas lidas em S00-hash-plan.md",
+      });
+    });
+
+    it("warns on an empty plan file", () => {
+      withPlan("S54-plan.md", "");
+      expect(planAlert()?.detail).toBe("0 tarefas lidas em S54-plan.md");
+    });
+
+    it("warns about tasks without planned minutes", () => {
+      withPlan(
+        "S54-plan.md",
+        "# S54\n\n## Tarefas\n\n| Id | Tarefa | Agente |\n|---|---|---|\n| T01 | A | clone |\n| T02 | B | clone |\n",
+      );
+      expect(planAlert()?.detail).toBe("2 tarefas sem minutos planejados");
+    });
+
+    it("stays quiet for a missing plan and for a plan in the pattern", () => {
+      withPlan("S99-plan.md");
+      expect(planAlert()).toBeUndefined();
+      fixture();
+      expect(planAlert()).toBeUndefined();
+    });
   });
 
   it("is waiting for Daniel when every task of sprint.open is done", () => {
