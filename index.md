@@ -11,7 +11,9 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `CLAUDE.md` — Dashboard IA
 - `docs/adr/.gitkeep` — (sem descrição)
 - `docs/adr/0001-arquitetura.md` — ADR 0001 — Arquitetura do painel: eventos em arquivo, SQLite local e front React
+- `docs/adr/0002-calibracao-limites.md` — ADR 0002 — Calibração dos limites do Claude: % estimado pelo gasto em US$
 - `docs/backlog.md` — Backlog — Dashboard IA
+- `docs/decisoes-daniel.md` — Decisões de Daniel — Dashboard IA
 - `docs/prd/.gitkeep` — (sem descrição)
 - `docs/roadmap.md` — Roadmap — Dashboard IA
 - `docs/specs/0001-backend-dados-e-api.md` — Spec 0001 — Backend: dados, eventos e API
@@ -31,6 +33,14 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `docs/sprints/S10-plan.md` — S10 — Sala de controle por sprint e mais compacta
 - `docs/sprints/S10-release.md` — S10 — Release Report
 - `docs/sprints/S11-plan.md` — S11 — Agentes e ondas confiáveis, modelo e tokens por modelo
+- `docs/sprints/S12-plan.md` — S12 — Linha do tempo real, ondas certas e histórico guardado
+- `docs/sprints/S12-release.md` — S12 — Release Report
+- `docs/sprints/S13-plan.md` — S13 — Limite sem travar e consumo por tipo, sprint, tarefa e agente
+- `docs/sprints/S13-release.md` — S13 — Release Report
+- `docs/sprints/S14-plan.md` — S14 — Projeto financeiro completo no painel
+- `docs/sprints/S14-release.md` — S14 — Release Report
+- `docs/sprints/S15-plan.md` — S15 — Consumo por agente e participação nas tarefas
+- `docs/sprints/S15-release.md` — S15 — Release Report
 - `eslint.config.mjs` — ESLint flat config installed by the Main Harness (/attach). Zero errors, zero warnings.
 - `index.html` — (sem descrição)
 - `package-lock.json` — (sem descrição)
@@ -38,19 +48,20 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `scripts/dev.ts` — Runs the API server and Vite together; when one exits, stops the other with its exit code.
 - `server/data.test.ts` — @vitest-environment node
 - `server/data.ts` — Builds the front's `Data` (src/data/types.ts) from the database. Rules on top of it stay in the front.
+- `server/db.test.ts` — (sem descrição)
 - `server/db.ts` — SQLite access lives only here (node:sqlite is still experimental; see ADR 0001).
 - `server/events.test.ts` — @vitest-environment node
 - `server/events.ts` — Event importer: harness JSONL files → SQLite (spec 0001 §2, S03 extensions in the spec's §2.4).
 - `server/fixtures/harness-events.jsonl` — (sem descrição)
 - `server/fixtures/repo/docs/adr/0001-x.md` — ADR 0001 — Decisão X
 - `server/fixtures/repo/docs/backlog.md` — Backlog
+- `server/fixtures/repo/docs/sprints/S00-hash-plan.md` — S00 — Plano em prosa
 - `server/fixtures/repo/docs/sprints/S00-numbered-plan.md` — S00 — Ondas numeradas
 - `server/fixtures/repo/docs/sprints/S00-paren-plan.md` — S00 — Ondas entre parênteses
 - `server/fixtures/repo/docs/sprints/S00-plan.md` — S00 — Ondas em lista
 - `server/fixtures/repo/docs/sprints/S01-plan.md` — S01 — Primeira `sprint` de teste
 - `server/fixtures/repo/docs/sprints/S01-release.md` — Release Report S01
 - `server/fixtures/repo/docs/sprints/S02-plan.md` — Plano sem tabela
-- `server/fixtures/repo/docs/sprints/S03-plan.md` — S03 — Ondas em lista
 - `server/fixtures/repo/secret.md` — (sem descrição)
 - `server/fixtures/sprint-chat.jsonl` — (sem descrição)
 - `server/fixtures/transcript.jsonl` — (sem descrição)
@@ -64,9 +75,10 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `server/usage.defensive.test.ts` — @vitest-environment node
 - `server/usage.test.ts` — @vitest-environment node
 - `server/usage.ts` — Claude Code transcripts (~/.claude/projects/**/*.jsonl) -> `usage` rows, plus the `price` table.
-- `server/zz-tmp.test.ts` — (sem descrição)
 - `src/App.test.tsx` — (sem descrição)
 - `src/App.tsx` — (sem descrição)
+- `src/components/Consumption.module.css` — Tokens by kind: four small label/value pairs; numbers align in columns.
+- `src/components/Consumption.tsx` — (sem descrição)
 - `src/components/Layout.module.css` — Direction C frame: sidebar (screens, project items, projects accordion, limits + theme) and main area.
 - `src/components/Layout.test.tsx` — (sem descrição)
 - `src/components/Layout.tsx` — (sem descrição)
@@ -81,8 +93,10 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `src/lib/docsParse.ts` — (sem descrição)
 - `src/lib/limits.test.ts` — (sem descrição)
 - `src/lib/limits.ts` — (sem descrição)
+- `src/lib/pct.ts` — (sem descrição)
 - `src/lib/progress.test.ts` — (sem descrição)
 - `src/lib/progress.ts` — (sem descrição)
+- `src/lib/time.ts` — (sem descrição)
 - `src/lib/useData.tsx` — (sem descrição)
 - `src/lib/useNow.ts` — (sem descrição)
 - `src/lib/useProject.ts` — (sem descrição)
@@ -105,6 +119,7 @@ Uma linha por arquivo: caminho e propósito. Mantido pelo hook `post-edit`.
 - `src/pages/Roadmap.module.css` — (sem descrição)
 - `src/pages/Roadmap.test.tsx` — (sem descrição)
 - `src/pages/Roadmap.tsx` — (sem descrição)
+- `src/pages/Sprints.module.css` — (sem descrição)
 - `src/pages/Sprints.test.tsx` — (sem descrição)
 - `src/pages/Sprints.tsx` — (sem descrição)
 - `src/pages/Timeline.module.css` — Copied from docs/sprints/S02-draft.html (Linha do tempo).
